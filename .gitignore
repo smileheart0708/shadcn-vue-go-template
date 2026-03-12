@@ -27,3 +27,4 @@ nul
 *.exe
 *.exe~
 .env
+.data/
