@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import SectionCards from '@/components/SectionCards.vue'
+import SectionCards from '@/components/dashboard/SectionCards.vue'
 import DataTable from '@/components/DataTable.vue'
 
 const data = [

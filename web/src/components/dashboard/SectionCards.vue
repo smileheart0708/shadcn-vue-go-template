@@ -13,7 +13,7 @@ import {
 </script>
 
 <template>
-  <div class="*:data-[slot=card]: grid grid-cols-1 gap-4 px-4 lg:px-6 @xl/main:grid-cols-2 @5xl/main:grid-cols-4">
+  <div class="grid grid-cols-1 gap-4 px-4 lg:px-6 sm:grid-cols-2 xl:grid-cols-4">
     <Card class="@container/card">
       <CardHeader>
         <CardDescription>Total Revenue</CardDescription>
