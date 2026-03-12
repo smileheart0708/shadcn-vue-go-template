@@ -1,9 +1,10 @@
 import type { RouteRecordRaw } from 'vue-router'
 import { createRouter, createWebHistory } from 'vue-router'
-import AppShellLayout from '@/layouts/AppShellLayout.vue'
-import BlankLayout from '@/layouts/BlankLayout.vue'
-import Dashboard from '@/views/Dashboard.vue'
-import NotFound from '@/views/NotFound.vue'
+
+const AppShellLayout = () => import('@/layouts/AppShellLayout.vue')
+const BlankLayout = () => import('@/layouts/BlankLayout.vue')
+const Dashboard = () => import('@/views/Dashboard.vue')
+const NotFound = () => import('@/views/NotFound.vue')
 
 function defineAppShellRoute<T extends RouteRecordRaw & { meta: { title: string } }>(route: T) {
   return route
