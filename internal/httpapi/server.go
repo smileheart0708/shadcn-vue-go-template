@@ -100,7 +100,7 @@ func (h *spaHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	requestedPath := cleanFrontendPath(r.URL.Path)
 	switch {
-	case requestedPath == ".":
+	case requestedPath == "" || requestedPath == ".":
 		h.serveFrontendFile(w, r, "index.html")
 	case h.fileExists(requestedPath):
 		h.serveFrontendFile(w, r, requestedPath)

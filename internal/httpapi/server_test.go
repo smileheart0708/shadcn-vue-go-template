@@ -152,6 +152,25 @@ func TestSPAFallbackServesIndexForClientRoute(t *testing.T) {
 	}
 }
 
+func TestSPAFallbackServesIndexForRootRoute(t *testing.T) {
+	t.Parallel()
+
+	handler := newTestHandler(t, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, rec.Code)
+	}
+
+	if !strings.Contains(rec.Body.String(), "<title>SPA</title>") {
+		t.Fatalf("expected SPA index response, got %q", rec.Body.String())
+	}
+}
+
 func TestSPAFallbackPrefersGzipIndexWhenSupported(t *testing.T) {
 	t.Parallel()
 

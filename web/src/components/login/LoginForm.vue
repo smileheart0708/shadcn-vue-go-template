@@ -7,17 +7,10 @@ import { APIError } from '@/lib/api/client'
 
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import {
-  Field,
-  FieldError,
-  FieldGroup,
-  FieldLabel,
-} from '@/components/ui/field'
+import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 
-const props = defineProps<{
-  class?: HTMLAttributes['class']
-}>()
+const props = defineProps<{ class?: HTMLAttributes['class'] }>()
 
 const router = useRouter()
 const route = useRoute()
@@ -37,24 +30,18 @@ async function handleSubmit() {
   isSubmitting.value = true
 
   try {
-    await auth.login({
-      email: email.value,
-      password: password.value,
-    })
+    await auth.login({ email: email.value, password: password.value })
 
-    const redirectTarget
-      = typeof route.query.redirect === 'string' && route.query.redirect.startsWith('/')
+    const redirectTarget =
+      typeof route.query.redirect === 'string' && route.query.redirect.startsWith('/')
         ? route.query.redirect
         : { name: 'dashboard' as const }
 
     await router.push(redirectTarget)
-  }
-  catch (error) {
-    errorMessage.value = error instanceof APIError
-      ? error.message
-      : 'Login failed. Please try again.'
-  }
-  finally {
+  } catch (error) {
+    errorMessage.value =
+      error instanceof APIError ? error.message : 'Login failed. Please try again.'
+  } finally {
     isSubmitting.value = false
   }
 }
@@ -65,18 +52,18 @@ async function handleSubmit() {
     <form @submit.prevent="handleSubmit">
       <FieldGroup>
         <div class="flex flex-col items-center gap-2 text-center">
-          <img src="/logo.svg" alt="Logo" class="size-8" />
-          <h1 class="text-xl font-bold">
-            Welcome back
-          </h1>
+          <img
+            src="/logo.svg"
+            alt="Logo"
+            class="size-8"
+          />
+          <h1 class="text-xl font-bold">Welcome back</h1>
           <p class="text-muted-foreground text-sm">
             Sign in with the account configured on the Go server.
           </p>
         </div>
         <Field>
-          <FieldLabel for="email">
-            Email
-          </FieldLabel>
+          <FieldLabel for="email"> Email </FieldLabel>
           <Input
             id="email"
             v-model="email"
@@ -87,9 +74,7 @@ async function handleSubmit() {
           />
         </Field>
         <Field>
-          <FieldLabel for="password">
-            Password
-          </FieldLabel>
+          <FieldLabel for="password"> Password </FieldLabel>
           <Input
             id="password"
             v-model="password"
@@ -103,7 +88,10 @@ async function handleSubmit() {
           <FieldError :errors="[errorMessage]" />
         </Field>
         <Field>
-          <Button type="submit" :disabled="isSubmitting">
+          <Button
+            type="submit"
+            :disabled="isSubmitting"
+          >
             {{ isSubmitting ? 'Signing in...' : 'Login' }}
           </Button>
         </Field>

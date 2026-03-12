@@ -54,12 +54,10 @@ export function useAuth() {
       try {
         const response = await getCurrentUser()
         state.user = response.user
-      }
-      catch {
+      } catch {
         storeToken(null)
         state.user = null
-      }
-      finally {
+      } finally {
         state.initialized = true
         state.loading = false
         initializePromise = null
@@ -83,11 +81,5 @@ export function useAuth() {
     state.initialized = true
   }
 
-  return {
-    state: readonly(state),
-    isAuthenticated,
-    initialize,
-    login,
-    logout,
-  }
+  return { state: readonly(state), isAuthenticated, initialize, login, logout }
 }

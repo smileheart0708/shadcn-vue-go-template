@@ -4,10 +4,7 @@ import { RouterLink, useRoute, useRouter } from 'vue-router'
 import type { AppShellNavItem } from '@/components/app-shell/navigation'
 import { SidebarMenuButton } from '@/components/ui/sidebar'
 
-const props = defineProps<{
-  item: AppShellNavItem
-  tooltip?: string
-}>()
+const props = defineProps<{ item: AppShellNavItem; tooltip?: string }>()
 
 const route = useRoute()
 const router = useRouter()
@@ -20,8 +17,7 @@ const isActive = computed(() => {
   const target = router.resolve(props.item.to)
 
   return (
-    route.path === target.path
-    || (target.path !== '/' && route.path.startsWith(`${target.path}/`))
+    route.path === target.path || (target.path !== '/' && route.path.startsWith(`${target.path}/`))
   )
 })
 
@@ -36,7 +32,10 @@ const isDisabled = computed(() => props.item.disabled ?? !props.item.to)
     :is-active="isActive"
   >
     <RouterLink :to="item.to">
-      <component :is="item.icon" v-if="item.icon" />
+      <component
+        :is="item.icon"
+        v-if="item.icon"
+      />
       <span>{{ item.title }}</span>
     </RouterLink>
   </SidebarMenuButton>
@@ -47,7 +46,10 @@ const isDisabled = computed(() => props.item.disabled ?? !props.item.to)
     :disabled="isDisabled"
     class="text-sidebar-foreground/70 disabled:pointer-events-none disabled:opacity-50"
   >
-    <component :is="item.icon" v-if="item.icon" />
+    <component
+      :is="item.icon"
+      v-if="item.icon"
+    />
     <span>{{ item.title }}</span>
   </SidebarMenuButton>
 </template>

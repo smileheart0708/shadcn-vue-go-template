@@ -31,14 +31,10 @@ function handleBack() {
       </EmptyMedia>
       <EmptyHeader>
         <EmptyTitle>404</EmptyTitle>
-        <EmptyDescription>
-          The page you are looking for does not exist.
-        </EmptyDescription>
+        <EmptyDescription> The page you are looking for does not exist. </EmptyDescription>
       </EmptyHeader>
       <EmptyContent>
-        <Button @click="handleBack">
-          Go Back
-        </Button>
+        <Button @click="handleBack"> Go Back </Button>
       </EmptyContent>
     </Empty>
   </div>

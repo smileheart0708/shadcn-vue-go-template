@@ -8,16 +8,17 @@ import {
   SidebarMenuItem,
 } from '@/components/ui/sidebar'
 
-defineProps<{
-  items: AppShellNavItem[]
-}>()
+defineProps<{ items: AppShellNavItem[] }>()
 </script>
 
 <template>
   <SidebarGroup>
     <SidebarGroupContent>
       <SidebarMenu>
-        <SidebarMenuItem v-for="item in items" :key="item.title">
+        <SidebarMenuItem
+          v-for="item in items"
+          :key="item.title"
+        >
           <AppShellNavButton :item="item" />
         </SidebarMenuItem>
       </SidebarMenu>

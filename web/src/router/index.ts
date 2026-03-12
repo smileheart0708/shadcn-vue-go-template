@@ -17,10 +17,7 @@ const appShellRoutes = [
     path: 'dashboard',
     name: 'dashboard',
     component: Dashboard,
-    meta: {
-      title: 'Dashboard',
-      requiresAuth: true,
-    },
+    meta: { title: 'Dashboard', requiresAuth: true },
   }),
 ] satisfies RouteRecordRaw[]
 
@@ -30,37 +27,14 @@ const router = createRouter({
     {
       path: '/',
       component: AppShellLayout,
-      children: [
-        {
-          path: '',
-          redirect: { name: 'dashboard' },
-        },
-        ...appShellRoutes,
-      ],
+      children: [{ path: '', redirect: { name: 'dashboard' } }, ...appShellRoutes],
     },
-    {
-      path: '/login',
-      name: 'login',
-      component: Login,
-      meta: {
-        title: 'Login',
-        guestOnly: true,
-      },
-    },
+    { path: '/login', name: 'login', component: Login, meta: { title: 'Login', guestOnly: true } },
     // Only routes nested under AppShellLayout render the sidebar/header shell.
     {
       path: '/:pathMatch(.*)*',
       component: BlankLayout,
-      children: [
-        {
-          path: '',
-          name: 'not-found',
-          component: NotFound,
-          meta: {
-            title: '404',
-          },
-        },
-      ],
+      children: [{ path: '', name: 'not-found', component: NotFound, meta: { title: '404' } }],
     },
   ],
 })

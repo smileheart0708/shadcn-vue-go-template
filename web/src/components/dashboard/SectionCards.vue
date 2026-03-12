@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { IconTrendingDown, IconTrendingUp } from "@tabler/icons-vue"
+import { IconTrendingDown, IconTrendingUp } from '@tabler/icons-vue'
 
 import { Badge } from '@/components/ui/badge'
 import {
@@ -31,9 +31,7 @@ import {
         <div class="line-clamp-1 flex gap-2 font-medium">
           Trending up this month <IconTrendingUp class="size-4" />
         </div>
-        <div class="text-muted-foreground">
-          Visitors for the last 6 months
-        </div>
+        <div class="text-muted-foreground">Visitors for the last 6 months</div>
       </CardFooter>
     </Card>
     <Card class="@container/card">
@@ -53,9 +51,7 @@ import {
         <div class="line-clamp-1 flex gap-2 font-medium">
           Down 20% this period <IconTrendingDown class="size-4" />
         </div>
-        <div class="text-muted-foreground">
-          Acquisition needs attention
-        </div>
+        <div class="text-muted-foreground">Acquisition needs attention</div>
       </CardFooter>
     </Card>
     <Card class="@container/card">
@@ -75,9 +71,7 @@ import {
         <div class="line-clamp-1 flex gap-2 font-medium">
           Strong user retention <IconTrendingUp class="size-4" />
         </div>
-        <div class="text-muted-foreground">
-          Engagement exceed targets
-        </div>
+        <div class="text-muted-foreground">Engagement exceed targets</div>
       </CardFooter>
     </Card>
     <Card class="@container/card">
@@ -97,9 +91,7 @@ import {
         <div class="line-clamp-1 flex gap-2 font-medium">
           Steady performance increase <IconTrendingUp class="size-4" />
         </div>
-        <div class="text-muted-foreground">
-          Meets growth projections
-        </div>
+        <div class="text-muted-foreground">Meets growth projections</div>
       </CardFooter>
     </Card>
   </div>

@@ -17,21 +17,7 @@ export default defineConfig({
       skipIfLargerOrEqual: true,
     }),
   ],
-  resolve: {
-    alias: {
-      '@': fileURLToPath(new URL('./src', import.meta.url)),
-    },
-  },
-  server: {
-    proxy: {
-      '/api': {
-        target: 'http://localhost:8080',
-      },
-    },
-  },
-  build: {
-    target: 'es2022',
-    minify: 'esbuild',
-    cssMinify: 'lightningcss',
-  },
+  resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
+  server: { proxy: { '/api': { target: 'http://localhost:8080' } } },
+  build: { target: 'es2022', minify: 'esbuild', cssMinify: 'lightningcss' },
 })

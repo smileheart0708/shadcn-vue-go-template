@@ -1,34 +1,39 @@
+import { z } from 'zod'
 import { apiRequest } from '@/lib/api/client'
 
-export interface AuthUser {
-  id: string
-  email: string
-  name: string
-}
+export const authUserSchema = z.object({
+  id: z.string(),
+  email: z.string().email(),
+  name: z.string(),
+})
+
+export type AuthUser = z.infer<typeof authUserSchema>
 
 export interface LoginCredentials {
   email: string
   password: string
 }
 
-export interface LoginResponse {
-  accessToken: string
-  tokenType: string
-  expiresAt: string
-  user: AuthUser
-}
+export const loginResponseSchema = z.object({
+  accessToken: z.string(),
+  tokenType: z.string(),
+  expiresAt: z.string(),
+  user: authUserSchema,
+})
 
-export interface CurrentUserResponse {
-  user: AuthUser
-}
+export type LoginResponse = z.infer<typeof loginResponseSchema>
+
+export const currentUserResponseSchema = z.object({ user: authUserSchema })
+
+export type CurrentUserResponse = z.infer<typeof currentUserResponseSchema>
 
 export function login(credentials: LoginCredentials) {
-  return apiRequest<LoginResponse>('/api/auth/login', {
+  return apiRequest('/api/auth/login', loginResponseSchema.parse, {
     method: 'POST',
     body: JSON.stringify(credentials),
   })
 }
 
 export function getCurrentUser() {
-  return apiRequest<CurrentUserResponse>('/api/auth/me')
+  return apiRequest('/api/auth/me', currentUserResponseSchema.parse)
 }

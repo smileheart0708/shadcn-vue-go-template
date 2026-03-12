@@ -7,12 +7,7 @@ import AppShellNavSecondary from '@/components/app-shell/AppShellNavSecondary.vu
 import AppShellNavUser from '@/components/app-shell/AppShellNavUser.vue'
 import { APP_SHELL_NAVIGATION } from '@/components/app-shell/navigation'
 import { useAuth } from '@/composables/auth/useAuth'
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarHeader,
-} from '@/components/ui/sidebar'
+import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader } from '@/components/ui/sidebar'
 
 const router = useRouter()
 const auth = useAuth()
@@ -33,7 +28,11 @@ async function handleLogout() {
   <Sidebar collapsible="offcanvas">
     <SidebarHeader>
       <div class="flex items-center gap-2 px-2">
-        <img src="/logo.svg" class="size-5" alt="Logo" />
+        <img
+          src="/logo.svg"
+          class="size-5"
+          alt="Logo"
+        />
         <span class="text-base font-semibold">web</span>
       </div>
     </SidebarHeader>
@@ -46,7 +45,10 @@ async function handleLogout() {
       />
     </SidebarContent>
     <SidebarFooter>
-      <AppShellNavUser :user="currentUser" @logout="handleLogout" />
+      <AppShellNavUser
+        :user="currentUser"
+        @logout="handleLogout"
+      />
     </SidebarFooter>
   </Sidebar>
 </template>

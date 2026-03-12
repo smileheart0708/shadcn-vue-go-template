@@ -11,9 +11,7 @@ import {
   SidebarMenuItem,
 } from '@/components/ui/sidebar'
 
-defineProps<{
-  items: AppShellNavItem[]
-}>()
+defineProps<{ items: AppShellNavItem[] }>()
 </script>
 
 <template>
@@ -39,8 +37,14 @@ defineProps<{
         </SidebarMenuItem>
       </SidebarMenu>
       <SidebarMenu>
-        <SidebarMenuItem v-for="item in items" :key="item.title">
-          <AppShellNavButton :item="item" :tooltip="item.title" />
+        <SidebarMenuItem
+          v-for="item in items"
+          :key="item.title"
+        >
+          <AppShellNavButton
+            :item="item"
+            :tooltip="item.title"
+          />
         </SidebarMenuItem>
       </SidebarMenu>
     </SidebarGroupContent>

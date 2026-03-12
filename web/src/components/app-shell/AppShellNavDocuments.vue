@@ -9,22 +9,21 @@ import {
   SidebarMenuItem,
 } from '@/components/ui/sidebar'
 
-defineProps<{
-  items: AppShellNavItem[]
-}>()
+defineProps<{ items: AppShellNavItem[] }>()
 </script>
 
 <template>
   <SidebarGroup class="group-data-[collapsible=icon]:hidden">
     <SidebarGroupLabel>Documents</SidebarGroupLabel>
     <SidebarMenu>
-      <SidebarMenuItem v-for="item in items" :key="item.title">
+      <SidebarMenuItem
+        v-for="item in items"
+        :key="item.title"
+      >
         <AppShellNavButton :item="item" />
       </SidebarMenuItem>
       <SidebarMenuItem>
-        <AppShellNavButton
-          :item="{ title: 'More', icon: IconDots, disabled: true }"
-        />
+        <AppShellNavButton :item="{ title: 'More', icon: IconDots, disabled: true }" />
       </SidebarMenuItem>
     </SidebarMenu>
   </SidebarGroup>
