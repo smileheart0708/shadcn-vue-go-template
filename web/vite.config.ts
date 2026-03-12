@@ -1,17 +1,20 @@
-import { defineConfig } from 'vite'
-import vue from '@vitejs/plugin-vue'
-import tailwindcss from '@tailwindcss/vite'
-import compression from 'vite-plugin-compression'
 import { fileURLToPath, URL } from 'node:url'
 
-// https://vite.dev/config/
+import tailwindcss from '@tailwindcss/vite'
+import vue from '@vitejs/plugin-vue'
+import { defineConfig } from 'vite'
+import { compression, defineAlgorithm } from 'vite-plugin-compression2'
+import vueDevTools from 'vite-plugin-vue-devtools'
+
 export default defineConfig({
   plugins: [
-    vue(),
     tailwindcss(),
+    vue(),
+    vueDevTools(),
     compression({
-      algorithm: 'gzip',
-      ext: '.gz',
+      include: [/\.(css|html|js|json|map|svg|txt|xml)$/],
+      algorithms: [defineAlgorithm('gzip', { level: 9 })],
+      skipIfLargerOrEqual: true,
     }),
   ],
   resolve: {
@@ -19,7 +22,16 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8080',
+      },
+    },
+  },
   build: {
+    target: 'es2022',
     minify: 'esbuild',
+    cssMinify: 'lightningcss',
   },
 })
