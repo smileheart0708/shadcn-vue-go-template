@@ -22,6 +22,7 @@ import type {
   VisibilityState,
 } from "@tanstack/vue-table"
 import { RestrictToVerticalAxis } from "@dnd-kit/abstract/modifiers"
+import { h, ref } from "vue"
 import {
   IconChevronDown,
   IconChevronLeft,
@@ -94,6 +95,8 @@ interface TableData {
   reviewer: string
 }
 
+type CheckedState = boolean | "indeterminate"
+
 const sorting = ref<SortingState>([])
 const columnFilters = ref<ColumnFiltersState>([])
 const columnVisibility = ref<VisibilityState>({})
@@ -103,18 +106,18 @@ const columns: ColumnDef<TableData>[] = [
   {
     id: "drag",
     header: () => null,
-    cell: ({ row }) => h(DragHandle),
+    cell: () => h(DragHandle),
   },
   {
     id: "select",
     header: ({ table }) => h(Checkbox, {
       "modelValue": table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && "indeterminate"),
-      "onUpdate:modelValue": value => table.toggleAllPageRowsSelected(!!value),
+      "onUpdate:modelValue": (value: CheckedState) => table.toggleAllPageRowsSelected(!!value),
       "aria-label": "Select all",
     }),
     cell: ({ row }) => h(Checkbox, {
       "modelValue": row.getIsSelected(),
-      "onUpdate:modelValue": value => row.toggleSelected(!!value),
+      "onUpdate:modelValue": (value: CheckedState) => row.toggleSelected(!!value),
       "aria-label": "Select row",
     }),
     enableSorting: false,

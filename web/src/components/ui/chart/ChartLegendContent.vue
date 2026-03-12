@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { HTMLAttributes } from "vue"
+import type { ChartConfig } from "."
 import { computed, onMounted, ref } from "vue"
 import { cn } from "@/lib/utils"
 import { useChart } from "."
@@ -16,12 +17,17 @@ const props = withDefaults(defineProps<{
 
 const { id, config } = useChart()
 
-const payload = computed(() => Object.entries(config.value).map(([key, value]) => {
-  return {
+type ChartLegendItem = {
+  key: string
+  itemConfig: NonNullable<ChartConfig[string]>
+}
+
+const payload = computed<ChartLegendItem[]>(() => {
+  return Object.entries(config.value).map(([key, itemConfig]) => ({
     key: props.nameKey || key,
-    itemConfig: config.value[key],
-  }
-}))
+    itemConfig,
+  }))
+})
 
 const containerSelector = ref("")
 onMounted(() => {
@@ -45,7 +51,7 @@ onMounted(() => {
         '[&>svg]:text-muted-foreground flex items-center gap-1.5 [&>svg]:h-3 [&>svg]:w-3',
       )"
     >
-      <component :is="itemConfig.icon" v-if="itemConfig?.icon" />
+      <component :is="itemConfig.icon" v-if="itemConfig.icon" />
       <div
         v-else
         class="h-2 w-2 shrink-0 rounded-[2px]"
@@ -54,7 +60,7 @@ onMounted(() => {
         }"
       />
 
-      {{ itemConfig?.label }}
+      {{ itemConfig.label }}
     </div>
   </div>
 </template>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { ChartConfig } from '@/components/ui/chart'
+import { computed, ref } from 'vue'
 
 // import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts"
 import { VisArea, VisAxis, VisLine, VisXYContainer } from "@unovis/vue"
@@ -27,7 +28,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 
-const description = "An interactive area chart"
+const description = 'Showing total visitors for the last 3 months'
 
 const chartData = [
   { date: new Date("2024-04-01"), desktop: 222, mobile: 150 },
@@ -189,13 +190,11 @@ const filterRange = computed(() => {
     <CardHeader class="flex items-center gap-2 space-y-0 border-b py-5 sm:flex-row">
       <div class="grid flex-1 gap-1">
         <CardTitle>Area Chart - Interactive</CardTitle>
-        <CardDescription>
-          Showing total visitors for the last 3 months
-        </CardDescription>
+        <CardDescription>{{ description }}</CardDescription>
       </div>
       <Select v-model="timeRange">
         <SelectTrigger
-          class="hidden w-[160px] rounded-lg sm:ml-auto sm:flex"
+          class="hidden w-40 rounded-lg sm:ml-auto sm:flex"
           aria-label="Select a value"
         >
           <SelectValue placeholder="Last 3 months" />
@@ -214,7 +213,7 @@ const filterRange = computed(() => {
       </Select>
     </CardHeader>
     <CardContent class="px-2 pt-4 sm:px-6 sm:pt-6 pb-4">
-      <ChartContainer :config="chartConfig" class="aspect-auto h-[250px] w-full" :cursor="false">
+      <ChartContainer :config="chartConfig" class="aspect-auto h-62.5 w-full" :cursor="false">
         <VisXYContainer
           :data="filterRange"
           :svg-defs="svgDefs"
@@ -224,13 +223,19 @@ const filterRange = computed(() => {
           <VisArea
             :x="(d: Data) => d.date"
             :y="[(d: Data) => d.mobile, (d: Data) => d.desktop]"
-            :color="(d: Data, i: number) => ['url(#fillMobile)', 'url(#fillDesktop)'][i]"
+            :color="(datum: Data, i: number) => {
+              void datum
+              return ['url(#fillMobile)', 'url(#fillDesktop)'][i]
+            }"
             :opacity="0.6"
           />
           <VisLine
             :x="(d: Data) => d.date"
             :y="[(d: Data) => d.mobile, (d: Data) => d.mobile + d.desktop]"
-            :color="(d: Data, i: number) => [chartConfig.mobile.color, chartConfig.desktop.color][i]"
+            :color="(datum: Data, i: number) => {
+              void datum
+              return [chartConfig.mobile.color, chartConfig.desktop.color][i]
+            }"
             :line-width="1"
           />
           <VisAxis
@@ -240,7 +245,7 @@ const filterRange = computed(() => {
             :domain-line="false"
             :grid-line="false"
             :num-ticks="6"
-            :tick-format="(d: number, index: number) => {
+            :tick-format="(d: number) => {
               const date = new Date(d)
               return date.toLocaleDateString('en-US', {
                 month: 'short',
@@ -264,7 +269,10 @@ const filterRange = computed(() => {
                 })
               },
             })"
-            :color="(d: Data, i: number) => [chartConfig.mobile.color, chartConfig.desktop.color][i % 2]"
+            :color="(datum: Data, i: number) => {
+              void datum
+              return [chartConfig.mobile.color, chartConfig.desktop.color][i % 2]
+            }"
           />
         </VisXYContainer>
 

@@ -11,6 +11,7 @@
     "lint": "eslint . --fix"
   },
   "dependencies": {
+    "@dnd-kit/abstract": "^0.1.21",
     "@tabler/icons-vue": "^3.40.0",
     "@tailwindcss/vite": "^4.2.1",
     "@tanstack/vue-table": "^8.21.3",
@@ -19,12 +20,14 @@
     "@vueuse/core": "^14.2.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "dnd-kit-vue": "^0.0.2",
     "lucide-vue-next": "^0.577.0",
     "reka-ui": "^2.9.1",
     "tailwind-merge": "^3.5.0",
     "tailwindcss": "^4.2.1",
     "vite-plugin-compression2": "^2.5.1",
-    "vue": "^3.5.30"
+    "vue": "^3.5.30",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@types/node": "^24.12.0",
