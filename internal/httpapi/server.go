@@ -17,15 +17,17 @@ import (
 )
 
 type HandlerOptions struct {
-	Logger     *slog.Logger
-	FrontendFS fs.FS
-	Auth       AuthOptions
+	Logger         *slog.Logger
+	FrontendFS     fs.FS
+	Auth           AuthOptions
+	LogAPIRequests bool
 }
 
 func NewHandler(logger *slog.Logger) http.Handler {
 	return NewHandlerWithOptions(HandlerOptions{
-		Logger:     logger,
-		FrontendFS: os.DirFS(config.FrontendDistDir),
+		Logger:         logger,
+		FrontendFS:     os.DirFS(config.FrontendDistDir),
+		LogAPIRequests: config.APIRequestLogEnabled,
 		Auth: AuthOptions{
 			Issuer: config.JWTIssuer,
 			Secret: []byte(config.JWTSecret),
@@ -47,6 +49,9 @@ func NewHandlerWithOptions(options HandlerOptions) http.Handler {
 
 	auth := NewAuthService(options.Auth)
 	api := newAPIMux(auth)
+	if options.LogAPIRequests {
+		api = Chain(api, requestLogger(logger))
+	}
 	spa := newSPAHandler(options.FrontendFS)
 
 	root := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -58,7 +63,7 @@ func NewHandlerWithOptions(options HandlerOptions) http.Handler {
 		spa.ServeHTTP(w, r)
 	})
 
-	return Chain(root, requestLogger(logger))
+	return root
 }
 
 func newAPIMux(auth *AuthService) http.Handler {

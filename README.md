@@ -66,6 +66,7 @@ shadcn-vue-go-template/
 | `PORT` | `8080` | HTTP server port |
 | `DATA_DIR` | `./.data` | Data directory for SQLite DB |
 | `DB_NAME` | `app.db` | SQLite database filename |
+| `API_REQUEST_LOG_ENABLED` | `false` | Enable backend API request logging |
 | `JWT_SECRET` | `dev-secret-change-in-prod` | JWT signing secret |
 | `FRONTEND_DIST_DIR` | `./web/dist` | Frontend assets directory |
 

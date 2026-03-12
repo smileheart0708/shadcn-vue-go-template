@@ -19,7 +19,7 @@ func TestHealthz(t *testing.T) {
 	t.Parallel()
 
 	var logs bytes.Buffer
-	handler := newTestHandler(t, &logs)
+	handler := newLoggedTestHandler(t, &logs)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/healthz", nil)
 	req.RemoteAddr = "203.0.113.10:1234"
@@ -40,6 +40,26 @@ func TestHealthz(t *testing.T) {
 	}
 	if !strings.Contains(output, "remote_addr=203.0.113.10") {
 		t.Fatalf("expected stripped remote addr in logs, got %q", output)
+	}
+}
+
+func TestAPIRoutesAreNotLoggedByDefault(t *testing.T) {
+	t.Parallel()
+
+	var logs bytes.Buffer
+	handler := newTestHandler(t, &logs)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/healthz", nil)
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("expected status %d, got %d", http.StatusNoContent, rec.Code)
+	}
+
+	if output := strings.TrimSpace(logs.String()); output != "" {
+		t.Fatalf("expected API logs to be disabled by default, got %q", output)
 	}
 }
 
@@ -220,13 +240,13 @@ func TestUnknownAPIRouteDoesNotFallbackToSPA(t *testing.T) {
 	}
 }
 
-func TestRequestLoggerFallsBackToURLPathForSPARoutes(t *testing.T) {
+func TestFrontendStaticRequestsAreNotLogged(t *testing.T) {
 	t.Parallel()
 
 	var logs bytes.Buffer
-	handler := newTestHandler(t, &logs)
+	handler := newLoggedTestHandler(t, &logs)
 
-	req := httptest.NewRequest(http.MethodGet, "/dashboard", nil)
+	req := httptest.NewRequest(http.MethodGet, "/assets/app.js", nil)
 	req.RemoteAddr = "203.0.113.10:1234"
 	rec := httptest.NewRecorder()
 
@@ -236,12 +256,8 @@ func TestRequestLoggerFallsBackToURLPathForSPARoutes(t *testing.T) {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, rec.Code)
 	}
 
-	output := logs.String()
-	if !strings.Contains(output, "route=/dashboard") {
-		t.Fatalf("expected fallback path in logs, got %q", output)
-	}
-	if !strings.Contains(output, "status=200") {
-		t.Fatalf("expected status=200 in logs, got %q", output)
+	if output := strings.TrimSpace(logs.String()); output != "" {
+		t.Fatalf("expected frontend static requests to skip logging, got %q", output)
 	}
 }
 
@@ -269,6 +285,18 @@ func TestRequestLoggerDefaultsStatusToOK(t *testing.T) {
 func newTestHandler(t *testing.T, logs *bytes.Buffer) http.Handler {
 	t.Helper()
 
+	return newTestHandlerWithOptions(t, logs, false)
+}
+
+func newLoggedTestHandler(t *testing.T, logs *bytes.Buffer) http.Handler {
+	t.Helper()
+
+	return newTestHandlerWithOptions(t, logs, true)
+}
+
+func newTestHandlerWithOptions(t *testing.T, logs *bytes.Buffer, logAPIRequests bool) http.Handler {
+	t.Helper()
+
 	distDir := createTestDist(t)
 	logger := slog.Default()
 	if logs != nil {
@@ -276,8 +304,9 @@ func newTestHandler(t *testing.T, logs *bytes.Buffer) http.Handler {
 	}
 
 	return NewHandlerWithOptions(HandlerOptions{
-		Logger:     logger,
-		FrontendFS: os.DirFS(distDir),
+		Logger:         logger,
+		FrontendFS:     os.DirFS(distDir),
+		LogAPIRequests: logAPIRequests,
 		Auth: AuthOptions{
 			Issuer: "test-suite",
 			Secret: []byte("test-secret"),
