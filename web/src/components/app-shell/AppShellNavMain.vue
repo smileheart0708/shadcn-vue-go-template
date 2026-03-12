@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import type { Component } from "vue"
-import { IconCirclePlusFilled, IconMail } from "@tabler/icons-vue"
-
+import { IconCirclePlusFilled, IconMail } from '@tabler/icons-vue'
+import type { AppShellNavItem } from '@/components/app-shell/navigation'
+import AppShellNavButton from '@/components/app-shell/AppShellNavButton.vue'
 import { Button } from '@/components/ui/button'
 import {
   SidebarGroup,
@@ -11,14 +11,8 @@ import {
   SidebarMenuItem,
 } from '@/components/ui/sidebar'
 
-interface NavItem {
-  title: string
-  url: string
-  icon?: Component
-}
-
 defineProps<{
-  items: NavItem[]
+  items: AppShellNavItem[]
 }>()
 </script>
 
@@ -46,10 +40,7 @@ defineProps<{
       </SidebarMenu>
       <SidebarMenu>
         <SidebarMenuItem v-for="item in items" :key="item.title">
-          <SidebarMenuButton :tooltip="item.title">
-            <component :is="item.icon" v-if="item.icon" />
-            <span>{{ item.title }}</span>
-          </SidebarMenuButton>
+          <AppShellNavButton :item="item" :tooltip="item.title" />
         </SidebarMenuItem>
       </SidebarMenu>
     </SidebarGroupContent>

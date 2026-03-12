@@ -1,7 +1,23 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
 import ModeToggle from '@/components/ModeToggle.vue'
 import { Separator } from '@/components/ui/separator'
 import { SidebarTrigger } from '@/components/ui/sidebar'
+
+const route = useRoute()
+
+const title = computed(() => {
+  for (const record of [...route.matched].reverse()) {
+    const routeTitle = record.meta.title
+
+    if (typeof routeTitle === 'string' && routeTitle.trim().length > 0) {
+      return routeTitle
+    }
+  }
+
+  return 'web'
+})
 </script>
 
 <template>
@@ -13,7 +29,7 @@ import { SidebarTrigger } from '@/components/ui/sidebar'
         class="mx-2 data-[orientation=vertical]:h-4"
       />
       <h1 class="text-base font-medium">
-        Documents
+        {{ title }}
       </h1>
       <div class="ml-auto flex items-center gap-2">
         <ModeToggle />

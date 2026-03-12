@@ -11,25 +11,32 @@ import {
 } from '@/components/ui/card'
 
 const router = useRouter()
+
+function handleBack() {
+  if (window.history.length > 1) {
+    router.back()
+    return
+  }
+
+  void router.push({ name: 'dashboard' })
+}
 </script>
 
 <template>
-  <div class="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
-    <Card class="mx-auto mt-20 max-w-md">
-      <CardHeader>
-        <CardTitle>404</CardTitle>
-        <CardDescription>Page Not Found</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <p class="text-sm text-muted-foreground">
-          The page you are looking for does not exist.
-        </p>
-      </CardContent>
-      <CardFooter>
-        <Button @click="router.back()">
-          Go Back
-        </Button>
-      </CardFooter>
-    </Card>
-  </div>
+  <Card class="w-full shadow-sm">
+    <CardHeader>
+      <CardTitle>404</CardTitle>
+      <CardDescription>Page Not Found</CardDescription>
+    </CardHeader>
+    <CardContent>
+      <p class="text-sm text-muted-foreground">
+        The page you are looking for does not exist.
+      </p>
+    </CardContent>
+    <CardFooter>
+      <Button @click="handleBack">
+        Go Back
+      </Button>
+    </CardFooter>
+  </Card>
 </template>

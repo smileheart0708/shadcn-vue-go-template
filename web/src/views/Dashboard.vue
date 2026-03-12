@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import SectionCards from '@/components/SectionCards.vue'
 import DataTable from '@/components/DataTable.vue'
-import { IconTrendingDown, IconTrendingUp } from "@tabler/icons-vue"
 
 const data = [
   {
@@ -81,9 +80,6 @@ const data = [
 
 <template>
   <div class="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
-    <div class="flex items-center justify-between">
-      <h1 class="text-2xl font-bold tracking-tight">Dashboard</h1>
-    </div>
     <SectionCards />
     <DataTable :data="data" />
   </div>

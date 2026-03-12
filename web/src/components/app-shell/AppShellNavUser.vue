@@ -5,8 +5,8 @@ import {
   IconLogout,
   IconNotification,
   IconUserCircle,
-} from "@tabler/icons-vue"
-
+} from '@tabler/icons-vue'
+import type { AppShellUser } from '@/components/app-shell/navigation'
 import {
   Avatar,
   AvatarFallback,
@@ -28,14 +28,8 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar'
 
-interface User {
-  name: string
-  email: string
-  avatar: string
-}
-
 defineProps<{
-  user: User
+  user: AppShellUser
 }>()
 
 const { isMobile } = useSidebar()
