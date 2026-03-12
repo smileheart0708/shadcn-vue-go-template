@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import type { Row } from '@tanstack/vue-table'
-import type { z } from 'zod'
-import type { schema } from './DataTable.vue'
+import type { TableData } from '@/components/data-table-schema'
 import { FlexRender } from '@tanstack/vue-table'
 import { useSortable } from 'dnd-kit-vue'
 import { TableCell, TableRow } from '@/components/ui/table'
 
-const props = defineProps<{ row: Row<z.infer<typeof schema>>; index: number }>()
+const props = defineProps<{ row: Row<TableData>; index: number }>()
 
 const { elementRef, isDragging } = useSortable({ id: props.row.original.id, index: props.index })
 </script>

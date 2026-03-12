@@ -265,7 +265,7 @@ const filterRange = computed(() => {
           <ChartCrosshair
             :template="
               componentToString(chartConfig, ChartTooltipContent, {
-                labelFormatter: (d) => {
+                labelFormatter: (d: number | Date) => {
                   return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
                 },
               })

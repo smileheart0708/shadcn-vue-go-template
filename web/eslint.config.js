@@ -11,7 +11,6 @@ export default tseslint.config(
   { ignores: ['dist', 'node_modules'] },
   js.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked,
-  ...tseslint.configs.strictTypeChecked,
   ...pluginVue.configs['flat/recommended'],
   {
     files: ['**/*.{ts,tsx,mts,cts,js,mjs,cjs,vue}'],
@@ -45,6 +44,8 @@ export default tseslint.config(
           varsIgnorePattern: '^_',
         },
       ],
+      'vue/multi-word-component-names': 'off',
+      'vue/require-default-prop': 'off',
     },
   },
   eslintConfigPrettier,

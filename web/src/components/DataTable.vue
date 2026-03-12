@@ -1,19 +1,3 @@
-<script lang="ts">
-import { z } from 'zod'
-import DraggableRow from './DraggableRow.vue'
-import DragHandle from './DragHandle.vue'
-
-export const schema = z.object({
-  id: z.number(),
-  header: z.string(),
-  type: z.string(),
-  status: z.string(),
-  target: z.string(),
-  limit: z.string(),
-  reviewer: z.string(),
-})
-</script>
-
 <script setup lang="ts">
 import type {
   ColumnDef,
@@ -44,6 +28,7 @@ import {
   useVueTable,
 } from '@tanstack/vue-table'
 import { DragDropProvider } from 'dnd-kit-vue'
+import type { TableData } from '@/components/data-table-schema'
 import { Badge } from '@/components/ui/badge'
 
 import { Button } from '@/components/ui/button'
@@ -75,18 +60,10 @@ import {
 } from '@/components/ui/table'
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import DragHandle from './DragHandle.vue'
+import DraggableRow from './DraggableRow.vue'
 
 const props = defineProps<{ data: TableData[] }>()
-
-interface TableData {
-  id: number
-  header: string
-  type: string
-  status: string
-  target: string
-  limit: string
-  reviewer: string
-}
 
 type CheckedState = boolean | 'indeterminate'
 
@@ -104,13 +81,17 @@ const columns: ColumnDef<TableData>[] = [
         modelValue:
           table.getIsAllPageRowsSelected() ||
           (table.getIsSomePageRowsSelected() && 'indeterminate'),
-        'onUpdate:modelValue': (value: CheckedState) => table.toggleAllPageRowsSelected(!!value),
+        'onUpdate:modelValue': (value: CheckedState) => {
+          table.toggleAllPageRowsSelected(!!value)
+        },
         'aria-label': 'Select all',
       }),
     cell: ({ row }) =>
       h(Checkbox, {
         modelValue: row.getIsSelected(),
-        'onUpdate:modelValue': (value: CheckedState) => row.toggleSelected(!!value),
+        'onUpdate:modelValue': (value: CheckedState) => {
+          row.toggleSelected(!!value)
+        },
         'aria-label': 'Select row',
       }),
     enableSorting: false,

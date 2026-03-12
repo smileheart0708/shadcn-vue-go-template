@@ -60,7 +60,7 @@ export async function apiRequest<T>(
     const errorPayload = isAPIErrorPayload(payload) ? payload : undefined
     throw new APIError(
       response.status,
-      errorPayload?.error?.message ?? `Request failed with status ${response.status}`,
+      errorPayload?.error?.message ?? `Request failed with status ${String(response.status)}`,
       errorPayload?.error?.code,
       payload,
     )

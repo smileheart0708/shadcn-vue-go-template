@@ -25,7 +25,7 @@ const emits = defineEmits<{ 'update:open': [open: boolean] }>()
 
 const isMobile = useMediaQuery('(max-width: 768px)')
 const openMobile = ref(false)
-const uncontrolledOpen = ref(props.defaultOpen ?? false)
+const uncontrolledOpen = ref(props.defaultOpen)
 const open = computed({
   get: () => props.open ?? uncontrolledOpen.value,
   set: (value: boolean) => {
@@ -39,9 +39,10 @@ const open = computed({
 
 function setOpen(value: boolean) {
   open.value = value // emits('update:open', value)
+  const cookieValue = value ? 'true' : 'false'
 
   // This sets the cookie to keep the sidebar state.
-  document.cookie = `${SIDEBAR_COOKIE_NAME}=${open.value}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`
+  document.cookie = `${SIDEBAR_COOKIE_NAME}=${cookieValue}; path=/; max-age=${String(SIDEBAR_COOKIE_MAX_AGE)}`
 }
 
 function setOpenMobile(value: boolean) {
@@ -50,7 +51,12 @@ function setOpenMobile(value: boolean) {
 
 // Helper to toggle the sidebar.
 function toggleSidebar() {
-  return isMobile.value ? setOpenMobile(!openMobile.value) : setOpen(!open.value)
+  if (isMobile.value) {
+    setOpenMobile(!openMobile.value)
+    return
+  }
+
+  setOpen(!open.value)
 }
 
 useEventListener('keydown', (event: KeyboardEvent) => {
