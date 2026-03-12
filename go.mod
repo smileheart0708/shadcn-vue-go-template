@@ -3,6 +3,8 @@ module main
 go 1.26.1
 
 require (
+	github.com/lmittmann/tint v1.1.3
+	github.com/mattn/go-isatty v0.0.20
 	github.com/ysmood/goe v0.8.4
 	modernc.org/sqlite v1.46.1
 )
@@ -11,7 +13,6 @@ require (
 	github.com/compose-spec/compose-go/v2 v2.4.8 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/google/uuid v1.6.0 // indirect
-	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/ncruces/go-strftime v1.0.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
