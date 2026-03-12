@@ -19,7 +19,7 @@ func TestLogStartupBanner(t *testing.T) {
 	if strings.Count(output, bannerDivider) != 2 {
 		t.Fatalf("expected divider twice, got %q", output)
 	}
-	if !strings.Contains(output, "listen: :8080") {
+	if !strings.Contains(output, "listen: http://localhost:8080") {
 		t.Fatalf("expected listen line in banner, got %q", output)
 	}
 	if !strings.Contains(output, "data_dir: /tmp/data") {

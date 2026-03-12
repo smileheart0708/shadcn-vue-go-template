@@ -32,6 +32,10 @@ defineProps<{
   user: AppShellUser
 }>()
 
+const emit = defineEmits<{
+  (e: 'logout'): void
+}>()
+
 const { isMobile } = useSidebar()
 </script>
 
@@ -97,7 +101,7 @@ const { isMobile } = useSidebar()
             </DropdownMenuItem>
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
-          <DropdownMenuItem>
+          <DropdownMenuItem @click="emit('logout')">
             <IconLogout />
             Log out
           </DropdownMenuItem>

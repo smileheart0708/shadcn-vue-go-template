@@ -1,5 +1,6 @@
 import type { RouteRecordRaw } from 'vue-router'
 import { createRouter, createWebHistory } from 'vue-router'
+import { installAuthGuard } from '@/middleware/auth'
 
 const AppShellLayout = () => import('@/layouts/AppShellLayout.vue')
 const BlankLayout = () => import('@/layouts/BlankLayout.vue')
@@ -18,6 +19,7 @@ const appShellRoutes = [
     component: Dashboard,
     meta: {
       title: 'Dashboard',
+      requiresAuth: true,
     },
   }),
 ] satisfies RouteRecordRaw[]
@@ -40,6 +42,10 @@ const router = createRouter({
       path: '/login',
       name: 'login',
       component: Login,
+      meta: {
+        title: 'Login',
+        guestOnly: true,
+      },
     },
     // Only routes nested under AppShellLayout render the sidebar/header shell.
     {
@@ -50,10 +56,15 @@ const router = createRouter({
           path: '',
           name: 'not-found',
           component: NotFound,
+          meta: {
+            title: '404',
+          },
         },
       ],
     },
   ],
 })
+
+installAuthGuard(router)
 
 export default router

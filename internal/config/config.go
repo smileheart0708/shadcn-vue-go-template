@@ -1,7 +1,37 @@
 package config
 
-import "github.com/ysmood/goe"
+import (
+	"fmt"
+	"time"
+
+	"github.com/ysmood/goe"
+)
+
+const (
+	DefaultAuthEmail       = "admin@example.com"
+	DefaultAuthPassword    = "admin123456"
+	DefaultAuthDisplayName = "Administrator"
+	DefaultJWTSecret       = "change-me-in-production"
+)
 
 var DataDir = goe.Get("DATA_DIR", ".data")
 var DBName = goe.Get("DB_NAME", "data.db")
 var Port = goe.Get("PORT", 8080)
+var FrontendDistDir = goe.Get("WEB_DIST_DIR", "web/dist")
+var AuthEmail = goe.Get("AUTH_EMAIL", DefaultAuthEmail)
+var AuthPassword = goe.Get("AUTH_PASSWORD", DefaultAuthPassword)
+var AuthDisplayName = goe.Get("AUTH_DISPLAY_NAME", DefaultAuthDisplayName)
+var JWTSecret = goe.Get("JWT_SECRET", DefaultJWTSecret)
+var JWTIssuer = goe.Get("JWT_ISSUER", "shadcn-vue-go-template")
+var JWTTTL = mustParseDuration("JWT_TTL", "24h")
+
+func mustParseDuration(name string, fallback string) time.Duration {
+	value := goe.Get(name, fallback)
+
+	parsed, err := time.ParseDuration(value)
+	if err != nil {
+		panic(fmt.Sprintf("config %s must be a valid duration: %v", name, err))
+	}
+
+	return parsed
+}

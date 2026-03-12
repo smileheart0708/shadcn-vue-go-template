@@ -32,8 +32,17 @@ func main() {
 
 	dbPath := filepath.Join(dataDir, config.DBName)
 	listenAddr := fmt.Sprintf(":%d", config.Port)
+	frontendDistDir, err := filepath.Abs(config.FrontendDistDir)
+	if err != nil {
+		slog.Error("failed to resolve frontend dist directory", "error", err, "frontend_dist_dir", config.FrontendDistDir)
+		return
+	}
+
 	logging.LogStartupBanner(logger, listenAddr, dataDir)
-	slog.Info("starting application", "data_dir", dataDir, "db_path", dbPath)
+	slog.Info("starting application", "data_dir", dataDir, "db_path", dbPath, "frontend_dist_dir", frontendDistDir)
+	if config.JWTSecret == config.DefaultJWTSecret {
+		slog.Warn("using default JWT secret; set JWT_SECRET in production")
+	}
 
 	dbContainer, err := database.Open(context.Background(), database.Options{
 		Path: dbPath,

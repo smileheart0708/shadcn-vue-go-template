@@ -21,5 +21,6 @@ ENV TZ=Asia/Shanghai
 ENV GIN_MODE=release
 WORKDIR /app
 COPY --from=backend-builder /app/main .
+COPY --from=backend-builder /app/web/dist ./web/dist
 EXPOSE 8080
 CMD ["./main"]
