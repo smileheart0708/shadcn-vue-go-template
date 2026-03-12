@@ -2,13 +2,14 @@
 import { useRouter } from 'vue-router'
 import { Button } from '@/components/ui/button'
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from '@/components/ui/empty'
+import { IconUnlink } from '@tabler/icons-vue'
 
 const router = useRouter()
 
@@ -23,20 +24,22 @@ function handleBack() {
 </script>
 
 <template>
-  <Card class="w-full shadow-sm">
-    <CardHeader>
-      <CardTitle>404</CardTitle>
-      <CardDescription>Page Not Found</CardDescription>
-    </CardHeader>
-    <CardContent>
-      <p class="text-sm text-muted-foreground">
-        The page you are looking for does not exist.
-      </p>
-    </CardContent>
-    <CardFooter>
-      <Button @click="handleBack">
-        Go Back
-      </Button>
-    </CardFooter>
-  </Card>
+  <div class="flex h-[calc(100vh-200px)] items-center justify-center p-4">
+    <Empty class="max-w-md">
+      <EmptyMedia>
+        <IconUnlink class="size-16 text-muted-foreground" />
+      </EmptyMedia>
+      <EmptyHeader>
+        <EmptyTitle>404</EmptyTitle>
+        <EmptyDescription>
+          The page you are looking for does not exist.
+        </EmptyDescription>
+      </EmptyHeader>
+      <EmptyContent>
+        <Button @click="handleBack">
+          Go Back
+        </Button>
+      </EmptyContent>
+    </Empty>
+  </div>
 </template>
