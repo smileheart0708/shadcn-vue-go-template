@@ -4,6 +4,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 const AppShellLayout = () => import('@/layouts/AppShellLayout.vue')
 const BlankLayout = () => import('@/layouts/BlankLayout.vue')
 const Dashboard = () => import('@/views/Dashboard.vue')
+const Login = () => import('@/views/Login.vue')
 const NotFound = () => import('@/views/NotFound.vue')
 
 function defineAppShellRoute<T extends RouteRecordRaw & { meta: { title: string } }>(route: T) {
@@ -34,6 +35,11 @@ const router = createRouter({
         },
         ...appShellRoutes,
       ],
+    },
+    {
+      path: '/login',
+      name: 'login',
+      component: Login,
     },
     // Only routes nested under AppShellLayout render the sidebar/header shell.
     {
