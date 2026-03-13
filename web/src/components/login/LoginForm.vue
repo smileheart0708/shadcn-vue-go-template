@@ -4,8 +4,8 @@ import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
-import { useAuth } from '@/composables/auth/useAuth'
 import { APIError } from '@/lib/api/client'
+import { useAuthStore } from '@/stores/auth'
 
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -18,7 +18,7 @@ const props = defineProps<{ class?: HTMLAttributes['class'] }>()
 
 const router = useRouter()
 const route = useRoute()
-const auth = useAuth()
+const authStore = useAuthStore()
 
 const email = ref('')
 const password = ref('')
@@ -32,7 +32,7 @@ async function handleSubmit() {
   isSubmitting.value = true
 
   try {
-    await auth.login({ email: email.value, password: password.value })
+    await authStore.login({ email: email.value, password: password.value })
 
     const redirectTarget = typeof route.query.redirect === 'string' && route.query.redirect.startsWith('/') ? route.query.redirect : { name: 'dashboard' as const }
 
@@ -67,7 +67,7 @@ async function handleSubmit() {
             id="email"
             v-model="email"
             type="email"
-            placeholder="m@example.com"
+            placeholder="email@example.com"
             autocomplete="username"
             required
           />

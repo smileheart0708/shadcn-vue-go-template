@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { Moon, Monitor, Sun } from 'lucide-vue-next'
-import { useColorMode } from '@vueuse/core'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { useThemeStore } from '@/stores/theme'
 
-const mode = useColorMode()
+const themeStore = useThemeStore()
 
-const icon = { light: Sun, dark: Moon, auto: Monitor }
+const icon = { light: Sun, dark: Moon, system: Monitor }
 </script>
 
 <template>
@@ -17,16 +17,16 @@ const icon = { light: Sun, dark: Moon, auto: Monitor }
         size="icon"
       >
         <component
-          :is="icon[mode]"
+          :is="icon[themeStore.theme]"
           class="h-[1.2rem] w-[1.2rem]"
         />
         <span class="sr-only">Toggle theme</span>
       </Button>
     </DropdownMenuTrigger>
     <DropdownMenuContent align="end">
-      <DropdownMenuItem @click="mode = 'light'"> Light </DropdownMenuItem>
-      <DropdownMenuItem @click="mode = 'dark'"> Dark </DropdownMenuItem>
-      <DropdownMenuItem @click="mode = 'auto'"> System </DropdownMenuItem>
+      <DropdownMenuItem @click="themeStore.setTheme('light')"> Light </DropdownMenuItem>
+      <DropdownMenuItem @click="themeStore.setTheme('dark')"> Dark </DropdownMenuItem>
+      <DropdownMenuItem @click="themeStore.setTheme('system')"> System </DropdownMenuItem>
     </DropdownMenuContent>
   </DropdownMenu>
 </template>

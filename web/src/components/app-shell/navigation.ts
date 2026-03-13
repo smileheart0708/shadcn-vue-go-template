@@ -28,7 +28,7 @@ export function useAppShellNavigation(): ComputedRef<AppShellNavigation> {
 
   return computed(() => {
     return {
-      user: { name: 'shadcn', email: 'm@example.com', avatar: '' },
+      user: { name: 'shadcn', email: 'email@example.com', avatar: '' },
       main: [
         { title: t('nav.main.dashboard'), icon: IconDashboard, to: { name: 'dashboard' } },
         { title: t('nav.main.lifecycle'), icon: IconListDetails, disabled: true },

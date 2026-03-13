@@ -6,21 +6,21 @@ import AppShellNavMain from '@/components/app-shell/AppShellNavMain.vue'
 import AppShellNavSecondary from '@/components/app-shell/AppShellNavSecondary.vue'
 import AppShellNavUser from '@/components/app-shell/AppShellNavUser.vue'
 import { useAppShellNavigation } from '@/components/app-shell/navigation'
-import { useAuth } from '@/composables/auth/useAuth'
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader } from '@/components/ui/sidebar'
+import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
-const auth = useAuth()
+const authStore = useAuthStore()
 const navigation = useAppShellNavigation()
 
 const currentUser = computed(() => ({
-  name: auth.state.user?.name ?? navigation.value.user.name,
-  email: auth.state.user?.email ?? navigation.value.user.email,
+  name: authStore.user?.name ?? navigation.value.user.name,
+  email: authStore.user?.email ?? navigation.value.user.email,
   avatar: navigation.value.user.avatar,
 }))
 
 async function handleLogout() {
-  auth.logout()
+  authStore.logout()
   await router.push({ name: 'login' })
 }
 </script>

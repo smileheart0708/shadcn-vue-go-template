@@ -1,9 +1,10 @@
 import type { Router } from 'vue-router'
-import { useAuth } from '@/composables/auth/useAuth'
+import pinia from '@/stores/pinia'
+import { useAuthStore } from '@/stores/auth'
 
 export function installAuthGuard(router: Router) {
   router.beforeEach(async (to) => {
-    const auth = useAuth()
+    const authStore = useAuthStore(pinia)
     const requiresAuth = to.matched.some((record) => record.meta.requiresAuth)
     const guestOnly = to.matched.some((record) => record.meta.guestOnly)
 
@@ -11,13 +12,13 @@ export function installAuthGuard(router: Router) {
       return true
     }
 
-    await auth.initialize()
+    await authStore.initialize()
 
-    if (guestOnly && auth.isAuthenticated.value) {
+    if (guestOnly && authStore.isAuthenticated) {
       return { name: 'dashboard' }
     }
 
-    if (requiresAuth && !auth.isAuthenticated.value) {
+    if (requiresAuth && !authStore.isAuthenticated) {
       return {
         name: 'login',
         query: to.fullPath === '/login' ? undefined : { redirect: to.fullPath },
