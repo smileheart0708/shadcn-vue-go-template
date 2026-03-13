@@ -75,6 +75,7 @@ const zhCN = {
     },
   },
   notFound: { description: '您访问的页面不存在。' },
+  sonner: { loginSuccess: '登录成功！' },
 } as const satisfies MessageSchema
 
 export default zhCN

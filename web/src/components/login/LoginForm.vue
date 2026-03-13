@@ -3,12 +3,13 @@ import type { HTMLAttributes } from 'vue'
 import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import { toast } from 'vue-sonner'
 import { useAuth } from '@/composables/auth/useAuth'
 import { APIError } from '@/lib/api/client'
 
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
+import { Field, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 
 const { t } = useI18n()
@@ -21,7 +22,6 @@ const auth = useAuth()
 
 const email = ref('')
 const password = ref('')
-const errorMessage = ref('')
 const isSubmitting = ref(false)
 
 async function handleSubmit() {
@@ -29,7 +29,6 @@ async function handleSubmit() {
     return
   }
 
-  errorMessage.value = ''
   isSubmitting.value = true
 
   try {
@@ -39,7 +38,8 @@ async function handleSubmit() {
 
     await router.push(redirectTarget)
   } catch (error) {
-    errorMessage.value = error instanceof APIError ? error.message : t('auth.signIn.loginFailed')
+    const message = error instanceof APIError ? error.message : t('auth.signIn.loginFailed')
+    toast.error(message)
   } finally {
     isSubmitting.value = false
   }
@@ -82,9 +82,6 @@ async function handleSubmit() {
             autocomplete="current-password"
             required
           />
-        </Field>
-        <Field v-if="errorMessage">
-          <FieldError :errors="[errorMessage]" />
         </Field>
         <Field>
           <Button

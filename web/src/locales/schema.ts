@@ -64,4 +64,5 @@ export interface MessageSchema {
     tab: { outline: string; pastPerformance: string; keyPersonnel: string; focusDocuments: string }
   }
   notFound: { description: string }
+  sonner: { loginSuccess: string }
 }
