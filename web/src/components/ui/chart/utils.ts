@@ -12,11 +12,7 @@ function serializeKey(key: Record<string, unknown>): string {
   return JSON.stringify(key, Object.keys(key).sort())
 }
 
-export function componentToString(
-  config: ChartConfig,
-  component: Component,
-  props: Record<string, unknown> = {},
-) {
+export function componentToString(config: ChartConfig, component: Component, props: Record<string, unknown> = {}) {
   if (!isClient) return
 
   // This function will be called once during mount lifecycle

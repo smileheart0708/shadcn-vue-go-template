@@ -16,9 +16,7 @@ const isActive = computed(() => {
 
   const target = router.resolve(props.item.to)
 
-  return (
-    route.path === target.path || (target.path !== '/' && route.path.startsWith(`${target.path}/`))
-  )
+  return route.path === target.path || (target.path !== '/' && route.path.startsWith(`${target.path}/`))
 })
 
 const isDisabled = computed(() => props.item.disabled ?? !props.item.to)

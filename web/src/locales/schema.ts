@@ -1,7 +1,5 @@
 export interface MessageSchema {
-  app: {
-    name: string
-  }
+  app: { name: string }
   common: {
     action: {
       add: string
@@ -18,26 +16,11 @@ export interface MessageSchema {
       submit: string
       update: string
     }
-    field: {
-      email: string
-      password: string
-    }
-    feedback: {
-      networkError: string
-      required: string
-      unknownError: string
-    }
-    state: {
-      empty: string
-      loading: string
-      noData: string
-    }
+    field: { email: string; password: string }
+    feedback: { networkError: string; required: string; unknownError: string }
+    state: { empty: string; loading: string; noData: string }
   }
-  route: {
-    dashboard: string
-    login: string
-    notFound: string
-  }
+  route: { dashboard: string; login: string; notFound: string }
   auth: {
     signIn: {
       description: string
@@ -77,18 +60,8 @@ export interface MessageSchema {
       goToLastPage: string
       rowSelected: string
     }
-    select: {
-      assignReviewer: string
-      view: string
-    }
-    tab: {
-      outline: string
-      pastPerformance: string
-      keyPersonnel: string
-      focusDocuments: string
-    }
+    select: { assignReviewer: string; view: string }
+    tab: { outline: string; pastPerformance: string; keyPersonnel: string; focusDocuments: string }
   }
-  notFound: {
-    description: string
-  }
+  notFound: { description: string }
 }

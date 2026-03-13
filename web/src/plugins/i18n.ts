@@ -17,10 +17,7 @@ const localeAliases: Readonly<Record<string, AppLocale>> = {
   'zh-cn': 'zh-CN',
 }
 
-const messages: { [locale in AppLocale]: MessageSchema } = {
-  'zh-CN': zhCN,
-  'en-US': enUS,
-}
+const messages: { [locale in AppLocale]: MessageSchema } = { 'zh-CN': zhCN, 'en-US': enUS }
 
 function isSupportedLocale(locale: string): locale is AppLocale {
   return supportedLocaleSet.has(locale)

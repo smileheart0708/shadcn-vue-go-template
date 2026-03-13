@@ -2,14 +2,7 @@
 import { IconTrendingDown, IconTrendingUp } from '@tabler/icons-vue'
 
 import { Badge } from '@/components/ui/badge'
-import {
-  Card,
-  CardAction,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
+import { Card, CardAction, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 </script>
 
 <template>
@@ -17,9 +10,7 @@ import {
     <Card class="@container/card">
       <CardHeader>
         <CardDescription>Total Revenue</CardDescription>
-        <CardTitle class="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-          $1,250.00
-        </CardTitle>
+        <CardTitle class="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl"> $1,250.00 </CardTitle>
         <CardAction>
           <Badge variant="outline">
             <IconTrendingUp />
@@ -28,18 +19,14 @@ import {
         </CardAction>
       </CardHeader>
       <CardFooter class="flex-col items-start gap-1.5 text-sm">
-        <div class="line-clamp-1 flex gap-2 font-medium">
-          Trending up this month <IconTrendingUp class="size-4" />
-        </div>
+        <div class="line-clamp-1 flex gap-2 font-medium">Trending up this month <IconTrendingUp class="size-4" /></div>
         <div class="text-muted-foreground">Visitors for the last 6 months</div>
       </CardFooter>
     </Card>
     <Card class="@container/card">
       <CardHeader>
         <CardDescription>New Customers</CardDescription>
-        <CardTitle class="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-          1,234
-        </CardTitle>
+        <CardTitle class="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl"> 1,234 </CardTitle>
         <CardAction>
           <Badge variant="outline">
             <IconTrendingDown />
@@ -48,18 +35,14 @@ import {
         </CardAction>
       </CardHeader>
       <CardFooter class="flex-col items-start gap-1.5 text-sm">
-        <div class="line-clamp-1 flex gap-2 font-medium">
-          Down 20% this period <IconTrendingDown class="size-4" />
-        </div>
+        <div class="line-clamp-1 flex gap-2 font-medium">Down 20% this period <IconTrendingDown class="size-4" /></div>
         <div class="text-muted-foreground">Acquisition needs attention</div>
       </CardFooter>
     </Card>
     <Card class="@container/card">
       <CardHeader>
         <CardDescription>Active Accounts</CardDescription>
-        <CardTitle class="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-          45,678
-        </CardTitle>
+        <CardTitle class="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl"> 45,678 </CardTitle>
         <CardAction>
           <Badge variant="outline">
             <IconTrendingUp />
@@ -68,18 +51,14 @@ import {
         </CardAction>
       </CardHeader>
       <CardFooter class="flex-col items-start gap-1.5 text-sm">
-        <div class="line-clamp-1 flex gap-2 font-medium">
-          Strong user retention <IconTrendingUp class="size-4" />
-        </div>
+        <div class="line-clamp-1 flex gap-2 font-medium">Strong user retention <IconTrendingUp class="size-4" /></div>
         <div class="text-muted-foreground">Engagement exceed targets</div>
       </CardFooter>
     </Card>
     <Card class="@container/card">
       <CardHeader>
         <CardDescription>Growth Rate</CardDescription>
-        <CardTitle class="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-          4.5%
-        </CardTitle>
+        <CardTitle class="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl"> 4.5% </CardTitle>
         <CardAction>
           <Badge variant="outline">
             <IconTrendingUp />
@@ -88,9 +67,7 @@ import {
         </CardAction>
       </CardHeader>
       <CardFooter class="flex-col items-start gap-1.5 text-sm">
-        <div class="line-clamp-1 flex gap-2 font-medium">
-          Steady performance increase <IconTrendingUp class="size-4" />
-        </div>
+        <div class="line-clamp-1 flex gap-2 font-medium">Steady performance increase <IconTrendingUp class="size-4" /></div>
         <div class="text-muted-foreground">Meets growth projections</div>
       </CardFooter>
     </Card>

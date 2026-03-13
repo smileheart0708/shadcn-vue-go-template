@@ -1,10 +1,5 @@
 import { http, HttpResponse } from 'msw'
-import {
-  MOCK_AUTH_TOKEN,
-  MOCK_AUTH_USER,
-  MOCK_LOGIN_CREDENTIALS,
-  MOCK_LOGIN_RESPONSE,
-} from '@/mocks/data/auth'
+import { MOCK_AUTH_TOKEN, MOCK_AUTH_USER, MOCK_LOGIN_CREDENTIALS, MOCK_LOGIN_RESPONSE } from '@/mocks/data/auth'
 
 interface LoginRequestBody {
   email?: string
@@ -17,10 +12,7 @@ function isLoginRequestBody(value: unknown): value is LoginRequestBody {
   }
 
   const { email, password } = value
-  return (
-    (email === undefined || typeof email === 'string') &&
-    (password === undefined || typeof password === 'string')
-  )
+  return (email === undefined || typeof email === 'string') && (password === undefined || typeof password === 'string')
 }
 
 function createUnauthorizedResponse(message: string) {
@@ -31,11 +23,7 @@ export const authHandlers = [
   http.post('/api/auth/login', async ({ request }) => {
     const payload = await request.json().catch(() => null)
 
-    if (
-      !isLoginRequestBody(payload) ||
-      payload?.email !== MOCK_LOGIN_CREDENTIALS.email ||
-      payload?.password !== MOCK_LOGIN_CREDENTIALS.password
-    ) {
+    if (!isLoginRequestBody(payload) || payload?.email !== MOCK_LOGIN_CREDENTIALS.email || payload?.password !== MOCK_LOGIN_CREDENTIALS.password) {
       return createUnauthorizedResponse('Invalid email or password.')
     }
 

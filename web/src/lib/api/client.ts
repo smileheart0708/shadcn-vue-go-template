@@ -28,10 +28,7 @@ export const api = ky.create({
           request.headers.set('Accept', 'application/json')
         }
 
-        const requestMayHaveJsonBody =
-          options.body !== undefined &&
-          request.body !== null &&
-          !request.headers.has('Content-Type')
+        const requestMayHaveJsonBody = options.body !== undefined && request.body !== null && !request.headers.has('Content-Type')
         if (requestMayHaveJsonBody) {
           request.headers.set('Content-Type', 'application/json')
         }
@@ -49,12 +46,7 @@ export async function toAPIError(error: HTTPError): Promise<APIError> {
   const payload = await readResponsePayload(error.response.clone())
   const errorPayload = isAPIErrorPayload(payload) ? payload : undefined
 
-  return new APIError(
-    error.response.status,
-    errorPayload?.error?.message ?? `Request failed with status ${String(error.response.status)}`,
-    errorPayload?.error?.code,
-    payload,
-  )
+  return new APIError(error.response.status, errorPayload?.error?.message ?? `Request failed with status ${String(error.response.status)}`, errorPayload?.error?.code, payload)
 }
 
 export async function normalizeAPIError(error: unknown): Promise<never> {
@@ -98,10 +90,7 @@ function isAPIErrorPayload(payload: unknown): payload is APIErrorPayload {
   }
 
   const { code, message } = error
-  return (
-    (code === undefined || typeof code === 'string') &&
-    (message === undefined || typeof message === 'string')
-  )
+  return (code === undefined || typeof code === 'string') && (message === undefined || typeof message === 'string')
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

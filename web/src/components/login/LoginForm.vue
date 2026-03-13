@@ -35,15 +35,11 @@ async function handleSubmit() {
   try {
     await auth.login({ email: email.value, password: password.value })
 
-    const redirectTarget =
-      typeof route.query.redirect === 'string' && route.query.redirect.startsWith('/')
-        ? route.query.redirect
-        : { name: 'dashboard' as const }
+    const redirectTarget = typeof route.query.redirect === 'string' && route.query.redirect.startsWith('/') ? route.query.redirect : { name: 'dashboard' as const }
 
     await router.push(redirectTarget)
   } catch (error) {
-    errorMessage.value =
-      error instanceof APIError ? error.message : t('auth.signIn.loginFailed')
+    errorMessage.value = error instanceof APIError ? error.message : t('auth.signIn.loginFailed')
   } finally {
     isSubmitting.value = false
   }

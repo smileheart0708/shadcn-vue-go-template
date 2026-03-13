@@ -36,17 +36,13 @@ const payload = computed(() => {
     .filter((i) => i.itemConfig)
 })
 
-const nestLabel = computed(
-  () => Object.keys(props.payload).length === 1 && props.indicator !== 'dot',
-)
+const nestLabel = computed(() => Object.keys(props.payload).length === 1 && props.indicator !== 'dot')
 const tooltipLabel = computed(() => {
   if (props.hideLabel) return null
   if (props.labelFormatter && props.x !== undefined) {
     return props.labelFormatter(props.x)
   }
-  return props.labelKey
-    ? props.config[props.labelKey]?.label || props.payload[props.labelKey]
-    : props.x
+  return props.labelKey ? props.config[props.labelKey]?.label || props.payload[props.labelKey] : props.x
 })
 
 function readPayloadColor(payload: Record<string, unknown>): string | undefined {
@@ -79,14 +75,7 @@ function formatTooltipValue(value: unknown): string {
 </script>
 
 <template>
-  <div
-    :class="
-      cn(
-        'border-border/50 bg-background grid min-w-32 items-start gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs shadow-xl',
-        props.class,
-      )
-    "
-  >
+  <div :class="cn('border-border/50 bg-background grid min-w-32 items-start gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs shadow-xl', props.class)">
     <slot>
       <div
         v-if="!nestLabel && tooltipLabel"
@@ -98,12 +87,7 @@ function formatTooltipValue(value: unknown): string {
         <div
           v-for="{ value, itemConfig, indicatorColor, key } in payload"
           :key="key"
-          :class="
-            cn(
-              '[&>svg]:text-muted-foreground flex w-full flex-wrap items-stretch gap-2 [&>svg]:h-2.5 [&>svg]:w-2.5',
-              indicator === 'dot' && 'items-center',
-            )
-          "
+          :class="cn('[&>svg]:text-muted-foreground flex w-full flex-wrap items-stretch gap-2 [&>svg]:h-2.5 [&>svg]:w-2.5', indicator === 'dot' && 'items-center')"
         >
           <component
             :is="itemConfig.icon"
@@ -123,14 +107,7 @@ function formatTooltipValue(value: unknown): string {
             />
           </template>
 
-          <div
-            :class="
-              cn(
-                'flex flex-1 justify-between leading-none',
-                nestLabel ? 'items-end' : 'items-center',
-              )
-            "
-          >
+          <div :class="cn('flex flex-1 justify-between leading-none', nestLabel ? 'items-end' : 'items-center')">
             <div class="grid gap-1.5">
               <div
                 v-if="nestLabel"

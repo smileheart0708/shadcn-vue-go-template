@@ -1,9 +1,7 @@
 import type { MessageSchema } from '@/locales/schema'
 
 const enUS = {
-  app: {
-    name: 'shadcn-vue-go-template',
-  },
+  app: { name: 'shadcn-vue-go-template' },
   common: {
     action: {
       add: 'Add',
@@ -20,26 +18,15 @@ const enUS = {
       submit: 'Submit',
       update: 'Update',
     },
-    field: {
-      email: 'Email',
-      password: 'Password',
-    },
+    field: { email: 'Email', password: 'Password' },
     feedback: {
       networkError: 'Network error. Please try again.',
       required: 'This field is required.',
       unknownError: 'Something went wrong. Please try again.',
     },
-    state: {
-      empty: 'Nothing here yet.',
-      loading: 'Loading...',
-      noData: 'No data',
-    },
+    state: { empty: 'Nothing here yet.', loading: 'Loading...', noData: 'No data' },
   },
-  route: {
-    dashboard: 'Dashboard',
-    login: 'Login',
-    notFound: 'Page not found',
-  },
+  route: { dashboard: 'Dashboard', login: 'Login', notFound: 'Page not found' },
   auth: {
     signIn: {
       description: 'Use your account credentials to continue.',
@@ -79,10 +66,7 @@ const enUS = {
       goToLastPage: 'Go to last page',
       rowSelected: '{selected} of {total} row(s) selected.',
     },
-    select: {
-      assignReviewer: 'Assign reviewer',
-      view: 'Select a view',
-    },
+    select: { assignReviewer: 'Assign reviewer', view: 'Select a view' },
     tab: {
       outline: 'Outline',
       pastPerformance: 'Past Performance',
@@ -90,9 +74,7 @@ const enUS = {
       focusDocuments: 'Focus Documents',
     },
   },
-  notFound: {
-    description: 'The page you are looking for does not exist.',
-  },
+  notFound: { description: 'The page you are looking for does not exist.' },
 } as const satisfies MessageSchema
 
 export default enUS

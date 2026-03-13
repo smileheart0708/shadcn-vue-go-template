@@ -3,13 +3,7 @@ import { IconCirclePlusFilled, IconMail } from '@tabler/icons-vue'
 import type { AppShellNavItem } from '@/components/app-shell/navigation'
 import AppShellNavButton from '@/components/app-shell/AppShellNavButton.vue'
 import { Button } from '@/components/ui/button'
-import {
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-} from '@/components/ui/sidebar'
+import { SidebarGroup, SidebarGroupContent, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar'
 
 defineProps<{ items: AppShellNavItem[] }>()
 </script>

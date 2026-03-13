@@ -1,9 +1,7 @@
 import type { MessageSchema } from '@/locales/schema'
 
 const zhCN = {
-  app: {
-    name: 'shadcn-vue-go-template',
-  },
+  app: { name: 'shadcn-vue-go-template' },
   common: {
     action: {
       add: '新增',
@@ -20,26 +18,15 @@ const zhCN = {
       submit: '提交',
       update: '更新',
     },
-    field: {
-      email: '邮箱',
-      password: '密码',
-    },
+    field: { email: '邮箱', password: '密码' },
     feedback: {
       networkError: '网络异常，请稍后重试。',
       required: '此字段为必填项。',
       unknownError: '发生未知错误，请稍后重试。',
     },
-    state: {
-      empty: '暂无内容',
-      loading: '加载中...',
-      noData: '暂无数据',
-    },
+    state: { empty: '暂无内容', loading: '加载中...', noData: '暂无数据' },
   },
-  route: {
-    dashboard: '仪表盘',
-    login: '登录',
-    notFound: '页面不存在',
-  },
+  route: { dashboard: '仪表盘', login: '登录', notFound: '页面不存在' },
   auth: {
     signIn: {
       description: '使用你的账号凭据继续。',
@@ -79,10 +66,7 @@ const zhCN = {
       goToLastPage: '跳转到最后一页',
       rowSelected: '已选择 {selected} / {total} 行',
     },
-    select: {
-      assignReviewer: '分配审核员',
-      view: '选择视图',
-    },
+    select: { assignReviewer: '分配审核员', view: '选择视图' },
     tab: {
       outline: '大纲',
       pastPerformance: '过往表现',
@@ -90,9 +74,7 @@ const zhCN = {
       focusDocuments: '重点文档',
     },
   },
-  notFound: {
-    description: '您访问的页面不存在。',
-  },
+  notFound: { description: '您访问的页面不存在。' },
 } as const satisfies MessageSchema
 
 export default zhCN

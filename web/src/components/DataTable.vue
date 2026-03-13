@@ -1,10 +1,5 @@
 <script setup lang="ts">
-import type {
-  ColumnDef,
-  ColumnFiltersState,
-  SortingState,
-  VisibilityState,
-} from '@tanstack/vue-table'
+import type { ColumnDef, ColumnFiltersState, SortingState, VisibilityState } from '@tanstack/vue-table'
 import { RestrictToVerticalAxis } from '@dnd-kit/abstract/modifiers'
 import { h, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -20,45 +15,18 @@ import {
   IconLoader,
   IconPlus,
 } from '@tabler/icons-vue'
-import {
-  FlexRender,
-  getCoreRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  getSortedRowModel,
-  useVueTable,
-} from '@tanstack/vue-table'
+import { FlexRender, getCoreRowModel, getFilteredRowModel, getPaginationRowModel, getSortedRowModel, useVueTable } from '@tanstack/vue-table'
 import { DragDropProvider } from 'dnd-kit-vue'
 import type { TableData } from '@/components/data-table-schema'
 import { Badge } from '@/components/ui/badge'
 
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 
 import { Label } from '@/components/ui/label'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import DragHandle from './DragHandle.vue'
@@ -81,9 +49,7 @@ const columns: ColumnDef<TableData>[] = [
     id: 'select',
     header: ({ table }) =>
       h(Checkbox, {
-        modelValue:
-          table.getIsAllPageRowsSelected() ||
-          (table.getIsSomePageRowsSelected() && 'indeterminate'),
+        modelValue: table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && 'indeterminate'),
         'onUpdate:modelValue': (value: CheckedState) => {
           table.toggleAllPageRowsSelected(!!value)
         },
@@ -117,9 +83,7 @@ const columns: ColumnDef<TableData>[] = [
     cell: ({ row }) => {
       const { status } = row.original
       return h('div', { class: 'flex items-center gap-2' }, [
-        status === 'Done'
-          ? h(IconCircleCheckFilled, { class: 'h-4 w-4 text-emerald-500' })
-          : h(IconLoader, { class: 'h-4 w-4 animate-spin text-muted-foreground' }),
+        status === 'Done' ? h(IconCircleCheckFilled, { class: 'h-4 w-4 text-emerald-500' }) : h(IconLoader, { class: 'h-4 w-4 animate-spin text-muted-foreground' }),
         h('span', {}, status),
       ])
     },
@@ -127,18 +91,12 @@ const columns: ColumnDef<TableData>[] = [
   {
     accessorKey: 'target',
     header: () => h('div', { class: 'flex items-center gap-1' }, [t('table.column.target')]),
-    cell: ({ row }) =>
-      h(Button, { variant: 'ghost', size: 'sm', class: 'h-auto p-1 text-xs font-mono' }, () => [
-        h('span', { class: 'ml-1 font-semibold' }, String(row.getValue('target'))),
-      ]),
+    cell: ({ row }) => h(Button, { variant: 'ghost', size: 'sm', class: 'h-auto p-1 text-xs font-mono' }, () => [h('span', { class: 'ml-1 font-semibold' }, String(row.getValue('target')))]),
   },
   {
     accessorKey: 'limit',
     header: () => h('div', { class: 'flex items-center gap-1' }, [t('table.column.limit')]),
-    cell: ({ row }) =>
-      h(Button, { variant: 'ghost', size: 'sm', class: 'h-auto p-1 text-xs font-mono' }, () => [
-        h('span', { class: 'ml-1 font-semibold' }, String(row.getValue('limit'))),
-      ]),
+    cell: ({ row }) => h(Button, { variant: 'ghost', size: 'sm', class: 'h-auto p-1 text-xs font-mono' }, () => [h('span', { class: 'ml-1 font-semibold' }, String(row.getValue('limit')))]),
   },
   {
     accessorKey: 'reviewer',
@@ -156,19 +114,12 @@ const columns: ColumnDef<TableData>[] = [
         {},
         {
           default: () => [
-            h(
-              SelectTrigger,
-              { class: 'w-full' },
-              { default: () => h(SelectValue, { placeholder: t('table.select.assignReviewer') }) },
-            ),
+            h(SelectTrigger, { class: 'w-full' }, { default: () => h(SelectValue, { placeholder: t('table.select.assignReviewer') }) }),
             h(
               SelectContent,
               {},
               {
-                default: () => [
-                  h(SelectItem, { value: 'eddie' }, () => 'Eddie Lake'),
-                  h(SelectItem, { value: 'jamik' }, () => 'Jamik Tashpulatov'),
-                ],
+                default: () => [h(SelectItem, { value: 'eddie' }, () => 'Eddie Lake'), h(SelectItem, { value: 'jamik' }, () => 'Jamik Tashpulatov')],
               },
             ),
           ],
@@ -193,10 +144,7 @@ const columns: ColumnDef<TableData>[] = [
                     Button,
                     { variant: 'ghost', class: 'h-8 w-8 p-0' },
                     {
-                      default: () => [
-                        h('span', { class: 'sr-only' }, t('common.action.menu')),
-                        h(IconDotsVertical, { class: 'h-4 w-4' }),
-                      ],
+                      default: () => [h('span', { class: 'sr-only' }, t('common.action.menu')), h(IconDotsVertical, { class: 'h-4 w-4' })],
                     },
                   ),
               },
@@ -230,20 +178,16 @@ const table = useVueTable({
   getSortedRowModel: getSortedRowModel(),
   getFilteredRowModel: getFilteredRowModel(),
   onSortingChange: (updaterOrValue) => {
-    sorting.value =
-      typeof updaterOrValue === 'function' ? updaterOrValue(sorting.value) : updaterOrValue
+    sorting.value = typeof updaterOrValue === 'function' ? updaterOrValue(sorting.value) : updaterOrValue
   },
   onColumnFiltersChange: (updaterOrValue) => {
-    columnFilters.value =
-      typeof updaterOrValue === 'function' ? updaterOrValue(columnFilters.value) : updaterOrValue
+    columnFilters.value = typeof updaterOrValue === 'function' ? updaterOrValue(columnFilters.value) : updaterOrValue
   },
   onColumnVisibilityChange: (updaterOrValue) => {
-    columnVisibility.value =
-      typeof updaterOrValue === 'function' ? updaterOrValue(columnVisibility.value) : updaterOrValue
+    columnVisibility.value = typeof updaterOrValue === 'function' ? updaterOrValue(columnVisibility.value) : updaterOrValue
   },
   onRowSelectionChange: (updaterOrValue) => {
-    rowSelection.value =
-      typeof updaterOrValue === 'function' ? updaterOrValue(rowSelection.value) : updaterOrValue
+    rowSelection.value = typeof updaterOrValue === 'function' ? updaterOrValue(rowSelection.value) : updaterOrValue
   },
   state: {
     get sorting() {
@@ -289,16 +233,10 @@ const table = useVueTable({
           <SelectItem value="focus-documents"> {{ t('table.tab.focusDocuments') }} </SelectItem>
         </SelectContent>
       </Select>
-      <TabsList
-        class="**:data-[slot=badge]:bg-muted-foreground/30 hidden **:data-[slot=badge]:size-5 **:data-[slot=badge]:rounded-full **:data-[slot=badge]:px-1 @4xl/main:flex"
-      >
+      <TabsList class="**:data-[slot=badge]:bg-muted-foreground/30 hidden **:data-[slot=badge]:size-5 **:data-[slot=badge]:rounded-full **:data-[slot=badge]:px-1 @4xl/main:flex">
         <TabsTrigger value="outline"> {{ t('table.tab.outline') }} </TabsTrigger>
-        <TabsTrigger value="past-performance">
-          {{ t('table.tab.pastPerformance') }} <Badge variant="secondary"> 3 </Badge>
-        </TabsTrigger>
-        <TabsTrigger value="key-personnel">
-          {{ t('table.tab.keyPersonnel') }} <Badge variant="secondary"> 2 </Badge>
-        </TabsTrigger>
+        <TabsTrigger value="past-performance"> {{ t('table.tab.pastPerformance') }} <Badge variant="secondary"> 3 </Badge> </TabsTrigger>
+        <TabsTrigger value="key-personnel"> {{ t('table.tab.keyPersonnel') }} <Badge variant="secondary"> 2 </Badge> </TabsTrigger>
         <TabsTrigger value="focus-documents"> {{ t('table.tab.focusDocuments') }} </TabsTrigger>
       </TabsList>
       <div class="flex items-center gap-2">
@@ -319,11 +257,7 @@ const table = useVueTable({
             class="w-56"
           >
             <template
-              v-for="column in table
-                .getAllColumns()
-                .filter(
-                  (column) => typeof column.accessorFn !== 'undefined' && column.getCanHide(),
-                )"
+              v-for="column in table.getAllColumns().filter((column) => typeof column.accessorFn !== 'undefined' && column.getCanHide())"
               :key="column.id"
             >
               <DropdownMenuCheckboxItem
@@ -405,7 +339,12 @@ const table = useVueTable({
       </div>
       <div class="flex items-center justify-between px-4">
         <div class="text-muted-foreground hidden flex-1 text-sm lg:flex">
-          {{ t('table.pagination.rowSelected', { selected: table.getFilteredSelectedRowModel().rows.length, total: table.getFilteredRowModel().rows.length }) }}
+          {{
+            t('table.pagination.rowSelected', {
+              selected: table.getFilteredSelectedRowModel().rows.length,
+              total: table.getFilteredRowModel().rows.length,
+            })
+          }}
         </div>
         <div class="flex w-full items-center gap-8 lg:w-fit">
           <div class="hidden items-center gap-2 lg:flex">
@@ -442,7 +381,12 @@ const table = useVueTable({
             </Select>
           </div>
           <div class="flex w-fit items-center justify-center text-sm font-medium">
-            {{ t('table.pagination.pageOf', { page: table.getState().pagination.pageIndex + 1, total: table.getPageCount() }) }}
+            {{
+              t('table.pagination.pageOf', {
+                page: table.getState().pagination.pageIndex + 1,
+                total: table.getPageCount(),
+              })
+            }}
           </div>
           <div class="ml-auto flex items-center gap-2 lg:ml-0">
             <Button

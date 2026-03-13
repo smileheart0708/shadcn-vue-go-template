@@ -2,10 +2,10 @@
   "$schema": "https://json.schemastore.org/prettierrc",
   "semi": false,
   "singleQuote": true,
-  "printWidth": 100,
+  "printWidth": 200,
   "trailingComma": "all",
   "arrowParens": "always",
   "endOfLine": "lf",
-  "objectWrap": "collapse",
+  "objectWrap": "preserve",
   "singleAttributePerLine": true
 }

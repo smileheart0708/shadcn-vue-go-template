@@ -1,18 +1,6 @@
 import type { Component } from 'vue'
 import type { RouteLocationRaw } from 'vue-router'
-import {
-  IconChartBar,
-  IconDashboard,
-  IconDatabase,
-  IconFileDescription,
-  IconFolder,
-  IconHelp,
-  IconListDetails,
-  IconReport,
-  IconSearch,
-  IconSettings,
-  IconUsers,
-} from '@tabler/icons-vue'
+import { IconChartBar, IconDashboard, IconDatabase, IconFileDescription, IconFolder, IconHelp, IconListDetails, IconReport, IconSearch, IconSettings, IconUsers } from '@tabler/icons-vue'
 
 export interface AppShellNavItem {
   title: string

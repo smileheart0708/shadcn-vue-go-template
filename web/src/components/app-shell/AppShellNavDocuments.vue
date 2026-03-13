@@ -2,12 +2,7 @@
 import { IconDots } from '@tabler/icons-vue'
 import type { AppShellNavItem } from '@/components/app-shell/navigation'
 import AppShellNavButton from '@/components/app-shell/AppShellNavButton.vue'
-import {
-  SidebarGroup,
-  SidebarGroupLabel,
-  SidebarMenu,
-  SidebarMenuItem,
-} from '@/components/ui/sidebar'
+import { SidebarGroup, SidebarGroupLabel, SidebarMenu, SidebarMenuItem } from '@/components/ui/sidebar'
 
 defineProps<{ items: AppShellNavItem[] }>()
 </script>
