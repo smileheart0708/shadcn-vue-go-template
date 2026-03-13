@@ -67,7 +67,7 @@ async function handleSubmit() {
             id="email"
             v-model="email"
             type="email"
-            placeholder="email@example.com"
+            :placeholder="t('auth.signIn.emailPlaceholder')"
             autocomplete="username"
             required
           />
@@ -78,7 +78,7 @@ async function handleSubmit() {
             id="password"
             v-model="password"
             type="password"
-            placeholder="Enter your password"
+            :placeholder="t('auth.signIn.passwordPlaceholder')"
             autocomplete="current-password"
             required
           />

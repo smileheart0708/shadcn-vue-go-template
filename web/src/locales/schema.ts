@@ -24,8 +24,10 @@ export interface MessageSchema {
   auth: {
     signIn: {
       description: string
+      emailPlaceholder: string
       forgotPassword: string
       loginFailed: string
+      passwordPlaceholder: string
       rememberMe: string
       signingIn: string
       submit: string

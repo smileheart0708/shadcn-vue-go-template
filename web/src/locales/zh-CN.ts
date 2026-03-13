@@ -30,8 +30,10 @@ const zhCN = {
   auth: {
     signIn: {
       description: '使用你的账号凭据继续。',
+      emailPlaceholder: '请输入你的电子邮箱地址',
       forgotPassword: '忘记密码？',
       loginFailed: '登录失败，请重试。',
+      passwordPlaceholder: '请输入你的密码',
       rememberMe: '记住我',
       signingIn: '登录中...',
       submit: '登录',

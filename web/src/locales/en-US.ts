@@ -30,8 +30,10 @@ const enUS = {
   auth: {
     signIn: {
       description: 'Use your account credentials to continue.',
+      emailPlaceholder: 'Enter your email address',
       forgotPassword: 'Forgot password?',
       loginFailed: 'Login failed. Please try again.',
+      passwordPlaceholder: 'Enter your password',
       rememberMe: 'Remember me',
       signingIn: 'Signing in...',
       submit: 'Sign in',
