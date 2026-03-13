@@ -1,3 +1,4 @@
+import ky, { HTTPError } from 'ky'
 import { readAuthToken } from '@/lib/auth/token'
 
 interface APIErrorPayload {
@@ -18,55 +19,54 @@ export class APIError extends Error {
   }
 }
 
-type PayloadParser<T> = (payload: unknown) => T
+export const api = ky.create({
+  retry: 0,
+  hooks: {
+    beforeRequest: [
+      (request, options) => {
+        if (!request.headers.has('Accept')) {
+          request.headers.set('Accept', 'application/json')
+        }
 
-export async function apiRequest(input: string, init?: RequestInit): Promise<void>
-export async function apiRequest<T>(
-  input: string,
-  parser: PayloadParser<T>,
-  init?: RequestInit,
-): Promise<T>
-export async function apiRequest<T>(
-  input: string,
-  parserOrInit: PayloadParser<T> | RequestInit = {},
-  maybeInit: RequestInit = {},
-): Promise<T | void> {
-  const parser = typeof parserOrInit === 'function' ? parserOrInit : undefined
-  const init = typeof parserOrInit === 'function' ? maybeInit : parserOrInit
-  const headers = new Headers(init.headers)
-  const token = readAuthToken()
-  const isFormData = init.body instanceof FormData
+        const requestMayHaveJsonBody =
+          options.body !== undefined &&
+          request.body !== null &&
+          !request.headers.has('Content-Type')
+        if (requestMayHaveJsonBody) {
+          request.headers.set('Content-Type', 'application/json')
+        }
 
-  if (!headers.has('Accept')) {
-    headers.set('Accept', 'application/json')
+        const token = readAuthToken()
+        if (token && !request.headers.has('Authorization')) {
+          request.headers.set('Authorization', `Bearer ${token}`)
+        }
+      },
+    ],
+  },
+})
+
+export async function toAPIError(error: HTTPError): Promise<APIError> {
+  const payload = await readResponsePayload(error.response.clone())
+  const errorPayload = isAPIErrorPayload(payload) ? payload : undefined
+
+  return new APIError(
+    error.response.status,
+    errorPayload?.error?.message ?? `Request failed with status ${String(error.response.status)}`,
+    errorPayload?.error?.code,
+    payload,
+  )
+}
+
+export async function normalizeAPIError(error: unknown): Promise<never> {
+  if (error instanceof APIError) {
+    throw error
   }
 
-  if (init.body !== undefined && !isFormData && !headers.has('Content-Type')) {
-    headers.set('Content-Type', 'application/json')
+  if (error instanceof HTTPError) {
+    throw await toAPIError(error)
   }
 
-  if (token && !headers.has('Authorization')) {
-    headers.set('Authorization', `Bearer ${token}`)
-  }
-
-  const response = await fetch(input, { ...init, headers })
-
-  if (response.status === 204) {
-    return
-  }
-
-  const payload = await readResponsePayload(response)
-  if (!response.ok) {
-    const errorPayload = isAPIErrorPayload(payload) ? payload : undefined
-    throw new APIError(
-      response.status,
-      errorPayload?.error?.message ?? `Request failed with status ${String(response.status)}`,
-      errorPayload?.error?.code,
-      payload,
-    )
-  }
-
-  return parser ? parser(payload) : undefined
+  throw error
 }
 
 async function readResponsePayload(response: Response): Promise<unknown> {

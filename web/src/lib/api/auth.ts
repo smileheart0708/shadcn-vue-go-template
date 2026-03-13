@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { apiRequest } from '@/lib/api/client'
+import { api, normalizeAPIError } from '@/lib/api/client'
 
 export const authUserSchema = z.object({ id: z.string(), email: z.email(), name: z.string() })
 
@@ -23,13 +23,20 @@ export const currentUserResponseSchema = z.object({ user: authUserSchema })
 
 export type CurrentUserResponse = z.infer<typeof currentUserResponseSchema>
 
-export function login(credentials: LoginCredentials) {
-  return apiRequest('/api/auth/login', (payload) => loginResponseSchema.parse(payload), {
-    method: 'POST',
-    body: JSON.stringify(credentials),
-  })
+export async function login(credentials: LoginCredentials): Promise<LoginResponse> {
+  try {
+    const payload = await api.post('/api/auth/login', { json: credentials }).json<unknown>()
+    return loginResponseSchema.parse(payload)
+  } catch (error) {
+    return normalizeAPIError(error)
+  }
 }
 
-export function getCurrentUser() {
-  return apiRequest('/api/auth/me', (payload) => currentUserResponseSchema.parse(payload))
+export async function getCurrentUser(): Promise<CurrentUserResponse> {
+  try {
+    const payload = await api.get('/api/auth/me').json<unknown>()
+    return currentUserResponseSchema.parse(payload)
+  } catch (error) {
+    return normalizeAPIError(error)
+  }
 }

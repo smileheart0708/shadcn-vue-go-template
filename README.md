@@ -26,6 +26,23 @@ cd web && pnpm dev
 go run .
 ```
 
+### Frontend-Only Mock Development
+
+`MSW` can mock the current auth API during Vite development so the frontend can run without the Go server.
+
+```bash
+cd web
+cp .env.example .env.local
+# Set VITE_API_MOCKING=true
+pnpm dev
+```
+
+Mock mode only intercepts `POST /api/auth/login` and `GET /api/auth/me`.
+
+- Demo email: `demo@example.com`
+- Demo password: `demo123456`
+- Mock token: `mock-access-token`
+
 ### Production Build
 
 ```powershell
@@ -69,6 +86,7 @@ shadcn-vue-go-template/
 | `API_REQUEST_LOG_ENABLED` | `false` | Enable backend API request logging |
 | `JWT_SECRET` | `dev-secret-change-in-prod` | JWT signing secret |
 | `FRONTEND_DIST_DIR` | `./web/dist` | Frontend assets directory |
+| `VITE_API_MOCKING` | `false` | Enable frontend MSW auth mocks during Vite development |
 
 ## Commands
 

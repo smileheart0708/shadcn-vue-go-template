@@ -8,7 +8,7 @@ import tseslint from 'typescript-eslint'
 const tsconfigRootDir = fileURLToPath(new URL('.', import.meta.url))
 
 export default tseslint.config(
-  { ignores: ['dist', 'node_modules'] },
+  { ignores: ['dist', 'node_modules', 'public/mockServiceWorker.js'] },
   js.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked,
   ...pluginVue.configs['flat/recommended'],
