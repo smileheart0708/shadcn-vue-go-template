@@ -1,0 +1,53 @@
+import type { MessageSchema } from '@/locales/schema'
+
+const zhCN = {
+  app: {
+    name: 'shadcn-vue-go-template',
+  },
+  common: {
+    action: {
+      add: '新增',
+      back: '返回',
+      cancel: '取消',
+      close: '关闭',
+      confirm: '确认',
+      create: '创建',
+      delete: '删除',
+      edit: '编辑',
+      save: '保存',
+      search: '搜索',
+      submit: '提交',
+      update: '更新',
+    },
+    field: {
+      email: '邮箱',
+      password: '密码',
+    },
+    feedback: {
+      networkError: '网络异常，请稍后重试。',
+      required: '此字段为必填项。',
+      unknownError: '发生未知错误，请稍后重试。',
+    },
+    state: {
+      empty: '暂无内容',
+      loading: '加载中...',
+      noData: '暂无数据',
+    },
+  },
+  route: {
+    dashboard: '仪表盘',
+    login: '登录',
+    notFound: '页面不存在',
+  },
+  auth: {
+    signIn: {
+      description: '使用你的账号凭据继续。',
+      forgotPassword: '忘记密码？',
+      rememberMe: '记住我',
+      submit: '登录',
+      title: '欢迎回来',
+    },
+  },
+} as const satisfies MessageSchema
+
+export default zhCN

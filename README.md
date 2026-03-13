@@ -117,6 +117,17 @@ go test -run TestName    # Run a single test
 - Gzip compression for static assets
 - SQLite database with modernc.org/sqlite
 - shadcn-vue-style UI components (sidebar, tabs, table, tooltip, sheet, switch, skeleton)
+- Vue I18n plugin registration with typed locale resources under `web/src/locales/`
+
+## I18n
+
+The frontend now registers `vue-i18n` through `web/src/plugins/i18n.ts`.
+
+- Locale resources live in `web/src/locales/`
+- `zh-CN` is the default locale and `en-US` is the fallback locale
+- Locale choice is restored from `localStorage` key `app.locale`, otherwise the browser locale is used when it matches a supported locale
+- Shared text should be added under reusable namespaces such as `common.action`, `common.field`, `common.feedback`, and `common.state` before creating feature-specific keys
+- When adding new translation keys, update every locale file together and reuse existing keys instead of creating near-duplicate labels
 
 ## Learn More
 
