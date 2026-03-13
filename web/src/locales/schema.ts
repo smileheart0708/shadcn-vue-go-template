@@ -67,6 +67,7 @@ export interface MessageSchema {
   }
   notFound: { description: string }
   sonner: { loginSuccess: string }
+  theme: { light: string; dark: string; system: string }
   nav: {
     main: { dashboard: string; lifecycle: string; analytics: string; projects: string; team: string }
     documents: { dataLibrary: string; reports: string; wordAssistant: string; label: string; more: string }

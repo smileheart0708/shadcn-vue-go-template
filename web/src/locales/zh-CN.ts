@@ -78,6 +78,7 @@ const zhCN = {
   },
   notFound: { description: '您访问的页面不存在。' },
   sonner: { loginSuccess: '登录成功！' },
+  theme: { light: '浅色', dark: '深色', system: '跟随系统' },
   nav: {
     main: { dashboard: '仪表盘', lifecycle: '生命周期', analytics: '分析', projects: '项目', team: '团队' },
     documents: { dataLibrary: '数据库', reports: '报告', wordAssistant: 'Word 助手', label: '文档', more: '更多' },
