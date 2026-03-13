@@ -7,6 +7,7 @@ import type {
 } from '@tanstack/vue-table'
 import { RestrictToVerticalAxis } from '@dnd-kit/abstract/modifiers'
 import { h, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import {
   IconChevronDown,
   IconChevronLeft,
@@ -63,6 +64,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import DragHandle from './DragHandle.vue'
 import DraggableRow from './DraggableRow.vue'
 
+const { t } = useI18n()
+
 const props = defineProps<{ data: TableData[] }>()
 
 type CheckedState = boolean | 'indeterminate'
@@ -99,18 +102,18 @@ const columns: ColumnDef<TableData>[] = [
   },
   {
     accessorKey: 'header',
-    header: 'Header',
+    header: () => h('div', {}, t('table.column.header')),
     cell: ({ row }) => h('div', String(row.getValue('header'))),
     enableHiding: false,
   },
   {
     accessorKey: 'type',
-    header: 'Section Type',
+    header: () => h('div', {}, t('table.column.sectionType')),
     cell: ({ row }) => h(Badge, { variant: 'outline' }, () => String(row.getValue('type'))),
   },
   {
     accessorKey: 'status',
-    header: 'Status',
+    header: () => h('div', {}, t('table.column.status')),
     cell: ({ row }) => {
       const { status } = row.original
       return h('div', { class: 'flex items-center gap-2' }, [
@@ -123,7 +126,7 @@ const columns: ColumnDef<TableData>[] = [
   },
   {
     accessorKey: 'target',
-    header: () => h('div', { class: 'flex items-center gap-1' }, ['Target']),
+    header: () => h('div', { class: 'flex items-center gap-1' }, [t('table.column.target')]),
     cell: ({ row }) =>
       h(Button, { variant: 'ghost', size: 'sm', class: 'h-auto p-1 text-xs font-mono' }, () => [
         h('span', { class: 'ml-1 font-semibold' }, String(row.getValue('target'))),
@@ -131,7 +134,7 @@ const columns: ColumnDef<TableData>[] = [
   },
   {
     accessorKey: 'limit',
-    header: () => h('div', { class: 'flex items-center gap-1' }, ['Limit']),
+    header: () => h('div', { class: 'flex items-center gap-1' }, [t('table.column.limit')]),
     cell: ({ row }) =>
       h(Button, { variant: 'ghost', size: 'sm', class: 'h-auto p-1 text-xs font-mono' }, () => [
         h('span', { class: 'ml-1 font-semibold' }, String(row.getValue('limit'))),
@@ -139,10 +142,10 @@ const columns: ColumnDef<TableData>[] = [
   },
   {
     accessorKey: 'reviewer',
-    header: 'Reviewer',
+    header: () => h('div', {}, t('table.column.reviewer')),
     cell: ({ row }) => {
       const { reviewer } = row.original
-      const isAssigned = reviewer !== 'Assign reviewer'
+      const isAssigned = reviewer !== t('table.select.assignReviewer')
 
       if (isAssigned) {
         return h('span', {}, reviewer)
@@ -156,7 +159,7 @@ const columns: ColumnDef<TableData>[] = [
             h(
               SelectTrigger,
               { class: 'w-full' },
-              { default: () => h(SelectValue, { placeholder: 'Assign reviewer' }) },
+              { default: () => h(SelectValue, { placeholder: t('table.select.assignReviewer') }) },
             ),
             h(
               SelectContent,
@@ -191,7 +194,7 @@ const columns: ColumnDef<TableData>[] = [
                     { variant: 'ghost', class: 'h-8 w-8 p-0' },
                     {
                       default: () => [
-                        h('span', { class: 'sr-only' }, 'Open menu'),
+                        h('span', { class: 'sr-only' }, t('common.action.menu')),
                         h(IconDotsVertical, { class: 'h-4 w-4' }),
                       ],
                     },
@@ -203,11 +206,11 @@ const columns: ColumnDef<TableData>[] = [
               { align: 'end' },
               {
                 default: () => [
-                  h(DropdownMenuItem, {}, () => 'Edit'),
-                  h(DropdownMenuItem, {}, () => 'Make a copy'),
-                  h(DropdownMenuItem, {}, () => 'Favorite'),
+                  h(DropdownMenuItem, {}, () => t('table.action.edit')),
+                  h(DropdownMenuItem, {}, () => t('table.action.makeCopy')),
+                  h(DropdownMenuItem, {}, () => t('table.action.favorite')),
                   h(DropdownMenuSeparator, {}),
-                  h(DropdownMenuItem, {}, () => 'Delete'),
+                  h(DropdownMenuItem, {}, () => t('table.action.delete')),
                 ],
               },
             ),
@@ -269,7 +272,7 @@ const table = useVueTable({
         for="view-selector"
         class="sr-only"
       >
-        View
+        {{ t('table.select.view') }}
       </Label>
       <Select default-value="outline">
         <SelectTrigger
@@ -277,26 +280,26 @@ const table = useVueTable({
           class="flex w-fit @4xl/main:hidden"
           size="sm"
         >
-          <SelectValue placeholder="Select a view" />
+          <SelectValue :placeholder="t('table.select.view')" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="outline"> Outline </SelectItem>
-          <SelectItem value="past-performance"> Past Performance </SelectItem>
-          <SelectItem value="key-personnel"> Key Personnel </SelectItem>
-          <SelectItem value="focus-documents"> Focus Documents </SelectItem>
+          <SelectItem value="outline"> {{ t('table.tab.outline') }} </SelectItem>
+          <SelectItem value="past-performance"> {{ t('table.tab.pastPerformance') }} </SelectItem>
+          <SelectItem value="key-personnel"> {{ t('table.tab.keyPersonnel') }} </SelectItem>
+          <SelectItem value="focus-documents"> {{ t('table.tab.focusDocuments') }} </SelectItem>
         </SelectContent>
       </Select>
       <TabsList
         class="**:data-[slot=badge]:bg-muted-foreground/30 hidden **:data-[slot=badge]:size-5 **:data-[slot=badge]:rounded-full **:data-[slot=badge]:px-1 @4xl/main:flex"
       >
-        <TabsTrigger value="outline"> Outline </TabsTrigger>
+        <TabsTrigger value="outline"> {{ t('table.tab.outline') }} </TabsTrigger>
         <TabsTrigger value="past-performance">
-          Past Performance <Badge variant="secondary"> 3 </Badge>
+          {{ t('table.tab.pastPerformance') }} <Badge variant="secondary"> 3 </Badge>
         </TabsTrigger>
         <TabsTrigger value="key-personnel">
-          Key Personnel <Badge variant="secondary"> 2 </Badge>
+          {{ t('table.tab.keyPersonnel') }} <Badge variant="secondary"> 2 </Badge>
         </TabsTrigger>
-        <TabsTrigger value="focus-documents"> Focus Documents </TabsTrigger>
+        <TabsTrigger value="focus-documents"> {{ t('table.tab.focusDocuments') }} </TabsTrigger>
       </TabsList>
       <div class="flex items-center gap-2">
         <DropdownMenu>
@@ -306,8 +309,8 @@ const table = useVueTable({
               size="sm"
             >
               <IconLayoutColumns />
-              <span class="hidden lg:inline">Customize Columns</span>
-              <span class="lg:hidden">Columns</span>
+              <span class="hidden lg:inline">{{ t('table.action.customizeColumns') }}</span>
+              <span class="lg:hidden">{{ t('table.action.columns') }}</span>
               <IconChevronDown />
             </Button>
           </DropdownMenuTrigger>
@@ -342,7 +345,7 @@ const table = useVueTable({
           size="sm"
         >
           <IconPlus />
-          <span class="hidden lg:inline">Add Section</span>
+          <span class="hidden lg:inline">{{ t('table.action.addSection') }}</span>
         </Button>
       </div>
     </div>
@@ -385,7 +388,7 @@ const table = useVueTable({
                   :col-span="columns.length"
                   class="h-24 text-center"
                 >
-                  No results.
+                  {{ t('table.empty') }}
                 </TableCell>
               </TableRow>
             </TableBody>
@@ -402,8 +405,7 @@ const table = useVueTable({
       </div>
       <div class="flex items-center justify-between px-4">
         <div class="text-muted-foreground hidden flex-1 text-sm lg:flex">
-          {{ table.getFilteredSelectedRowModel().rows.length }} of
-          {{ table.getFilteredRowModel().rows.length }} row(s) selected.
+          {{ t('table.pagination.rowSelected', { selected: table.getFilteredSelectedRowModel().rows.length, total: table.getFilteredRowModel().rows.length }) }}
         </div>
         <div class="flex w-full items-center gap-8 lg:w-fit">
           <div class="hidden items-center gap-2 lg:flex">
@@ -411,7 +413,7 @@ const table = useVueTable({
               for="rows-per-page"
               class="text-sm font-medium"
             >
-              Rows per page
+              {{ t('table.pagination.rowsPerPage') }}
             </Label>
             <Select
               :model-value="table.getState().pagination.pageSize"
@@ -440,8 +442,7 @@ const table = useVueTable({
             </Select>
           </div>
           <div class="flex w-fit items-center justify-center text-sm font-medium">
-            Page {{ table.getState().pagination.pageIndex + 1 }} of
-            {{ table.getPageCount() }}
+            {{ t('table.pagination.pageOf', { page: table.getState().pagination.pageIndex + 1, total: table.getPageCount() }) }}
           </div>
           <div class="ml-auto flex items-center gap-2 lg:ml-0">
             <Button
@@ -450,7 +451,7 @@ const table = useVueTable({
               :disabled="!table.getCanPreviousPage()"
               @click="table.setPageIndex(0)"
             >
-              <span class="sr-only">Go to first page</span>
+              <span class="sr-only">{{ t('table.pagination.goToFirstPage') }}</span>
               <IconChevronsLeft />
             </Button>
             <Button
@@ -460,7 +461,7 @@ const table = useVueTable({
               :disabled="!table.getCanPreviousPage()"
               @click="table.previousPage()"
             >
-              <span class="sr-only">Go to previous page</span>
+              <span class="sr-only">{{ t('table.pagination.goToPreviousPage') }}</span>
               <IconChevronLeft />
             </Button>
             <Button
@@ -470,7 +471,7 @@ const table = useVueTable({
               :disabled="!table.getCanNextPage()"
               @click="table.nextPage()"
             >
-              <span class="sr-only">Go to next page</span>
+              <span class="sr-only">{{ t('table.pagination.goToNextPage') }}</span>
               <IconChevronRight />
             </Button>
             <Button
@@ -480,7 +481,7 @@ const table = useVueTable({
               :disabled="!table.getCanNextPage()"
               @click="table.setPageIndex(table.getPageCount() - 1)"
             >
-              <span class="sr-only">Go to last page</span>
+              <span class="sr-only">{{ t('table.pagination.goToLastPage') }}</span>
               <IconChevronsRight />
             </Button>
           </div>

@@ -2,6 +2,7 @@
 import type { HTMLAttributes } from 'vue'
 import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { useAuth } from '@/composables/auth/useAuth'
 import { APIError } from '@/lib/api/client'
 
@@ -9,6 +10,8 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
+
+const { t } = useI18n()
 
 const props = defineProps<{ class?: HTMLAttributes['class'] }>()
 
@@ -40,7 +43,7 @@ async function handleSubmit() {
     await router.push(redirectTarget)
   } catch (error) {
     errorMessage.value =
-      error instanceof APIError ? error.message : 'Login failed. Please try again.'
+      error instanceof APIError ? error.message : t('auth.signIn.loginFailed')
   } finally {
     isSubmitting.value = false
   }
@@ -57,13 +60,13 @@ async function handleSubmit() {
             alt="Logo"
             class="size-8"
           />
-          <h1 class="text-xl font-bold">Welcome back</h1>
+          <h1 class="text-xl font-bold">{{ t('auth.signIn.title') }}</h1>
           <p class="text-muted-foreground text-sm">
-            Sign in with the account configured on the Go server.
+            {{ t('auth.signIn.description') }}
           </p>
         </div>
         <Field>
-          <FieldLabel for="email"> Email </FieldLabel>
+          <FieldLabel for="email"> {{ t('common.field.email') }} </FieldLabel>
           <Input
             id="email"
             v-model="email"
@@ -74,7 +77,7 @@ async function handleSubmit() {
           />
         </Field>
         <Field>
-          <FieldLabel for="password"> Password </FieldLabel>
+          <FieldLabel for="password"> {{ t('common.field.password') }} </FieldLabel>
           <Input
             id="password"
             v-model="password"
@@ -92,7 +95,7 @@ async function handleSubmit() {
             type="submit"
             :disabled="isSubmitting"
           >
-            {{ isSubmitting ? 'Signing in...' : 'Login' }}
+            {{ isSubmitting ? t('auth.signIn.signingIn') : t('auth.signIn.submit') }}
           </Button>
         </Field>
       </FieldGroup>

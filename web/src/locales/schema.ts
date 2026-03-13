@@ -12,6 +12,7 @@ export interface MessageSchema {
       create: string
       delete: string
       edit: string
+      menu: string
       save: string
       search: string
       submit: string
@@ -41,9 +42,53 @@ export interface MessageSchema {
     signIn: {
       description: string
       forgotPassword: string
+      loginFailed: string
       rememberMe: string
+      signingIn: string
       submit: string
       title: string
     }
+  }
+  table: {
+    action: {
+      addSection: string
+      customizeColumns: string
+      columns: string
+      delete: string
+      edit: string
+      favorite: string
+      makeCopy: string
+    }
+    column: {
+      header: string
+      limit: string
+      reviewer: string
+      sectionType: string
+      status: string
+      target: string
+    }
+    empty: string
+    pagination: {
+      rowsPerPage: string
+      pageOf: string
+      goToFirstPage: string
+      goToPreviousPage: string
+      goToNextPage: string
+      goToLastPage: string
+      rowSelected: string
+    }
+    select: {
+      assignReviewer: string
+      view: string
+    }
+    tab: {
+      outline: string
+      pastPerformance: string
+      keyPersonnel: string
+      focusDocuments: string
+    }
+  }
+  notFound: {
+    description: string
   }
 }

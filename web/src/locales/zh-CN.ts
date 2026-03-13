@@ -14,6 +14,7 @@ const zhCN = {
       create: '创建',
       delete: '删除',
       edit: '编辑',
+      menu: '打开菜单',
       save: '保存',
       search: '搜索',
       submit: '提交',
@@ -43,10 +44,54 @@ const zhCN = {
     signIn: {
       description: '使用你的账号凭据继续。',
       forgotPassword: '忘记密码？',
+      loginFailed: '登录失败，请重试。',
       rememberMe: '记住我',
+      signingIn: '登录中...',
       submit: '登录',
       title: '欢迎回来',
     },
+  },
+  table: {
+    action: {
+      addSection: '添加章节',
+      customizeColumns: '自定义列',
+      columns: '列',
+      delete: '删除',
+      edit: '编辑',
+      favorite: '收藏',
+      makeCopy: '复制',
+    },
+    column: {
+      header: '标题',
+      limit: '限制',
+      reviewer: '审核员',
+      sectionType: '章节类型',
+      status: '状态',
+      target: '目标',
+    },
+    empty: '暂无数据',
+    pagination: {
+      rowsPerPage: '每页行数',
+      pageOf: '第 {page} 页，共 {total} 页',
+      goToFirstPage: '跳转到第一页',
+      goToPreviousPage: '上一页',
+      goToNextPage: '下一页',
+      goToLastPage: '跳转到最后一页',
+      rowSelected: '已选择 {selected} / {total} 行',
+    },
+    select: {
+      assignReviewer: '分配审核员',
+      view: '选择视图',
+    },
+    tab: {
+      outline: '大纲',
+      pastPerformance: '过往表现',
+      keyPersonnel: '关键人员',
+      focusDocuments: '重点文档',
+    },
+  },
+  notFound: {
+    description: '您访问的页面不存在。',
   },
 } as const satisfies MessageSchema
 

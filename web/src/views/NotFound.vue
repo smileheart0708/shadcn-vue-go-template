@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { Button } from '@/components/ui/button'
 import {
   Empty,
@@ -11,6 +12,7 @@ import {
 } from '@/components/ui/empty'
 import { IconUnlink } from '@tabler/icons-vue'
 
+const { t } = useI18n()
 const router = useRouter()
 
 function handleBack() {
@@ -31,10 +33,10 @@ function handleBack() {
       </EmptyMedia>
       <EmptyHeader>
         <EmptyTitle>404</EmptyTitle>
-        <EmptyDescription> The page you are looking for does not exist. </EmptyDescription>
+        <EmptyDescription> {{ t('notFound.description') }} </EmptyDescription>
       </EmptyHeader>
       <EmptyContent>
-        <Button @click="handleBack"> Go Back </Button>
+        <Button @click="handleBack"> {{ t('common.action.back') }} </Button>
       </EmptyContent>
     </Empty>
   </div>
