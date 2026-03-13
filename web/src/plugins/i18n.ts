@@ -7,6 +7,11 @@ export const supportedLocales = ['zh-CN', 'en-US'] as const
 
 export type AppLocale = (typeof supportedLocales)[number]
 
+export const localeNames: Record<AppLocale, string> = {
+  'zh-CN': '简体中文',
+  'en-US': 'English',
+}
+
 const STORAGE_KEY = 'app.locale'
 const fallbackLocale: AppLocale = 'en-US'
 const supportedLocaleSet = new Set<string>(supportedLocales)
