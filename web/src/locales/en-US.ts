@@ -1,7 +1,11 @@
 import type { MessageSchema } from '@/locales/schema'
 
 const enUS = {
-  app: { name: 'shadcn-vue-go-template' },
+  app: {
+    name: 'template',
+    title: '{name}',
+    titleWithPage: '{name} - {page}',
+  },
   common: {
     action: {
       add: 'Add',
@@ -26,7 +30,7 @@ const enUS = {
     },
     state: { empty: 'Nothing here yet.', loading: 'Loading...', noData: 'No data' },
   },
-  route: { dashboard: 'Dashboard', login: 'Login', notFound: 'Page not found' },
+  route: { dashboard: 'Dashboard', login: 'Login', notFound: 'Page not found', settings: 'Settings' },
   auth: {
     signIn: {
       description: 'Use your account credentials to continue.',

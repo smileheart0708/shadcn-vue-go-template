@@ -1,7 +1,11 @@
 import type { MessageSchema } from '@/locales/schema'
 
 const zhCN = {
-  app: { name: 'shadcn-vue-go-template' },
+  app: {
+    name: '模板',
+    title: '{name}',
+    titleWithPage: '{name}-{page}',
+  },
   common: {
     action: {
       add: '新增',
@@ -26,7 +30,7 @@ const zhCN = {
     },
     state: { empty: '暂无内容', loading: '加载中...', noData: '暂无数据' },
   },
-  route: { dashboard: '仪表盘', login: '登录', notFound: '页面不存在' },
+  route: { dashboard: '仪表盘', login: '登录', notFound: '页面不存在', settings: '设置' },
   auth: {
     signIn: {
       description: '使用你的账号凭据继续。',

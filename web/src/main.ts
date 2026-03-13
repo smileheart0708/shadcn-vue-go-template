@@ -1,6 +1,7 @@
 import { createApp } from 'vue'
 import './style.css'
 import App from './App.vue'
+import { installDocumentMetadata } from './plugins/document-metadata'
 import i18n from './plugins/i18n'
 import router from './router'
 import pinia from './stores/pinia'
@@ -17,7 +18,16 @@ async function enableMocking() {
 async function bootstrap() {
   await enableMocking()
 
-  createApp(App).use(pinia).use(router).use(i18n).mount('#app')
+  const app = createApp(App)
+
+  app.use(pinia)
+  app.use(router)
+  app.use(i18n)
+
+  installDocumentMetadata(router)
+
+  await router.isReady()
+  app.mount('#app')
 }
 
 void bootstrap()

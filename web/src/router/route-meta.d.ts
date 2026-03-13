@@ -1,8 +1,9 @@
 import 'vue-router'
+import type { RouteTitleKey } from '@/router/route-title'
 
 declare module 'vue-router' {
   interface RouteMeta {
-    title?: string
+    titleKey?: RouteTitleKey
     requiresAuth?: boolean
     guestOnly?: boolean
   }

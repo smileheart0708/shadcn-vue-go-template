@@ -1,5 +1,5 @@
 export interface MessageSchema {
-  app: { name: string }
+  app: { name: string; title: string; titleWithPage: string }
   common: {
     action: {
       add: string
@@ -20,7 +20,7 @@ export interface MessageSchema {
     feedback: { networkError: string; required: string; unknownError: string }
     state: { empty: string; loading: string; noData: string }
   }
-  route: { dashboard: string; login: string; notFound: string }
+  route: { dashboard: string; login: string; notFound: string; settings: string }
   auth: {
     signIn: {
       description: string

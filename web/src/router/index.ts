@@ -1,6 +1,7 @@
 import type { RouteRecordRaw } from 'vue-router'
 import { createRouter, createWebHistory } from 'vue-router'
 import { installAuthGuard } from '@/middleware/auth'
+import type { RouteTitleKey } from '@/router/route-title'
 
 const AppShellLayout = () => import('@/layouts/AppShellLayout.vue')
 const BlankLayout = () => import('@/layouts/BlankLayout.vue')
@@ -8,7 +9,7 @@ const Dashboard = () => import('@/views/Dashboard.vue')
 const Login = () => import('@/views/Login.vue')
 const NotFound = () => import('@/views/NotFound.vue')
 
-function defineAppShellRoute<T extends RouteRecordRaw & { meta: { titleKey: string } }>(route: T) {
+function defineAppShellRoute<T extends RouteRecordRaw & { meta: { titleKey: RouteTitleKey } }>(route: T) {
   return route
 }
 
