@@ -1,15 +1,36 @@
 <script setup lang="ts">
 import { IconCreditCard, IconDotsVertical, IconLogout, IconNotification, IconUserCircle } from '@tabler/icons-vue'
+import { Globe } from 'lucide-vue-next'
 import type { AppShellUser } from '@/components/app-shell/navigation'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from '@/components/ui/sidebar'
+import { useI18n } from 'vue-i18n'
+import { supportedLocales, localeNames, type AppLocale } from '@/plugins/i18n'
+import { useLocaleStore } from '@/stores/locale'
 
 defineProps<{ user: AppShellUser }>()
 
 const emit = defineEmits<{ (e: 'logout'): void }>()
 
 const { isMobile } = useSidebar()
+const { t } = useI18n()
+const localeStore = useLocaleStore()
+
+function switchLanguage(newLocale: AppLocale) {
+  localeStore.setLocale(newLocale)
+}
 </script>
 
 <template>
@@ -64,21 +85,41 @@ const { isMobile } = useSidebar()
           <DropdownMenuGroup>
             <DropdownMenuItem>
               <IconUserCircle />
-              Account
+              {{ t('nav.user.account') }}
             </DropdownMenuItem>
             <DropdownMenuItem>
               <IconCreditCard />
-              Billing
+              {{ t('nav.user.billing') }}
             </DropdownMenuItem>
             <DropdownMenuItem>
               <IconNotification />
-              Notifications
+              {{ t('nav.user.notifications') }}
             </DropdownMenuItem>
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>
+                <Globe />
+                {{ t('nav.user.language') }}
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent>
+                <DropdownMenuItem
+                  v-for="lang in supportedLocales"
+                  :key="lang"
+                  @click="switchLanguage(lang)"
+                >
+                  {{ localeNames[lang] }}
+                  <span
+                    v-if="localeStore.locale === lang"
+                    class="ml-auto"
+                    >✓</span
+                  >
+                </DropdownMenuItem>
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
           <DropdownMenuItem @click="emit('logout')">
             <IconLogout />
-            Log out
+            {{ t('nav.user.logout') }}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
