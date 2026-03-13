@@ -76,6 +76,11 @@ const enUS = {
   },
   notFound: { description: 'The page you are looking for does not exist.' },
   sonner: { loginSuccess: 'Login successful!' },
+  nav: {
+    main: { dashboard: 'Dashboard', lifecycle: 'Lifecycle', analytics: 'Analytics', projects: 'Projects', team: 'Team' },
+    documents: { dataLibrary: 'Data Library', reports: 'Reports', wordAssistant: 'Word Assistant' },
+    secondary: { settings: 'Settings', getHelp: 'Get Help', search: 'Search' },
+  },
 } as const satisfies MessageSchema
 
 export default enUS

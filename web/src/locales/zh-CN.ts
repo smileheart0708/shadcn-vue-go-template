@@ -76,6 +76,11 @@ const zhCN = {
   },
   notFound: { description: '您访问的页面不存在。' },
   sonner: { loginSuccess: '登录成功！' },
+  nav: {
+    main: { dashboard: '仪表盘', lifecycle: '生命周期', analytics: '分析', projects: '项目', team: '团队' },
+    documents: { dataLibrary: '数据库', reports: '报告', wordAssistant: 'Word 助手' },
+    secondary: { settings: '设置', getHelp: '获取帮助', search: '搜索' },
+  },
 } as const satisfies MessageSchema
 
 export default zhCN

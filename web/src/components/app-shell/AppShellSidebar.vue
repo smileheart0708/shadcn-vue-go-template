@@ -5,17 +5,18 @@ import AppShellNavDocuments from '@/components/app-shell/AppShellNavDocuments.vu
 import AppShellNavMain from '@/components/app-shell/AppShellNavMain.vue'
 import AppShellNavSecondary from '@/components/app-shell/AppShellNavSecondary.vue'
 import AppShellNavUser from '@/components/app-shell/AppShellNavUser.vue'
-import { APP_SHELL_NAVIGATION } from '@/components/app-shell/navigation'
+import { useAppShellNavigation } from '@/components/app-shell/navigation'
 import { useAuth } from '@/composables/auth/useAuth'
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader } from '@/components/ui/sidebar'
 
 const router = useRouter()
 const auth = useAuth()
+const navigation = useAppShellNavigation()
 
 const currentUser = computed(() => ({
-  name: auth.state.user?.name ?? APP_SHELL_NAVIGATION.user.name,
-  email: auth.state.user?.email ?? APP_SHELL_NAVIGATION.user.email,
-  avatar: APP_SHELL_NAVIGATION.user.avatar,
+  name: auth.state.user?.name ?? navigation.user.name,
+  email: auth.state.user?.email ?? navigation.user.email,
+  avatar: navigation.user.avatar,
 }))
 
 async function handleLogout() {
@@ -37,10 +38,10 @@ async function handleLogout() {
       </div>
     </SidebarHeader>
     <SidebarContent>
-      <AppShellNavMain :items="APP_SHELL_NAVIGATION.main" />
-      <AppShellNavDocuments :items="APP_SHELL_NAVIGATION.documents" />
+      <AppShellNavMain :items="navigation.main" />
+      <AppShellNavDocuments :items="navigation.documents" />
       <AppShellNavSecondary
-        :items="APP_SHELL_NAVIGATION.secondary"
+        :items="navigation.secondary"
         class="mt-auto"
       />
     </SidebarContent>
