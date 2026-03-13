@@ -80,6 +80,7 @@ const zhCN = {
     main: { dashboard: '仪表盘', lifecycle: '生命周期', analytics: '分析', projects: '项目', team: '团队' },
     documents: { dataLibrary: '数据库', reports: '报告', wordAssistant: 'Word 助手', label: '文档', more: '更多' },
     secondary: { settings: '设置', getHelp: '获取帮助', search: '搜索' },
+    user: { account: '账户', billing: '账单', notifications: '通知', language: '语言', switchLanguage: '切换语言', logout: '退出登录' },
   },
 } as const satisfies MessageSchema
 

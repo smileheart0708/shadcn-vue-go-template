@@ -69,5 +69,6 @@ export interface MessageSchema {
     main: { dashboard: string; lifecycle: string; analytics: string; projects: string; team: string }
     documents: { dataLibrary: string; reports: string; wordAssistant: string; label: string; more: string }
     secondary: { settings: string; getHelp: string; search: string }
+    user: { account: string; billing: string; notifications: string; language: string; switchLanguage: string; logout: string }
   }
 }

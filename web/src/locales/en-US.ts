@@ -80,6 +80,7 @@ const enUS = {
     main: { dashboard: 'Dashboard', lifecycle: 'Lifecycle', analytics: 'Analytics', projects: 'Projects', team: 'Team' },
     documents: { dataLibrary: 'Data Library', reports: 'Reports', wordAssistant: 'Word Assistant', label: 'Documents', more: 'More' },
     secondary: { settings: 'Settings', getHelp: 'Get Help', search: 'Search' },
+    user: { account: 'Account', billing: 'Billing', notifications: 'Notifications', language: 'Language', switchLanguage: 'Switch Language', logout: 'Log out' },
   },
 } as const satisfies MessageSchema
 
