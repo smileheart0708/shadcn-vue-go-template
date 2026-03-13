@@ -78,7 +78,7 @@ const enUS = {
   sonner: { loginSuccess: 'Login successful!' },
   nav: {
     main: { dashboard: 'Dashboard', lifecycle: 'Lifecycle', analytics: 'Analytics', projects: 'Projects', team: 'Team' },
-    documents: { dataLibrary: 'Data Library', reports: 'Reports', wordAssistant: 'Word Assistant' },
+    documents: { dataLibrary: 'Data Library', reports: 'Reports', wordAssistant: 'Word Assistant', label: 'Documents', more: 'More' },
     secondary: { settings: 'Settings', getHelp: 'Get Help', search: 'Search' },
   },
 } as const satisfies MessageSchema

@@ -1,15 +1,18 @@
 <script setup lang="ts">
 import { IconDots } from '@tabler/icons-vue'
+import { useI18n } from 'vue-i18n'
 import type { AppShellNavItem } from '@/components/app-shell/navigation'
 import AppShellNavButton from '@/components/app-shell/AppShellNavButton.vue'
 import { SidebarGroup, SidebarGroupLabel, SidebarMenu, SidebarMenuItem } from '@/components/ui/sidebar'
+
+const { t } = useI18n()
 
 defineProps<{ items: AppShellNavItem[] }>()
 </script>
 
 <template>
   <SidebarGroup class="group-data-[collapsible=icon]:hidden">
-    <SidebarGroupLabel>Documents</SidebarGroupLabel>
+    <SidebarGroupLabel>{{ t('nav.documents.label') }}</SidebarGroupLabel>
     <SidebarMenu>
       <SidebarMenuItem
         v-for="item in items"
@@ -18,7 +21,7 @@ defineProps<{ items: AppShellNavItem[] }>()
         <AppShellNavButton :item="item" />
       </SidebarMenuItem>
       <SidebarMenuItem>
-        <AppShellNavButton :item="{ title: 'More', icon: IconDots, disabled: true }" />
+        <AppShellNavButton :item="{ title: t('nav.documents.more'), icon: IconDots, disabled: true }" />
       </SidebarMenuItem>
     </SidebarMenu>
   </SidebarGroup>

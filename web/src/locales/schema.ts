@@ -67,7 +67,7 @@ export interface MessageSchema {
   sonner: { loginSuccess: string }
   nav: {
     main: { dashboard: string; lifecycle: string; analytics: string; projects: string; team: string }
-    documents: { dataLibrary: string; reports: string; wordAssistant: string }
+    documents: { dataLibrary: string; reports: string; wordAssistant: string; label: string; more: string }
     secondary: { settings: string; getHelp: string; search: string }
   }
 }
