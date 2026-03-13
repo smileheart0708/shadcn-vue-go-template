@@ -1,18 +1,30 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import ModeToggle from '@/components/ModeToggle.vue'
 import { Separator } from '@/components/ui/separator'
 import { SidebarTrigger } from '@/components/ui/sidebar'
 
 const route = useRoute()
+const { t } = useI18n()
+
+const routeTitleMessages = {
+  'route.dashboard': () => t('route.dashboard'),
+  'route.login': () => t('route.login'),
+  'route.notFound': () => t('route.notFound'),
+} as const
+
+function isRouteTitleKey(value: string): value is keyof typeof routeTitleMessages {
+  return value in routeTitleMessages
+}
 
 const title = computed(() => {
   for (const record of [...route.matched].reverse()) {
-    const routeTitle = record.meta.title
+    const routeTitle = record.meta.titleKey
 
-    if (typeof routeTitle === 'string' && routeTitle.trim().length > 0) {
-      return routeTitle
+    if (typeof routeTitle === 'string' && isRouteTitleKey(routeTitle)) {
+      return routeTitleMessages[routeTitle]()
     }
   }
 
