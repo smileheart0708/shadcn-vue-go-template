@@ -21,6 +21,68 @@ export interface MessageSchema {
     state: { empty: string; loading: string; noData: string }
   }
   route: { dashboard: string; login: string; notFound: string; settings: string }
+  settings: {
+    title: string
+    description: string
+    saved: string
+    save: string
+    tabs: { account: string; appearance: string; notifications: string }
+    account: {
+      profile: string
+      profileDesc: string
+      changeAvatar: string
+      avatarHint: string
+      name: string
+      namePlaceholder: string
+      email: string
+      emailPlaceholder: string
+      password: string
+      passwordDesc: string
+      currentPassword: string
+      currentPasswordPlaceholder: string
+      newPassword: string
+      newPasswordPlaceholder: string
+      confirmPassword: string
+      confirmPasswordPlaceholder: string
+      updatePassword: string
+      privacy: string
+      privacyDesc: string
+      publicProfile: string
+      publicProfileDesc: string
+      allowSearch: string
+      allowSearchDesc: string
+      showActivity: string
+      showActivityDesc: string
+      dangerZone: string
+      dangerZoneDesc: string
+      dangerZoneConfirm: string
+      deleteAccount: string
+      deleteAccountConfirm: string
+    }
+    appearance: {
+      theme: string
+      themeDesc: string
+      colorTheme: string
+      light: string
+      dark: string
+      system: string
+      selectTheme: string
+      language: string
+      selectLanguage: string
+    }
+    notifications: {
+      title: string
+      desc: string
+      email: string
+      emailDesc: string
+      push: string
+      pushDesc: string
+      digest: string
+      digestDesc: string
+      security: string
+      securityDesc: string
+    }
+  }
   auth: {
     signIn: {
       description: string
