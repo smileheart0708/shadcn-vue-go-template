@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import imageCompression from 'browser-image-compression'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { useThemeStore } from '@/stores/theme'
@@ -12,7 +13,7 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,6 +26,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { MAX_AVATAR_FILE_SIZE_BYTES, getAvatarFallbackText } from '@/lib/avatar'
 import { localeNames, type AppLocale } from '@/plugins/i18n/locales'
 
 const { t } = useI18n()
@@ -51,25 +53,12 @@ const deleteCountdown = ref(0)
 const deleteAccountConfirmed = ref(false)
 
 const editDialogOpen = ref(false)
-const editForm = ref({
+const editForm = ref<{ name: string; avatar: string | null }>({
   name: authStore.user?.name ?? '',
-  email: authStore.user?.email ?? '',
-  verificationCode: '',
+  avatar: authStore.user?.avatar ?? null,
 })
-const verificationCodeCountdown = ref(0)
-let verificationTimer: ReturnType<typeof setInterval> | null = null
-
-function sendVerificationCode() {
-  verificationCodeCountdown.value = 60
-  if (verificationTimer) clearInterval(verificationTimer)
-  verificationTimer = setInterval(() => {
-    verificationCodeCountdown.value--
-    if (verificationCodeCountdown.value <= 0 && verificationTimer) {
-      clearInterval(verificationTimer)
-      verificationTimer = null
-    }
-  }, 1000)
-}
+const profileError = ref('')
+const avatarInput = ref<HTMLInputElement | null>(null)
 
 function saveSettings() {
   saved.value = true
@@ -117,6 +106,95 @@ const localeOptions = Object.entries(localeNames).map(([value, label]) => ({
   value,
   label,
 }))
+
+const avatarFallbackText = computed(() => getAvatarFallbackText(authStore.user?.name))
+const avatarImageSrc = computed(() => authStore.user?.avatar ?? null)
+const editAvatarFallbackText = computed(() => getAvatarFallbackText(editForm.value.name || authStore.user?.name))
+const editAvatarImageSrc = computed(() => editForm.value.avatar ?? null)
+
+function isSupportedAvatarFileType(fileType: string): boolean {
+  return fileType === 'image/jpeg' || fileType === 'image/png' || fileType === 'image/webp'
+}
+
+function resetEditForm() {
+  editForm.value = {
+    name: authStore.user?.name ?? '',
+    avatar: authStore.user?.avatar ?? null,
+  }
+  profileError.value = ''
+  if (avatarInput.value) {
+    avatarInput.value.value = ''
+  }
+}
+
+watch(editDialogOpen, (isOpen) => {
+  if (isOpen) {
+    resetEditForm()
+  }
+})
+
+function openAvatarPicker() {
+  avatarInput.value?.click()
+}
+
+async function handleAvatarChange(event: Event) {
+  if (!(event.target instanceof HTMLInputElement)) {
+    return
+  }
+
+  const input = event.target
+  const file = input.files?.[0]
+
+  if (!file) {
+    return
+  }
+
+  if (!isSupportedAvatarFileType(file.type)) {
+    profileError.value = t('settings.account.avatarUnsupportedType')
+    input.value = ''
+    return
+  }
+
+  if (file.size > MAX_AVATAR_FILE_SIZE_BYTES) {
+    profileError.value = t('settings.account.avatarFileTooLarge')
+    input.value = ''
+    return
+  }
+
+  try {
+    const compressedFile = await imageCompression(file, {
+      maxSizeMB: 0.4,
+      maxWidthOrHeight: 512,
+      useWebWorker: true,
+      fileType: file.type,
+      initialQuality: 0.8,
+    })
+
+    editForm.value.avatar = await imageCompression.getDataUrlFromFile(compressedFile)
+    profileError.value = ''
+  } catch {
+    profileError.value = t('settings.account.avatarProcessFailed')
+  } finally {
+    input.value = ''
+  }
+}
+
+function saveProfile() {
+  const nextName = editForm.value.name.trim()
+
+  if (!nextName) {
+    profileError.value = t('settings.account.nameRequired')
+    return
+  }
+
+  authStore.updateProfile({
+    name: nextName,
+    avatar: editForm.value.avatar,
+  })
+
+  editDialogOpen.value = false
+  saveSettings()
+}
 </script>
 
 <template>
@@ -151,7 +229,12 @@ const localeOptions = Object.entries(localeNames).map(([value, label]) => ({
             <div class="flex items-center justify-between rounded-lg border p-4">
               <div class="flex items-center gap-4">
                 <Avatar class="h-12 w-12 rounded-full">
-                  <AvatarFallback class="rounded-full">{{ authStore.user?.name?.slice(0, 2).toUpperCase() }}</AvatarFallback>
+                  <AvatarImage
+                    v-if="avatarImageSrc"
+                    :src="avatarImageSrc"
+                    :alt="authStore.user?.name ?? ''"
+                  />
+                  <AvatarFallback class="rounded-full">{{ avatarFallbackText }}</AvatarFallback>
                 </Avatar>
                 <div>
                   <p class="font-medium">{{ authStore.user?.name }}</p>
@@ -177,15 +260,35 @@ const localeOptions = Object.entries(localeNames).map(([value, label]) => ({
                   <div class="grid gap-4 py-4">
                     <div class="flex flex-col items-center gap-2">
                       <Avatar class="h-20 w-20 rounded-full">
-                        <AvatarFallback class="rounded-full">{{ authStore.user?.name?.slice(0, 2).toUpperCase() }}</AvatarFallback>
+                        <AvatarImage
+                          v-if="editAvatarImageSrc"
+                          :src="editAvatarImageSrc"
+                          :alt="editForm.name || authStore.user?.name || ''"
+                        />
+                        <AvatarFallback class="rounded-full">{{ editAvatarFallbackText }}</AvatarFallback>
                       </Avatar>
+                      <input
+                        ref="avatarInput"
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        class="hidden"
+                        @change="handleAvatarChange"
+                      />
                       <Button
                         variant="outline"
                         size="sm"
+                        type="button"
+                        @click="openAvatarPicker"
                       >
                         {{ t('settings.account.changeAvatar') }}
                       </Button>
                       <p class="text-muted-foreground text-xs">{{ t('settings.account.avatarHint') }}</p>
+                      <p
+                        v-if="profileError"
+                        class="text-destructive text-xs"
+                      >
+                        {{ profileError }}
+                      </p>
                     </div>
                     <div class="space-y-2">
                       <Label for="edit-name">{{ t('settings.account.name') }}</Label>
@@ -195,35 +298,6 @@ const localeOptions = Object.entries(localeNames).map(([value, label]) => ({
                         :placeholder="t('settings.account.namePlaceholder')"
                       />
                     </div>
-                    <div class="space-y-2">
-                      <Label for="edit-email">{{ t('settings.account.email') }}</Label>
-                      <div class="flex gap-2">
-                        <Input
-                          id="edit-email"
-                          v-model="editForm.email"
-                          type="email"
-                          :placeholder="t('settings.account.emailPlaceholder')"
-                          class="flex-1"
-                        />
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          :disabled="verificationCodeCountdown > 0"
-                          @click="sendVerificationCode"
-                        >
-                          {{ verificationCodeCountdown > 0 ? `${verificationCodeCountdown}s` : t('settings.account.sendCode') }}
-                        </Button>
-                      </div>
-                    </div>
-                    <div class="space-y-2">
-                      <Label for="verification-code">{{ t('settings.account.verificationCode') }}</Label>
-                      <Input
-                        id="verification-code"
-                        v-model="editForm.verificationCode"
-                        type="text"
-                        :placeholder="t('settings.account.verificationCodePlaceholder')"
-                      />
-                    </div>
                   </div>
                   <DialogFooter>
                     <DialogClose as-child>
@@ -231,7 +305,7 @@ const localeOptions = Object.entries(localeNames).map(([value, label]) => ({
                         {{ t('common.action.cancel') }}
                       </Button>
                     </DialogClose>
-                    <Button @click="saveSettings">
+                    <Button @click="saveProfile">
                       {{ t('settings.save') }}
                     </Button>
                   </DialogFooter>

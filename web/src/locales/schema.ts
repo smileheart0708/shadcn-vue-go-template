@@ -32,7 +32,11 @@ export interface MessageSchema {
       profileDesc: string
       changeAvatar: string
       avatarHint: string
+      avatarUnsupportedType: string
+      avatarFileTooLarge: string
+      avatarProcessFailed: string
       name: string
+      nameRequired: string
       namePlaceholder: string
       email: string
       emailPlaceholder: string

@@ -16,7 +16,7 @@ const navigation = useAppShellNavigation()
 const currentUser = computed(() => ({
   name: authStore.user?.name ?? navigation.value.user.name,
   email: authStore.user?.email ?? navigation.value.user.email,
-  avatar: navigation.value.user.avatar,
+  avatar: authStore.user?.avatar ?? navigation.value.user.avatar,
 }))
 
 async function handleLogout() {

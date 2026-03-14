@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { IconCreditCard, IconDotsVertical, IconLogout, IconNotification, IconUserCircle } from '@tabler/icons-vue'
 import { Globe } from 'lucide-vue-next'
 import type { AppShellUser } from '@/components/app-shell/navigation'
@@ -16,17 +17,19 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from '@/components/ui/sidebar'
+import { getAvatarFallbackText } from '@/lib/avatar'
 import { useI18n } from 'vue-i18n'
 import { supportedLocales, localeNames, type AppLocale } from '@/plugins/i18n'
 import { useLocaleStore } from '@/stores/locale'
 
-defineProps<{ user: AppShellUser }>()
+const props = defineProps<{ user: AppShellUser }>()
 
 const emit = defineEmits<{ (e: 'logout'): void }>()
 
 const { isMobile } = useSidebar()
 const { t } = useI18n()
 const localeStore = useLocaleStore()
+const avatarFallbackText = computed(() => getAvatarFallbackText(props.user.name))
 
 function switchLanguage(newLocale: AppLocale) {
   localeStore.setLocale(newLocale)
@@ -42,12 +45,12 @@ function switchLanguage(newLocale: AppLocale) {
             size="lg"
             class="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
           >
-            <Avatar class="h-8 w-8 rounded-lg grayscale">
+            <Avatar class="h-8 w-8 rounded-lg">
               <AvatarImage
                 :src="user.avatar"
                 :alt="user.name"
               />
-              <AvatarFallback class="rounded-lg"> CN </AvatarFallback>
+              <AvatarFallback class="rounded-lg">{{ avatarFallbackText }}</AvatarFallback>
             </Avatar>
             <div class="grid flex-1 text-left text-sm leading-tight">
               <span class="truncate font-medium">{{ user.name }}</span>
@@ -71,7 +74,7 @@ function switchLanguage(newLocale: AppLocale) {
                   :src="user.avatar"
                   :alt="user.name"
                 />
-                <AvatarFallback class="rounded-lg"> CN </AvatarFallback>
+                <AvatarFallback class="rounded-lg">{{ avatarFallbackText }}</AvatarFallback>
               </Avatar>
               <div class="grid flex-1 text-left text-sm leading-tight">
                 <span class="truncate font-medium">{{ user.name }}</span>

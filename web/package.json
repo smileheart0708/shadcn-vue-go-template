@@ -21,6 +21,7 @@
     "@unovis/ts": "^1.6.4",
     "@unovis/vue": "^1.6.4",
     "@vueuse/core": "^14.2.1",
+    "browser-image-compression": "^2.0.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "dnd-kit-vue": "^0.0.2",
