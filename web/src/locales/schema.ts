@@ -36,6 +36,12 @@ export interface MessageSchema {
       namePlaceholder: string
       email: string
       emailPlaceholder: string
+      edit: string
+      editProfile: string
+      editProfileDesc: string
+      sendCode: string
+      verificationCode: string
+      verificationCodePlaceholder: string
       password: string
       passwordDesc: string
       currentPassword: string

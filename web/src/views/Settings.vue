@@ -24,17 +24,13 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { localeNames, type AppLocale } from '@/plugins/i18n/locales'
 
 const { t } = useI18n()
 const authStore = useAuthStore()
 const themeStore = useThemeStore()
 const localeStore = useLocaleStore()
-
-const accountForm = ref({
-  name: authStore.user?.name ?? '',
-  email: authStore.user?.email ?? '',
-})
 
 const notifications = ref({
   emailNotifications: true,
@@ -53,6 +49,27 @@ const saved = ref(false)
 const deleteDialogOpen = ref(false)
 const deleteCountdown = ref(0)
 const deleteAccountConfirmed = ref(false)
+
+const editDialogOpen = ref(false)
+const editForm = ref({
+  name: authStore.user?.name ?? '',
+  email: authStore.user?.email ?? '',
+  verificationCode: '',
+})
+const verificationCodeCountdown = ref(0)
+let verificationTimer: ReturnType<typeof setInterval> | null = null
+
+function sendVerificationCode() {
+  verificationCodeCountdown.value = 60
+  if (verificationTimer) clearInterval(verificationTimer)
+  verificationTimer = setInterval(() => {
+    verificationCodeCountdown.value--
+    if (verificationCodeCountdown.value <= 0 && verificationTimer) {
+      clearInterval(verificationTimer)
+      verificationTimer = null
+    }
+  }, 1000)
+}
 
 function saveSettings() {
   saved.value = true
@@ -130,46 +147,98 @@ const localeOptions = Object.entries(localeNames).map(([value, label]) => ({
             <CardTitle>{{ t('settings.account.profile') }}</CardTitle>
             <CardDescription>{{ t('settings.account.profileDesc') }}</CardDescription>
           </CardHeader>
-          <CardContent class="space-y-6">
-            <div class="flex items-center gap-6">
-              <Avatar class="h-20 w-20 rounded-lg">
-                <AvatarFallback class="rounded-lg">{{ authStore.user?.name?.slice(0, 2).toUpperCase() }}</AvatarFallback>
-              </Avatar>
-              <div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  >{{ t('settings.account.changeAvatar') }}</Button
-                >
-                <p class="text-muted-foreground text-xs mt-1">{{ t('settings.account.avatarHint') }}</p>
+          <CardContent class="space-y-4">
+            <div class="flex items-center justify-between rounded-lg border p-4">
+              <div class="flex items-center gap-4">
+                <Avatar class="h-12 w-12 rounded-full">
+                  <AvatarFallback class="rounded-full">{{ authStore.user?.name?.slice(0, 2).toUpperCase() }}</AvatarFallback>
+                </Avatar>
+                <div>
+                  <p class="font-medium">{{ authStore.user?.name }}</p>
+                  <p class="text-sm text-muted-foreground">{{ authStore.user?.email }}</p>
+                </div>
               </div>
-            </div>
-
-            <div class="grid gap-4 md:grid-cols-2">
-              <div class="space-y-2">
-                <Label for="name">{{ t('settings.account.name') }}</Label>
-                <Input
-                  id="name"
-                  v-model="accountForm.name"
-                  :placeholder="t('settings.account.namePlaceholder')"
-                />
-              </div>
-              <div class="space-y-2">
-                <Label for="email">{{ t('settings.account.email') }}</Label>
-                <Input
-                  id="email"
-                  v-model="accountForm.email"
-                  type="email"
-                  :placeholder="t('settings.account.emailPlaceholder')"
-                />
-              </div>
+              <Dialog v-model:open="editDialogOpen">
+                <DialogTrigger as-child>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                  >
+                    {{ t('settings.account.edit') }}
+                  </Button>
+                </DialogTrigger>
+                <DialogContent class="sm:max-w-100">
+                  <DialogHeader>
+                    <DialogTitle>{{ t('settings.account.editProfile') }}</DialogTitle>
+                    <DialogDescription>
+                      {{ t('settings.account.editProfileDesc') }}
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div class="grid gap-4 py-4">
+                    <div class="flex flex-col items-center gap-2">
+                      <Avatar class="h-20 w-20 rounded-full">
+                        <AvatarFallback class="rounded-full">{{ authStore.user?.name?.slice(0, 2).toUpperCase() }}</AvatarFallback>
+                      </Avatar>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                      >
+                        {{ t('settings.account.changeAvatar') }}
+                      </Button>
+                      <p class="text-muted-foreground text-xs">{{ t('settings.account.avatarHint') }}</p>
+                    </div>
+                    <div class="space-y-2">
+                      <Label for="edit-name">{{ t('settings.account.name') }}</Label>
+                      <Input
+                        id="edit-name"
+                        v-model="editForm.name"
+                        :placeholder="t('settings.account.namePlaceholder')"
+                      />
+                    </div>
+                    <div class="space-y-2">
+                      <Label for="edit-email">{{ t('settings.account.email') }}</Label>
+                      <div class="flex gap-2">
+                        <Input
+                          id="edit-email"
+                          v-model="editForm.email"
+                          type="email"
+                          :placeholder="t('settings.account.emailPlaceholder')"
+                          class="flex-1"
+                        />
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          :disabled="verificationCodeCountdown > 0"
+                          @click="sendVerificationCode"
+                        >
+                          {{ verificationCodeCountdown > 0 ? `${verificationCodeCountdown}s` : t('settings.account.sendCode') }}
+                        </Button>
+                      </div>
+                    </div>
+                    <div class="space-y-2">
+                      <Label for="verification-code">{{ t('settings.account.verificationCode') }}</Label>
+                      <Input
+                        id="verification-code"
+                        v-model="editForm.verificationCode"
+                        type="text"
+                        :placeholder="t('settings.account.verificationCodePlaceholder')"
+                      />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <DialogClose as-child>
+                      <Button variant="outline">
+                        {{ t('common.action.cancel') }}
+                      </Button>
+                    </DialogClose>
+                    <Button @click="saveSettings">
+                      {{ t('settings.save') }}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </div>
           </CardContent>
-          <CardFooter class="justify-end">
-            <Button @click="saveSettings">
-              {{ saved ? t('settings.saved') : t('settings.save') }}
-            </Button>
-          </CardFooter>
         </Card>
 
         <Card>
