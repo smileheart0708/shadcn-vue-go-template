@@ -2,8 +2,8 @@
 import { computed } from 'vue'
 import { IconCreditCard, IconDotsVertical, IconLogout, IconNotification, IconUserCircle } from '@tabler/icons-vue'
 import { Globe } from 'lucide-vue-next'
-import type { AppShellUser } from '@/components/app-shell/navigation'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Badge } from '@/components/ui/badge'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,18 +18,28 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from '@/components/ui/sidebar'
 import { getAvatarFallbackText } from '@/lib/avatar'
+import { getUserRoleBadgeVariant, getUserRoleLabelKey } from '@/lib/auth/roles'
 import { useI18n } from 'vue-i18n'
 import { supportedLocales, localeNames, type AppLocale } from '@/plugins/i18n'
 import { useLocaleStore } from '@/stores/locale'
 
-const props = defineProps<{ user: AppShellUser }>()
+const props = defineProps<{
+  user: {
+    username: string
+    email: string | null
+    avatarUrl: string | null
+    role: number
+  }
+}>()
 
 const emit = defineEmits<{ (e: 'logout'): void }>()
 
 const { isMobile } = useSidebar()
 const { t } = useI18n()
 const localeStore = useLocaleStore()
-const avatarFallbackText = computed(() => getAvatarFallbackText(props.user.name))
+const avatarFallbackText = computed(() => getAvatarFallbackText(props.user.username))
+const roleLabel = computed(() => t(getUserRoleLabelKey(props.user.role)))
+const roleBadgeVariant = computed(() => getUserRoleBadgeVariant(props.user.role))
 
 function switchLanguage(newLocale: AppLocale) {
   localeStore.setLocale(newLocale)
@@ -47,15 +57,24 @@ function switchLanguage(newLocale: AppLocale) {
           >
             <Avatar class="h-8 w-8 rounded-lg">
               <AvatarImage
-                :src="user.avatar"
-                :alt="user.name"
+                v-if="user.avatarUrl"
+                :src="user.avatarUrl"
+                :alt="user.username"
               />
               <AvatarFallback class="rounded-lg">{{ avatarFallbackText }}</AvatarFallback>
             </Avatar>
             <div class="grid flex-1 text-left text-sm leading-tight">
-              <span class="truncate font-medium">{{ user.name }}</span>
+              <div class="flex items-center gap-2">
+                <span class="truncate font-medium">{{ user.username }}</span>
+                <Badge
+                  :variant="roleBadgeVariant"
+                  class="px-1.5 py-0 text-[10px]"
+                >
+                  {{ roleLabel }}
+                </Badge>
+              </div>
               <span class="text-muted-foreground truncate text-xs">
-                {{ user.email }}
+                {{ user.email ?? ' ' }}
               </span>
             </div>
             <IconDotsVertical class="ml-auto size-4" />
@@ -71,15 +90,24 @@ function switchLanguage(newLocale: AppLocale) {
             <div class="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
               <Avatar class="h-8 w-8 rounded-lg">
                 <AvatarImage
-                  :src="user.avatar"
-                  :alt="user.name"
+                  v-if="user.avatarUrl"
+                  :src="user.avatarUrl"
+                  :alt="user.username"
                 />
                 <AvatarFallback class="rounded-lg">{{ avatarFallbackText }}</AvatarFallback>
               </Avatar>
               <div class="grid flex-1 text-left text-sm leading-tight">
-                <span class="truncate font-medium">{{ user.name }}</span>
+                <div class="flex items-center gap-2">
+                  <span class="truncate font-medium">{{ user.username }}</span>
+                  <Badge
+                    :variant="roleBadgeVariant"
+                    class="px-1.5 py-0 text-[10px]"
+                  >
+                    {{ roleLabel }}
+                  </Badge>
+                </div>
                 <span class="text-muted-foreground truncate text-xs">
-                  {{ user.email }}
+                  {{ user.email ?? ' ' }}
                 </span>
               </div>
             </div>

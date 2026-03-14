@@ -1,37 +1,23 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import type { AuthUser, LoginCredentials, LoginResponse } from '@/lib/api/auth'
+import type { ChangePasswordInput, UpdateProfileInput } from '@/lib/api/account'
 import { getCurrentUser, login as loginRequest } from '@/lib/api/auth'
+import { deleteAccount as deleteAccountRequest, updatePassword as updatePasswordRequest, updateProfile as updateProfileRequest, uploadAvatar as uploadAvatarRequest } from '@/lib/api/account'
 import { clearAuthToken, readAuthToken, writeAuthToken } from '@/lib/auth/token'
-
-export interface AuthStoreUser extends AuthUser {
-  avatar: string | null
-}
-
-export interface AuthProfileUpdate {
-  name: string
-  avatar?: string | null
-}
 
 export const useAuthStore = defineStore('auth', () => {
   const initialized = ref(false)
   const loading = ref(false)
   const token = ref<string | null>(readAuthToken())
-  const user = ref<AuthStoreUser | null>(null)
+  const user = ref<AuthUser | null>(null)
 
   const isAuthenticated = computed(() => Boolean(token.value && user.value))
 
   let initializePromise: Promise<void> | null = null
 
-  function normalizeUser(nextUser: AuthUser | AuthStoreUser): AuthStoreUser {
-    return {
-      ...nextUser,
-      avatar: 'avatar' in nextUser ? (nextUser.avatar ?? null) : null,
-    }
-  }
-
-  function setUser(nextUser: AuthUser | AuthStoreUser | null) {
-    user.value = nextUser ? normalizeUser(nextUser) : null
+  function setUser(nextUser: AuthUser | null) {
+    user.value = nextUser
   }
 
   function setToken(nextToken: string | null) {
@@ -64,8 +50,8 @@ export const useAuthStore = defineStore('auth', () => {
       loading.value = true
 
       try {
-        const response = await getCurrentUser()
-        setUser(response.user)
+        const nextUser = await getCurrentUser()
+        setUser(nextUser)
       } catch {
         setToken(null)
         setUser(null)
@@ -87,16 +73,27 @@ export const useAuthStore = defineStore('auth', () => {
     return response
   }
 
-  function updateProfile(profile: AuthProfileUpdate) {
-    if (!user.value) {
-      return
-    }
+  async function saveProfile(profile: UpdateProfileInput) {
+    const nextUser = await updateProfileRequest(profile)
+    setUser(nextUser)
+    return nextUser
+  }
 
-    user.value = {
-      ...user.value,
-      name: profile.name,
-      avatar: profile.avatar === undefined ? user.value.avatar : profile.avatar,
-    }
+  async function uploadAvatar(file: File) {
+    const nextUser = await uploadAvatarRequest(file)
+    setUser(nextUser)
+    return nextUser
+  }
+
+  async function changePassword(input: ChangePasswordInput) {
+    const nextUser = await updatePasswordRequest(input)
+    setUser(nextUser)
+    return nextUser
+  }
+
+  async function deleteAccount() {
+    await deleteAccountRequest()
+    logout()
   }
 
   function logout() {
@@ -105,5 +102,18 @@ export const useAuthStore = defineStore('auth', () => {
     initialized.value = true
   }
 
-  return { initialized, loading, token, user, isAuthenticated, initialize, login, updateProfile, logout }
+  return {
+    initialized,
+    loading,
+    token,
+    user,
+    isAuthenticated,
+    initialize,
+    login,
+    saveProfile,
+    uploadAvatar,
+    changePassword,
+    deleteAccount,
+    logout,
+  }
 })

@@ -16,9 +16,28 @@ export interface MessageSchema {
       submit: string
       update: string
     }
-    field: { email: string; password: string }
+    field: { email: string; password: string; username: string; usernameOrEmail: string }
     feedback: { networkError: string; required: string; unknownError: string }
     state: { empty: string; loading: string; noData: string }
+    userRole: { 0: string; 1: string; 2: string }
+  }
+  apiError: {
+    unknown: string
+    invalidCredentials: string
+    unauthorized: string
+    usernameRequired: string
+    usernameTaken: string
+    emailTaken: string
+    currentPasswordInvalid: string
+    passwordTooShort: string
+    avatarRequired: string
+    avatarInvalidType: string
+    avatarTooLarge: string
+    profileUpdateFailed: string
+    avatarUploadFailed: string
+    passwordUpdateFailed: string
+    accountDeleteFailed: string
+    superAdminDeleteForbidden: string
   }
   route: { dashboard: string; login: string; notFound: string; settings: string }
   settings: {
@@ -30,22 +49,25 @@ export interface MessageSchema {
     account: {
       profile: string
       profileDesc: string
+      profileUpdated: string
+      saveProfile: string
+      savingProfile: string
       changeAvatar: string
       avatarHint: string
       avatarUnsupportedType: string
       avatarFileTooLarge: string
       avatarProcessFailed: string
-      name: string
-      nameRequired: string
-      namePlaceholder: string
+      username: string
+      usernameRequired: string
+      usernamePlaceholder: string
       email: string
+      emailNotSet: string
       emailPlaceholder: string
       edit: string
       editProfile: string
       editProfileDesc: string
-      sendCode: string
-      verificationCode: string
-      verificationCodePlaceholder: string
+      mustChangePasswordTitle: string
+      mustChangePasswordDesc: string
       password: string
       passwordDesc: string
       currentPassword: string
@@ -54,20 +76,17 @@ export interface MessageSchema {
       newPasswordPlaceholder: string
       confirmPassword: string
       confirmPasswordPlaceholder: string
+      passwordMismatch: string
+      passwordUpdated: string
+      updatingPassword: string
       updatePassword: string
-      privacy: string
-      privacyDesc: string
-      publicProfile: string
-      publicProfileDesc: string
-      allowSearch: string
-      allowSearchDesc: string
-      showActivity: string
-      showActivityDesc: string
       dangerZone: string
       dangerZoneDesc: string
       dangerZoneConfirm: string
       deleteAccount: string
       deleteAccountConfirm: string
+      deleteAccountSuccess: string
+      superAdminDeleteForbidden: string
     }
     appearance: {
       theme: string
@@ -96,9 +115,10 @@ export interface MessageSchema {
   auth: {
     signIn: {
       description: string
-      emailPlaceholder: string
+      identifierPlaceholder: string
       forgotPassword: string
       loginFailed: string
+      loginSuccess: string
       passwordPlaceholder: string
       rememberMe: string
       signingIn: string
@@ -138,7 +158,6 @@ export interface MessageSchema {
     tab: { outline: string; pastPerformance: string; keyPersonnel: string; focusDocuments: string }
   }
   notFound: { description: string }
-  sonner: { loginSuccess: string; loginEvent: Record<string, string> }
   theme: { light: string; dark: string; system: string }
   nav: {
     main: { dashboard: string; lifecycle: string; analytics: string; projects: string; team: string }

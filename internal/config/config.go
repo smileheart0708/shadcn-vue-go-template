@@ -8,10 +8,7 @@ import (
 )
 
 const (
-	DefaultAuthEmail       = "admin@example.com"
-	DefaultAuthPassword    = "admin123456"
-	DefaultAuthDisplayName = "Administrator"
-	DefaultJWTSecret       = "change-me-in-production"
+	DefaultJWTSecret = "change-me-in-production"
 )
 
 var DataDir = goe.Get("DATA_DIR", ".data")
@@ -19,9 +16,6 @@ var DBName = goe.Get("DB_NAME", "data.db")
 var Port = goe.Get("PORT", 8080)
 var FrontendDistDir = goe.Get("WEB_DIST_DIR", "web/dist")
 var APIRequestLogEnabled = goe.Get("API_REQUEST_LOG_ENABLED", false)
-var AuthEmail = goe.Get("AUTH_EMAIL", DefaultAuthEmail)
-var AuthPassword = goe.Get("AUTH_PASSWORD", DefaultAuthPassword)
-var AuthDisplayName = goe.Get("AUTH_DISPLAY_NAME", DefaultAuthDisplayName)
 var JWTSecret = goe.Get("JWT_SECRET", DefaultJWTSecret)
 var JWTIssuer = goe.Get("JWT_ISSUER", "shadcn-vue-go-template")
 var JWTTTL = mustParseDuration("JWT_TTL", "24h")

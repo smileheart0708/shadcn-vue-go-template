@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import imageCompression from 'browser-image-compression'
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import { toast } from 'vue-sonner'
 import { useAuthStore } from '@/stores/auth'
 import { useThemeStore } from '@/stores/theme'
 import { useLocaleStore } from '@/stores/locale'
@@ -14,6 +16,7 @@ import { Switch } from '@/components/ui/switch'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Badge } from '@/components/ui/badge'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,9 +29,12 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import { MAX_AVATAR_FILE_SIZE_BYTES, getAvatarFallbackText } from '@/lib/avatar'
+import { getAPIErrorMessage } from '@/lib/api/error-messages'
+import { canDeleteOwnAccount, getUserRoleBadgeVariant, getUserRoleLabelKey } from '@/lib/auth/roles'
+import { MAX_AVATAR_FILE_SIZE_BYTES, SUPPORTED_AVATAR_FILE_TYPES, getAvatarFallbackText } from '@/lib/avatar'
 import { localeNames, type AppLocale } from '@/plugins/i18n/locales'
 
+const router = useRouter()
 const { t } = useI18n()
 const authStore = useAuthStore()
 const themeStore = useThemeStore()
@@ -41,45 +47,37 @@ const notifications = ref({
   securityAlerts: true,
 })
 
-const privacy = ref({
-  publicProfile: false,
-  allowSearch: true,
-  showActivity: true,
-})
-
 const saved = ref(false)
 const deleteDialogOpen = ref(false)
 const deleteCountdown = ref(0)
 const deleteAccountConfirmed = ref(false)
 
 const editDialogOpen = ref(false)
-const editForm = ref<{ name: string; avatar: string | null }>({
-  name: authStore.user?.name ?? '',
-  avatar: authStore.user?.avatar ?? null,
+const editForm = ref({
+  username: '',
+  email: '',
 })
+const pendingAvatarFile = ref<File | null>(null)
+const pendingAvatarPreviewURL = ref<string | null>(null)
 const profileError = ref('')
+const passwordError = ref('')
+const passwordForm = ref({
+  currentPassword: '',
+  newPassword: '',
+  confirmPassword: '',
+})
 const avatarInput = ref<HTMLInputElement | null>(null)
+const isSavingProfile = ref(false)
+const isUpdatingPassword = ref(false)
+const isDeletingAccount = ref(false)
+
+let deleteCountdownTimer: ReturnType<typeof setInterval> | null = null
 
 function saveSettings() {
   saved.value = true
-  setTimeout(() => {
+  window.setTimeout(() => {
     saved.value = false
   }, 2000)
-}
-
-function startDeleteCountdown() {
-  deleteCountdown.value = 3
-  const timer = setInterval(() => {
-    deleteCountdown.value--
-    if (deleteCountdown.value <= 0) {
-      clearInterval(timer)
-    }
-  }, 1000)
-}
-
-function confirmDelete() {
-  console.log('Account deleted')
-  deleteDialogOpen.value = false
 }
 
 function isThemePreference(value: unknown): value is 'light' | 'dark' | 'system' {
@@ -107,23 +105,31 @@ const localeOptions = Object.entries(localeNames).map(([value, label]) => ({
   label,
 }))
 
-const avatarFallbackText = computed(() => getAvatarFallbackText(authStore.user?.name))
-const avatarImageSrc = computed(() => authStore.user?.avatar ?? null)
-const editAvatarFallbackText = computed(() => getAvatarFallbackText(editForm.value.name || authStore.user?.name))
-const editAvatarImageSrc = computed(() => editForm.value.avatar ?? null)
-
-function isSupportedAvatarFileType(fileType: string): boolean {
-  return fileType === 'image/jpeg' || fileType === 'image/png' || fileType === 'image/webp'
-}
+const avatarFallbackText = computed(() => getAvatarFallbackText(authStore.user?.username))
+const avatarImageSrc = computed(() => authStore.user?.avatarUrl ?? null)
+const editAvatarFallbackText = computed(() => getAvatarFallbackText(editForm.value.username || authStore.user?.username))
+const editAvatarImageSrc = computed(() => pendingAvatarPreviewURL.value ?? authStore.user?.avatarUrl ?? null)
+const roleLabel = computed(() => t(getUserRoleLabelKey(authStore.user?.role ?? 0)))
+const roleBadgeVariant = computed(() => getUserRoleBadgeVariant(authStore.user?.role ?? 0))
+const canDeleteAccount = computed(() => canDeleteOwnAccount(authStore.user?.role ?? 0))
 
 function resetEditForm() {
   editForm.value = {
-    name: authStore.user?.name ?? '',
-    avatar: authStore.user?.avatar ?? null,
+    username: authStore.user?.username ?? '',
+    email: authStore.user?.email ?? '',
   }
   profileError.value = ''
+  clearPendingAvatarPreview()
+  pendingAvatarFile.value = null
   if (avatarInput.value) {
     avatarInput.value.value = ''
+  }
+}
+
+function clearPendingAvatarPreview() {
+  if (pendingAvatarPreviewURL.value) {
+    URL.revokeObjectURL(pendingAvatarPreviewURL.value)
+    pendingAvatarPreviewURL.value = null
   }
 }
 
@@ -133,8 +139,40 @@ watch(editDialogOpen, (isOpen) => {
   }
 })
 
+watch(deleteDialogOpen, (isOpen) => {
+  if (deleteCountdownTimer) {
+    clearInterval(deleteCountdownTimer)
+    deleteCountdownTimer = null
+  }
+
+  if (!isOpen) {
+    deleteCountdown.value = 0
+    return
+  }
+
+  deleteCountdown.value = 3
+  deleteCountdownTimer = setInterval(() => {
+    deleteCountdown.value -= 1
+    if (deleteCountdown.value <= 0 && deleteCountdownTimer) {
+      clearInterval(deleteCountdownTimer)
+      deleteCountdownTimer = null
+    }
+  }, 1000)
+})
+
+onBeforeUnmount(() => {
+  clearPendingAvatarPreview()
+  if (deleteCountdownTimer) {
+    clearInterval(deleteCountdownTimer)
+  }
+})
+
 function openAvatarPicker() {
   avatarInput.value?.click()
+}
+
+function isSupportedAvatarFileType(fileType: string): fileType is (typeof SUPPORTED_AVATAR_FILE_TYPES)[number] {
+  return fileType === 'image/jpeg' || fileType === 'image/png' || fileType === 'image/webp'
 }
 
 async function handleAvatarChange(event: Event) {
@@ -142,27 +180,25 @@ async function handleAvatarChange(event: Event) {
     return
   }
 
-  const input = event.target
-  const file = input.files?.[0]
-
+  const file = event.target.files?.[0]
   if (!file) {
     return
   }
 
   if (!isSupportedAvatarFileType(file.type)) {
     profileError.value = t('settings.account.avatarUnsupportedType')
-    input.value = ''
+    event.target.value = ''
     return
   }
 
   if (file.size > MAX_AVATAR_FILE_SIZE_BYTES) {
     profileError.value = t('settings.account.avatarFileTooLarge')
-    input.value = ''
+    event.target.value = ''
     return
   }
 
   try {
-    const compressedFile = await imageCompression(file, {
+    const compressedAvatar = await imageCompression(file, {
       maxSizeMB: 0.4,
       maxWidthOrHeight: 512,
       useWebWorker: true,
@@ -170,30 +206,100 @@ async function handleAvatarChange(event: Event) {
       initialQuality: 0.8,
     })
 
-    editForm.value.avatar = await imageCompression.getDataUrlFromFile(compressedFile)
+    pendingAvatarFile.value = compressedAvatar instanceof File ? compressedAvatar : new File([compressedAvatar], file.name, { type: file.type })
+    clearPendingAvatarPreview()
+    pendingAvatarPreviewURL.value = URL.createObjectURL(pendingAvatarFile.value)
     profileError.value = ''
   } catch {
     profileError.value = t('settings.account.avatarProcessFailed')
   } finally {
-    input.value = ''
+    event.target.value = ''
   }
 }
 
-function saveProfile() {
-  const nextName = editForm.value.name.trim()
-
-  if (!nextName) {
-    profileError.value = t('settings.account.nameRequired')
+async function saveProfile() {
+  const username = editForm.value.username.trim()
+  if (!username) {
+    profileError.value = t('settings.account.usernameRequired')
     return
   }
 
-  authStore.updateProfile({
-    name: nextName,
-    avatar: editForm.value.avatar,
-  })
+  isSavingProfile.value = true
+  profileError.value = ''
 
-  editDialogOpen.value = false
-  saveSettings()
+  try {
+    await authStore.saveProfile({
+      username,
+      email: editForm.value.email.trim() || null,
+    })
+
+    if (pendingAvatarFile.value) {
+      await authStore.uploadAvatar(pendingAvatarFile.value)
+      pendingAvatarFile.value = null
+      clearPendingAvatarPreview()
+    }
+
+    toast.success(t('settings.account.profileUpdated'))
+    editDialogOpen.value = false
+  } catch (error) {
+    const message = getAPIErrorMessage(t, error, 'apiError.profileUpdateFailed')
+    profileError.value = message
+    toast.error(message)
+  } finally {
+    isSavingProfile.value = false
+  }
+}
+
+async function updatePassword() {
+  passwordError.value = ''
+
+  if (passwordForm.value.newPassword !== passwordForm.value.confirmPassword) {
+    passwordError.value = t('settings.account.passwordMismatch')
+    return
+  }
+
+  isUpdatingPassword.value = true
+
+  try {
+    await authStore.changePassword({
+      currentPassword: passwordForm.value.currentPassword,
+      newPassword: passwordForm.value.newPassword,
+    })
+
+    passwordForm.value = {
+      currentPassword: '',
+      newPassword: '',
+      confirmPassword: '',
+    }
+
+    toast.success(t('settings.account.passwordUpdated'))
+  } catch (error) {
+    const message = getAPIErrorMessage(t, error, 'apiError.passwordUpdateFailed')
+    passwordError.value = message
+    toast.error(message)
+  } finally {
+    isUpdatingPassword.value = false
+  }
+}
+
+async function confirmDelete() {
+  if (!canDeleteAccount.value) {
+    toast.error(t('settings.account.superAdminDeleteForbidden'))
+    return
+  }
+
+  isDeletingAccount.value = true
+
+  try {
+    await authStore.deleteAccount()
+    toast.success(t('settings.account.deleteAccountSuccess'))
+    await router.push({ name: 'login' })
+  } catch (error) {
+    toast.error(getAPIErrorMessage(t, error, 'apiError.accountDeleteFailed'))
+  } finally {
+    isDeletingAccount.value = false
+    deleteDialogOpen.value = false
+  }
 }
 </script>
 
@@ -220,6 +326,13 @@ function saveProfile() {
         value="account"
         class="space-y-4"
       >
+        <Card v-if="authStore.user?.mustChangePassword" class="border-amber-500/40 bg-amber-500/5">
+          <CardHeader>
+            <CardTitle>{{ t('settings.account.mustChangePasswordTitle') }}</CardTitle>
+            <CardDescription>{{ t('settings.account.mustChangePasswordDesc') }}</CardDescription>
+          </CardHeader>
+        </Card>
+
         <Card>
           <CardHeader>
             <CardTitle>{{ t('settings.account.profile') }}</CardTitle>
@@ -232,13 +345,16 @@ function saveProfile() {
                   <AvatarImage
                     v-if="avatarImageSrc"
                     :src="avatarImageSrc"
-                    :alt="authStore.user?.name ?? ''"
+                    :alt="authStore.user?.username ?? ''"
                   />
                   <AvatarFallback class="rounded-full">{{ avatarFallbackText }}</AvatarFallback>
                 </Avatar>
-                <div>
-                  <p class="font-medium">{{ authStore.user?.name }}</p>
-                  <p class="text-sm text-muted-foreground">{{ authStore.user?.email }}</p>
+                <div class="space-y-1">
+                  <div class="flex items-center gap-2">
+                    <p class="font-medium">{{ authStore.user?.username }}</p>
+                    <Badge :variant="roleBadgeVariant">{{ roleLabel }}</Badge>
+                  </div>
+                  <p class="text-sm text-muted-foreground">{{ authStore.user?.email ?? t('settings.account.emailNotSet') }}</p>
                 </div>
               </div>
               <Dialog v-model:open="editDialogOpen">
@@ -250,7 +366,7 @@ function saveProfile() {
                     {{ t('settings.account.edit') }}
                   </Button>
                 </DialogTrigger>
-                <DialogContent class="sm:max-w-100">
+                <DialogContent class="sm:max-w-110">
                   <DialogHeader>
                     <DialogTitle>{{ t('settings.account.editProfile') }}</DialogTitle>
                     <DialogDescription>
@@ -263,7 +379,7 @@ function saveProfile() {
                         <AvatarImage
                           v-if="editAvatarImageSrc"
                           :src="editAvatarImageSrc"
-                          :alt="editForm.name || authStore.user?.name || ''"
+                          :alt="editForm.username || authStore.user?.username || ''"
                         />
                         <AvatarFallback class="rounded-full">{{ editAvatarFallbackText }}</AvatarFallback>
                       </Avatar>
@@ -291,11 +407,20 @@ function saveProfile() {
                       </p>
                     </div>
                     <div class="space-y-2">
-                      <Label for="edit-name">{{ t('settings.account.name') }}</Label>
+                      <Label for="edit-username">{{ t('settings.account.username') }}</Label>
                       <Input
-                        id="edit-name"
-                        v-model="editForm.name"
-                        :placeholder="t('settings.account.namePlaceholder')"
+                        id="edit-username"
+                        v-model="editForm.username"
+                        :placeholder="t('settings.account.usernamePlaceholder')"
+                      />
+                    </div>
+                    <div class="space-y-2">
+                      <Label for="edit-email">{{ t('settings.account.email') }}</Label>
+                      <Input
+                        id="edit-email"
+                        v-model="editForm.email"
+                        type="email"
+                        :placeholder="t('settings.account.emailPlaceholder')"
                       />
                     </div>
                   </div>
@@ -305,8 +430,11 @@ function saveProfile() {
                         {{ t('common.action.cancel') }}
                       </Button>
                     </DialogClose>
-                    <Button @click="saveProfile">
-                      {{ t('settings.save') }}
+                    <Button
+                      :disabled="isSavingProfile"
+                      @click="saveProfile"
+                    >
+                      {{ isSavingProfile ? t('settings.account.savingProfile') : t('settings.account.saveProfile') }}
                     </Button>
                   </DialogFooter>
                 </DialogContent>
@@ -325,6 +453,7 @@ function saveProfile() {
               <Label for="current-password">{{ t('settings.account.currentPassword') }}</Label>
               <Input
                 id="current-password"
+                v-model="passwordForm.currentPassword"
                 type="password"
                 :placeholder="t('settings.account.currentPasswordPlaceholder')"
               />
@@ -334,6 +463,7 @@ function saveProfile() {
                 <Label for="new-password">{{ t('settings.account.newPassword') }}</Label>
                 <Input
                   id="new-password"
+                  v-model="passwordForm.newPassword"
                   type="password"
                   :placeholder="t('settings.account.newPasswordPlaceholder')"
                 />
@@ -342,50 +472,26 @@ function saveProfile() {
                 <Label for="confirm-password">{{ t('settings.account.confirmPassword') }}</Label>
                 <Input
                   id="confirm-password"
+                  v-model="passwordForm.confirmPassword"
                   type="password"
                   :placeholder="t('settings.account.confirmPasswordPlaceholder')"
                 />
               </div>
             </div>
+            <p
+              v-if="passwordError"
+              class="text-destructive text-sm"
+            >
+              {{ passwordError }}
+            </p>
           </CardContent>
           <CardFooter class="justify-end">
-            <Button variant="outline">{{ t('settings.account.updatePassword') }}</Button>
-          </CardFooter>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>{{ t('settings.account.privacy') }}</CardTitle>
-            <CardDescription>{{ t('settings.account.privacyDesc') }}</CardDescription>
-          </CardHeader>
-          <CardContent class="space-y-6">
-            <div class="flex items-center justify-between">
-              <div class="space-y-0.5">
-                <Label>{{ t('settings.account.publicProfile') }}</Label>
-                <p class="text-muted-foreground text-sm">{{ t('settings.account.publicProfileDesc') }}</p>
-              </div>
-              <Switch v-model="privacy.publicProfile" />
-            </div>
-
-            <div class="flex items-center justify-between">
-              <div class="space-y-0.5">
-                <Label>{{ t('settings.account.allowSearch') }}</Label>
-                <p class="text-muted-foreground text-sm">{{ t('settings.account.allowSearchDesc') }}</p>
-              </div>
-              <Switch v-model="privacy.allowSearch" />
-            </div>
-
-            <div class="flex items-center justify-between">
-              <div class="space-y-0.5">
-                <Label>{{ t('settings.account.showActivity') }}</Label>
-                <p class="text-muted-foreground text-sm">{{ t('settings.account.showActivityDesc') }}</p>
-              </div>
-              <Switch v-model="privacy.showActivity" />
-            </div>
-          </CardContent>
-          <CardFooter class="justify-end">
-            <Button @click="saveSettings">
-              {{ saved ? t('settings.saved') : t('settings.save') }}
+            <Button
+              variant="outline"
+              :disabled="isUpdatingPassword"
+              @click="updatePassword"
+            >
+              {{ isUpdatingPassword ? t('settings.account.updatingPassword') : t('settings.account.updatePassword') }}
             </Button>
           </CardFooter>
         </Card>
@@ -395,21 +501,28 @@ function saveProfile() {
             <CardTitle class="text-destructive">{{ t('settings.account.dangerZone') }}</CardTitle>
             <CardDescription>{{ t('settings.account.dangerZoneDesc') }}</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent class="space-y-3">
             <div class="flex items-center gap-2">
               <Checkbox
                 id="delete-account"
                 v-model="deleteAccountConfirmed"
+                :disabled="!canDeleteAccount"
               />
               <Label for="delete-account">{{ t('settings.account.dangerZoneConfirm') }}</Label>
             </div>
+            <p
+              v-if="!canDeleteAccount"
+              class="text-sm text-muted-foreground"
+            >
+              {{ t('settings.account.superAdminDeleteForbidden') }}
+            </p>
           </CardContent>
           <CardFooter>
             <AlertDialog v-model:open="deleteDialogOpen">
               <AlertDialogTrigger as-child>
                 <Button
                   variant="destructive"
-                  :disabled="!deleteAccountConfirmed"
+                  :disabled="!deleteAccountConfirmed || !canDeleteAccount"
                 >
                   {{ t('settings.account.deleteAccount') }}
                 </Button>
@@ -426,9 +539,8 @@ function saveProfile() {
                   <AlertDialogAction as-child>
                     <Button
                       variant="destructive"
-                      :disabled="deleteCountdown > 0"
+                      :disabled="deleteCountdown > 0 || isDeletingAccount"
                       @click="deleteCountdown > 0 ? undefined : confirmDelete"
-                      @vue:mounted="startDeleteCountdown"
                     >
                       {{ deleteCountdown > 0 ? `${deleteCountdown}s` : t('settings.account.deleteAccount') }}
                     </Button>

@@ -13,9 +13,38 @@ type Migration struct {
 	Up      func(ctx context.Context, tx *sql.Tx) error
 }
 
-// migrations 模板项目默认不包含业务表迁移。
-// 使用模板时按需在此追加迁移，并确保 Version 递增且唯一。
-var migrations = []Migration{}
+var migrations = []Migration{
+	{
+		Version: 1,
+		Up: func(ctx context.Context, tx *sql.Tx) error {
+			const createUsersTable = `
+CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT NOT NULL COLLATE NOCASE UNIQUE,
+    email TEXT NULL COLLATE NOCASE,
+    password_hash TEXT NOT NULL,
+    avatar_path TEXT NULL,
+    role INTEGER NOT NULL CHECK (role IN (0, 1, 2)),
+    bootstrap_password_active INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);`
+			if _, err := tx.ExecContext(ctx, createUsersTable); err != nil {
+				return fmt.Errorf("db: failed to create users table: %w", err)
+			}
+
+			const createUsersEmailIndex = `
+CREATE UNIQUE INDEX IF NOT EXISTS users_email_unique_idx
+ON users(email)
+WHERE email IS NOT NULL AND email <> '';`
+			if _, err := tx.ExecContext(ctx, createUsersEmailIndex); err != nil {
+				return fmt.Errorf("db: failed to create users email index: %w", err)
+			}
+
+			return nil
+		},
+	},
+}
 
 // RunMigrations 执行所有未应用的迁移。
 // 模板默认 migrations 为空，将直接返回 nil，不会创建任何表。

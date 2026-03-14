@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"bytes"
+	"database/sql"
 	"io/fs"
 	"log/slog"
 	"mime"
@@ -18,25 +19,24 @@ import (
 
 type HandlerOptions struct {
 	Logger         *slog.Logger
+	DB             *sql.DB
+	DataDir        string
 	FrontendFS     fs.FS
 	Auth           AuthOptions
 	LogAPIRequests bool
 }
 
-func NewHandler(logger *slog.Logger) http.Handler {
+func NewHandler(logger *slog.Logger, db *sql.DB, dataDir string) http.Handler {
 	return NewHandlerWithOptions(HandlerOptions{
 		Logger:         logger,
+		DB:             db,
+		DataDir:        dataDir,
 		FrontendFS:     os.DirFS(config.FrontendDistDir),
 		LogAPIRequests: config.APIRequestLogEnabled,
 		Auth: AuthOptions{
 			Issuer: config.JWTIssuer,
 			Secret: []byte(config.JWTSecret),
 			TTL:    config.JWTTTL,
-			User: AuthUser{
-				Email: config.AuthEmail,
-				Name:  config.AuthDisplayName,
-			},
-			Password: config.AuthPassword,
 		},
 	})
 }
@@ -47,8 +47,8 @@ func NewHandlerWithOptions(options HandlerOptions) http.Handler {
 		logger = slog.Default()
 	}
 
-	auth := NewAuthService(options.Auth)
-	api := newAPIMux(auth)
+	apiService := NewAPI(options.DB, options.DataDir, options.Auth)
+	api := newAPIMux(apiService)
 	if options.LogAPIRequests {
 		api = Chain(api, requestLogger(logger))
 	}
@@ -66,11 +66,16 @@ func NewHandlerWithOptions(options HandlerOptions) http.Handler {
 	return root
 }
 
-func newAPIMux(auth *AuthService) http.Handler {
+func newAPIMux(api *API) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/healthz", healthz)
-	mux.Handle("POST /api/auth/login", http.HandlerFunc(loginHandler(auth)))
-	mux.Handle("GET /api/auth/me", Chain(http.HandlerFunc(meHandler), RequireAuth(auth)))
+	mux.Handle("POST /api/auth/login", http.HandlerFunc(api.loginHandler))
+	mux.Handle("GET /api/auth/me", Chain(http.HandlerFunc(api.meHandler), RequireAuth(api.auth)))
+	mux.Handle("PATCH /api/account/profile", Chain(http.HandlerFunc(api.updateProfileHandler), RequireAuth(api.auth)))
+	mux.Handle("POST /api/account/avatar", Chain(http.HandlerFunc(api.updateAvatarHandler), RequireAuth(api.auth)))
+	mux.Handle("POST /api/account/password", Chain(http.HandlerFunc(api.updatePasswordHandler), RequireAuth(api.auth)))
+	mux.Handle("DELETE /api/account", Chain(http.HandlerFunc(api.deleteAccountHandler), RequireAuth(api.auth)))
+	mux.Handle("GET /api/avatars/{filename}", http.HandlerFunc(api.avatarHandler))
 	return mux
 }
 

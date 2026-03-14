@@ -16,6 +16,7 @@ import (
 	"main/internal/database"
 	"main/internal/httpapi"
 	"main/internal/logging"
+	"main/internal/users"
 )
 
 const shutdownTimeout = 10 * time.Second
@@ -55,9 +56,15 @@ func main() {
 
 	slog.Info("database ready", "path", dbPath)
 
+	userStore := users.NewStore(dbContainer.DB())
+	if err := users.NewBootstrapManager(userStore, dataDir, logger).Ensure(context.Background()); err != nil {
+		slog.Error("failed to bootstrap default super admin", "error", err)
+		return
+	}
+
 	server := &http.Server{
 		Addr:              listenAddr,
-		Handler:           httpapi.NewHandler(logger),
+		Handler:           httpapi.NewHandler(logger, dbContainer.DB(), dataDir),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      30 * time.Second,

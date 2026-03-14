@@ -10,14 +10,7 @@ export interface AppShellNavItem {
   disabled?: boolean
 }
 
-export interface AppShellUser {
-  name: string
-  email: string
-  avatar: string
-}
-
 export interface AppShellNavigation {
-  user: AppShellUser
   main: AppShellNavItem[]
   documents: AppShellNavItem[]
   secondary: AppShellNavItem[]
@@ -28,7 +21,6 @@ export function useAppShellNavigation(): ComputedRef<AppShellNavigation> {
 
   return computed(() => {
     return {
-      user: { name: 'shadcn', email: 'email@example.com', avatar: '' },
       main: [
         { title: t('nav.main.dashboard'), icon: IconDashboard, to: { name: 'dashboard' } },
         { title: t('nav.main.lifecycle'), icon: IconListDetails, disabled: true },

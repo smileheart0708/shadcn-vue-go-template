@@ -28,8 +28,8 @@ export const api = ky.create({
           request.headers.set('Accept', 'application/json')
         }
 
-        const requestMayHaveJsonBody = options.body !== undefined && request.body !== null && !request.headers.has('Content-Type')
-        if (requestMayHaveJsonBody) {
+        const requestHasJSONBody = 'json' in options && options.json !== undefined && !request.headers.has('Content-Type')
+        if (requestHasJSONBody) {
           request.headers.set('Content-Type', 'application/json')
         }
 

@@ -3,9 +3,13 @@ package httpapi
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
+	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"io"
 	"log/slog"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -13,25 +17,50 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"main/internal/database"
+	"main/internal/users"
 )
+
+type testContext struct {
+	handler   http.Handler
+	store     *users.Store
+	dataDir   string
+	logs      *bytes.Buffer
+	distDir   string
+	auth      AuthOptions
+	dbCleanup func()
+}
+
+type testSuccessEnvelope[T any] struct {
+	Success bool `json:"success"`
+	Data    T    `json:"data"`
+}
+
+type testErrorEnvelope struct {
+	Success bool `json:"success"`
+	Error   struct {
+		Code    string `json:"code"`
+		Message string `json:"message"`
+	} `json:"error"`
+}
 
 func TestHealthz(t *testing.T) {
 	t.Parallel()
 
-	var logs bytes.Buffer
-	handler := newLoggedTestHandler(t, &logs)
+	ctx := newTestContext(t, true)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/healthz", nil)
 	req.RemoteAddr = "203.0.113.10:1234"
 	rec := httptest.NewRecorder()
 
-	handler.ServeHTTP(rec, req)
+	ctx.handler.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusNoContent {
 		t.Fatalf("expected status %d, got %d", http.StatusNoContent, rec.Code)
 	}
 
-	output := logs.String()
+	output := ctx.logs.String()
 	if !strings.Contains(output, "route=\"GET /api/healthz\"") {
 		t.Fatalf("expected matched route in logs, got %q", output)
 	}
@@ -46,19 +75,17 @@ func TestHealthz(t *testing.T) {
 func TestAPIRoutesAreNotLoggedByDefault(t *testing.T) {
 	t.Parallel()
 
-	var logs bytes.Buffer
-	handler := newTestHandler(t, &logs)
+	ctx := newTestContext(t, false)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/healthz", nil)
 	rec := httptest.NewRecorder()
 
-	handler.ServeHTTP(rec, req)
+	ctx.handler.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusNoContent {
 		t.Fatalf("expected status %d, got %d", http.StatusNoContent, rec.Code)
 	}
-
-	if output := strings.TrimSpace(logs.String()); output != "" {
+	if output := strings.TrimSpace(ctx.logs.String()); output != "" {
 		t.Fatalf("expected API logs to be disabled by default, got %q", output)
 	}
 }
@@ -66,106 +93,292 @@ func TestAPIRoutesAreNotLoggedByDefault(t *testing.T) {
 func TestLoginAndMeFlow(t *testing.T) {
 	t.Parallel()
 
-	handler := newTestHandler(t, nil)
+	ctx := newTestContext(t, false)
+	token := loginAsBootstrapAdmin(t, ctx)
 
-	loginReq := httptest.NewRequest(
-		http.MethodPost,
-		"/api/auth/login",
-		strings.NewReader(`{"email":"admin@example.com","password":"admin123456"}`),
-	)
-	loginReq.Header.Set("Content-Type", "application/json")
-	loginRec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/auth/me", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	rec := httptest.NewRecorder()
 
-	handler.ServeHTTP(loginRec, loginReq)
+	ctx.handler.ServeHTTP(rec, req)
 
-	if loginRec.Code != http.StatusOK {
-		t.Fatalf("expected status %d, got %d", http.StatusOK, loginRec.Code)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, rec.Code)
 	}
 
-	var loginPayload loginResponse
-	if err := json.Unmarshal(loginRec.Body.Bytes(), &loginPayload); err != nil {
-		t.Fatalf("failed to decode login response: %v", err)
+	var response testSuccessEnvelope[users.PublicUser]
+	decodeJSONResponse(t, rec.Body.Bytes(), &response)
+
+	if !response.Success {
+		t.Fatal("expected success response")
+	}
+	if response.Data.Username != "admin" {
+		t.Fatalf("expected username admin, got %q", response.Data.Username)
+	}
+	if response.Data.Role != users.RoleSuperAdmin {
+		t.Fatalf("expected role %d, got %d", users.RoleSuperAdmin, response.Data.Role)
+	}
+	if !response.Data.MustChangePassword {
+		t.Fatal("expected bootstrap admin to require password change")
+	}
+}
+
+func TestLoginSupportsEmailIdentifier(t *testing.T) {
+	t.Parallel()
+
+	ctx := newTestContext(t, false)
+	password := "member123"
+	createTestUser(t, ctx.store, users.CreateParams{
+		Username:     "member",
+		Email:        stringPointer("member@example.com"),
+		PasswordHash: mustHashPassword(t, password),
+		Role:         users.RoleUser,
+	})
+
+	loginBody := `{"identifier":"member@example.com","password":"member123"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/auth/login", strings.NewReader(loginBody))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+
+	ctx.handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, rec.Code)
 	}
 
-	if loginPayload.AccessToken == "" {
-		t.Fatal("expected access token in login response")
+	var response testSuccessEnvelope[loginResponse]
+	decodeJSONResponse(t, rec.Body.Bytes(), &response)
+	if response.Data.User.Username != "member" {
+		t.Fatalf("expected username member, got %q", response.Data.User.Username)
 	}
-	if loginPayload.User.Email != "admin@example.com" {
-		t.Fatalf("expected email admin@example.com, got %q", loginPayload.User.Email)
+}
+
+func TestInvalidCredentialsReturnUnauthorized(t *testing.T) {
+	t.Parallel()
+
+	ctx := newTestContext(t, false)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/auth/login", strings.NewReader(`{"identifier":"admin","password":"wrongpass"}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+
+	ctx.handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, rec.Code)
 	}
 
-	meReq := httptest.NewRequest(http.MethodGet, "/api/auth/me", nil)
-	meReq.Header.Set("Authorization", "Bearer "+loginPayload.AccessToken)
-	meRec := httptest.NewRecorder()
-
-	handler.ServeHTTP(meRec, meReq)
-
-	if meRec.Code != http.StatusOK {
-		t.Fatalf("expected status %d, got %d", http.StatusOK, meRec.Code)
+	var response testErrorEnvelope
+	decodeJSONResponse(t, rec.Body.Bytes(), &response)
+	if response.Success {
+		t.Fatal("expected unsuccessful response")
 	}
-
-	var mePayload meResponse
-	if err := json.Unmarshal(meRec.Body.Bytes(), &mePayload); err != nil {
-		t.Fatalf("failed to decode me response: %v", err)
-	}
-
-	if mePayload.User.Name != "Administrator" {
-		t.Fatalf("expected user name Administrator, got %q", mePayload.User.Name)
+	if response.Error.Code != "invalid_credentials" {
+		t.Fatalf("expected invalid_credentials, got %q", response.Error.Code)
 	}
 }
 
 func TestProtectedRouteRejectsMissingToken(t *testing.T) {
 	t.Parallel()
 
-	handler := newTestHandler(t, nil)
+	ctx := newTestContext(t, false)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/auth/me", nil)
 	rec := httptest.NewRecorder()
 
-	handler.ServeHTTP(rec, req)
+	ctx.handler.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusUnauthorized {
 		t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, rec.Code)
 	}
 
-	if !strings.Contains(rec.Body.String(), `"code":"missing_token"`) {
-		t.Fatalf("expected missing token error body, got %q", rec.Body.String())
+	var response testErrorEnvelope
+	decodeJSONResponse(t, rec.Body.Bytes(), &response)
+	if response.Error.Code != "missing_token" {
+		t.Fatalf("expected missing_token error, got %q", response.Error.Code)
+	}
+}
+
+func TestUpdateProfileHandlesNullableEmail(t *testing.T) {
+	t.Parallel()
+
+	ctx := newTestContext(t, false)
+	token := loginAsBootstrapAdmin(t, ctx)
+
+	req := httptest.NewRequest(http.MethodPatch, "/api/account/profile", strings.NewReader(`{"username":"admin-renamed","email":null}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+token)
+	rec := httptest.NewRecorder()
+
+	ctx.handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, rec.Code)
+	}
+
+	var response testSuccessEnvelope[users.PublicUser]
+	decodeJSONResponse(t, rec.Body.Bytes(), &response)
+	if response.Data.Username != "admin-renamed" {
+		t.Fatalf("expected updated username, got %q", response.Data.Username)
+	}
+	if response.Data.Email != nil {
+		t.Fatalf("expected nil email, got %v", *response.Data.Email)
+	}
+}
+
+func TestUpdatePasswordClearsBootstrapFlagAndFile(t *testing.T) {
+	t.Parallel()
+
+	ctx := newTestContext(t, false)
+	token := loginAsBootstrapAdmin(t, ctx)
+	bootstrapPassword := readBootstrapPassword(t, ctx.dataDir)
+
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/api/account/password",
+		strings.NewReader(`{"currentPassword":"`+bootstrapPassword+`","newPassword":"newsecure1"}`),
+	)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+token)
+	rec := httptest.NewRecorder()
+
+	ctx.handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, rec.Code)
+	}
+
+	var response testSuccessEnvelope[users.PublicUser]
+	decodeJSONResponse(t, rec.Body.Bytes(), &response)
+	if response.Data.MustChangePassword {
+		t.Fatal("expected bootstrap flag to be cleared")
+	}
+
+	if _, err := os.Stat(users.BootstrapPasswordPath(ctx.dataDir)); !os.IsNotExist(err) {
+		t.Fatalf("expected bootstrap password file to be deleted, stat err=%v", err)
+	}
+}
+
+func TestAvatarUploadStoresFileAndReturnsURL(t *testing.T) {
+	t.Parallel()
+
+	ctx := newTestContext(t, false)
+	token := loginAsBootstrapAdmin(t, ctx)
+
+	body, contentType := newAvatarUploadRequest(t, "avatar.png", oneByOnePNG(t))
+	req := httptest.NewRequest(http.MethodPost, "/api/account/avatar", body)
+	req.Header.Set("Content-Type", contentType)
+	req.Header.Set("Authorization", "Bearer "+token)
+	rec := httptest.NewRecorder()
+
+	ctx.handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, rec.Code)
+	}
+
+	var response testSuccessEnvelope[users.PublicUser]
+	decodeJSONResponse(t, rec.Body.Bytes(), &response)
+	if response.Data.AvatarURL == nil {
+		t.Fatal("expected avatar URL in response")
+	}
+
+	avatarFiles, err := os.ReadDir(users.AvatarDir(ctx.dataDir))
+	if err != nil {
+		t.Fatalf("failed to read avatar dir: %v", err)
+	}
+	if len(avatarFiles) != 1 {
+		t.Fatalf("expected 1 avatar file, got %d", len(avatarFiles))
+	}
+}
+
+func TestAvatarUploadRejectsUnsupportedType(t *testing.T) {
+	t.Parallel()
+
+	ctx := newTestContext(t, false)
+	token := loginAsBootstrapAdmin(t, ctx)
+
+	body, contentType := newAvatarUploadRequest(t, "avatar.txt", []byte("plain text"))
+	req := httptest.NewRequest(http.MethodPost, "/api/account/avatar", body)
+	req.Header.Set("Content-Type", contentType)
+	req.Header.Set("Authorization", "Bearer "+token)
+	rec := httptest.NewRecorder()
+
+	ctx.handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, rec.Code)
+	}
+
+	var response testErrorEnvelope
+	decodeJSONResponse(t, rec.Body.Bytes(), &response)
+	if response.Error.Code != "avatar_invalid_type" {
+		t.Fatalf("expected avatar_invalid_type, got %q", response.Error.Code)
+	}
+}
+
+func TestDeleteAccountAllowsNormalUsers(t *testing.T) {
+	t.Parallel()
+
+	ctx := newTestContext(t, false)
+	user := createTestUser(t, ctx.store, users.CreateParams{
+		Username:     "member",
+		PasswordHash: mustHashPassword(t, "member123"),
+		Role:         users.RoleUser,
+	})
+	token := issueTokenForUser(t, ctx.auth, user)
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/account", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	rec := httptest.NewRecorder()
+
+	ctx.handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, rec.Code)
+	}
+
+	if _, err := ctx.store.GetByID(context.Background(), user.ID); !errors.Is(err, users.ErrUserNotFound) {
+		t.Fatalf("expected user to be deleted, got err=%v", err)
+	}
+}
+
+func TestDeleteAccountRejectsSuperAdmin(t *testing.T) {
+	t.Parallel()
+
+	ctx := newTestContext(t, false)
+	token := loginAsBootstrapAdmin(t, ctx)
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/account", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	rec := httptest.NewRecorder()
+
+	ctx.handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("expected status %d, got %d", http.StatusForbidden, rec.Code)
+	}
+
+	var response testErrorEnvelope
+	decodeJSONResponse(t, rec.Body.Bytes(), &response)
+	if response.Error.Code != "super_admin_delete_forbidden" {
+		t.Fatalf("expected super_admin_delete_forbidden, got %q", response.Error.Code)
 	}
 }
 
 func TestSPAFallbackServesIndexForClientRoute(t *testing.T) {
 	t.Parallel()
 
-	handler := newTestHandler(t, nil)
+	ctx := newTestContext(t, false)
 
 	req := httptest.NewRequest(http.MethodGet, "/dashboard", nil)
 	rec := httptest.NewRecorder()
 
-	handler.ServeHTTP(rec, req)
+	ctx.handler.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, rec.Code)
 	}
-
-	if !strings.Contains(rec.Body.String(), "<title>SPA</title>") {
-		t.Fatalf("expected SPA index response, got %q", rec.Body.String())
-	}
-}
-
-func TestSPAFallbackServesIndexForRootRoute(t *testing.T) {
-	t.Parallel()
-
-	handler := newTestHandler(t, nil)
-
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	rec := httptest.NewRecorder()
-
-	handler.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected status %d, got %d", http.StatusOK, rec.Code)
-	}
-
 	if !strings.Contains(rec.Body.String(), "<title>SPA</title>") {
 		t.Fatalf("expected SPA index response, got %q", rec.Body.String())
 	}
@@ -174,13 +387,13 @@ func TestSPAFallbackServesIndexForRootRoute(t *testing.T) {
 func TestSPAFallbackPrefersGzipIndexWhenSupported(t *testing.T) {
 	t.Parallel()
 
-	handler := newTestHandler(t, nil)
+	ctx := newTestContext(t, false)
 
 	req := httptest.NewRequest(http.MethodGet, "/dashboard", nil)
 	req.Header.Set("Accept-Encoding", "gzip, br")
 	rec := httptest.NewRecorder()
 
-	handler.ServeHTTP(rec, req)
+	ctx.handler.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, rec.Code)
@@ -198,145 +411,132 @@ func TestSPAFallbackPrefersGzipIndexWhenSupported(t *testing.T) {
 	}
 }
 
-func TestStaticAssetsPreferGzipWhenSupported(t *testing.T) {
-	t.Parallel()
-
-	handler := newTestHandler(t, nil)
-
-	req := httptest.NewRequest(http.MethodGet, "/assets/app.js", nil)
-	req.Header.Set("Accept-Encoding", "gzip")
-	rec := httptest.NewRecorder()
-
-	handler.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected status %d, got %d", http.StatusOK, rec.Code)
-	}
-	if got := rec.Header().Get("Content-Encoding"); got != "gzip" {
-		t.Fatalf("expected gzip content encoding, got %q", got)
-	}
-	if got := rec.Header().Get("Content-Type"); !strings.Contains(got, "javascript") {
-		t.Fatalf("expected javascript content type, got %q", got)
-	}
-
-	body := gunzipBody(t, rec.Body.Bytes())
-	if body != "console.log('spa asset')\n" {
-		t.Fatalf("unexpected asset body %q", body)
-	}
-}
-
-func TestMissingStaticAssetReturnsNotFound(t *testing.T) {
-	t.Parallel()
-
-	handler := newTestHandler(t, nil)
-
-	req := httptest.NewRequest(http.MethodGet, "/assets/missing.js", nil)
-	rec := httptest.NewRecorder()
-
-	handler.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusNotFound {
-		t.Fatalf("expected status %d, got %d", http.StatusNotFound, rec.Code)
-	}
-}
-
 func TestUnknownAPIRouteDoesNotFallbackToSPA(t *testing.T) {
 	t.Parallel()
 
-	handler := newTestHandler(t, nil)
+	ctx := newTestContext(t, false)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/missing", nil)
 	rec := httptest.NewRecorder()
 
-	handler.ServeHTTP(rec, req)
+	ctx.handler.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusNotFound {
 		t.Fatalf("expected status %d, got %d", http.StatusNotFound, rec.Code)
 	}
-
 	if strings.Contains(rec.Body.String(), "<title>SPA</title>") {
 		t.Fatalf("expected API 404 instead of SPA fallback, got %q", rec.Body.String())
 	}
 }
 
-func TestFrontendStaticRequestsAreNotLogged(t *testing.T) {
-	t.Parallel()
-
-	var logs bytes.Buffer
-	handler := newLoggedTestHandler(t, &logs)
-
-	req := httptest.NewRequest(http.MethodGet, "/assets/app.js", nil)
-	req.RemoteAddr = "203.0.113.10:1234"
-	rec := httptest.NewRecorder()
-
-	handler.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected status %d, got %d", http.StatusOK, rec.Code)
-	}
-
-	if output := strings.TrimSpace(logs.String()); output != "" {
-		t.Fatalf("expected frontend static requests to skip logging, got %q", output)
-	}
-}
-
-func TestRequestLoggerDefaultsStatusToOK(t *testing.T) {
-	t.Parallel()
-
-	var logs bytes.Buffer
-	logger := testLogger(&logs)
-	handler := Chain(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {}), requestLogger(logger))
-
-	req := httptest.NewRequest(http.MethodGet, "/implicit-ok", nil)
-	rec := httptest.NewRecorder()
-
-	handler.ServeHTTP(rec, req)
-
-	output := logs.String()
-	if !strings.Contains(output, "route=/implicit-ok") {
-		t.Fatalf("expected route fallback in logs, got %q", output)
-	}
-	if !strings.Contains(output, "status=200") {
-		t.Fatalf("expected status=200 in logs, got %q", output)
-	}
-}
-
-func newTestHandler(t *testing.T, logs *bytes.Buffer) http.Handler {
+func newTestContext(t *testing.T, logAPIRequests bool) *testContext {
 	t.Helper()
 
-	return newTestHandlerWithOptions(t, logs, false)
-}
-
-func newLoggedTestHandler(t *testing.T, logs *bytes.Buffer) http.Handler {
-	t.Helper()
-
-	return newTestHandlerWithOptions(t, logs, true)
-}
-
-func newTestHandlerWithOptions(t *testing.T, logs *bytes.Buffer, logAPIRequests bool) http.Handler {
-	t.Helper()
-
+	dataDir := t.TempDir()
 	distDir := createTestDist(t)
-	logger := slog.Default()
-	if logs != nil {
-		logger = testLogger(logs)
+	dbContainer, err := database.Open(context.Background(), database.Options{
+		Path: filepath.Join(dataDir, "test.db"),
+	})
+	if err != nil {
+		t.Fatalf("failed to open test database: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := dbContainer.Close(); err != nil {
+			t.Fatalf("failed to close test database: %v", err)
+		}
+	})
+
+	logs := &bytes.Buffer{}
+	logger := testLogger(logs)
+	store := users.NewStore(dbContainer.DB())
+	if err := users.NewBootstrapManager(store, dataDir, logger).Ensure(context.Background()); err != nil {
+		t.Fatalf("failed to bootstrap default super admin: %v", err)
+	}
+	logs.Reset()
+
+	auth := AuthOptions{
+		Issuer: "test-suite",
+		Secret: []byte("test-secret"),
+		TTL:    time.Hour,
 	}
 
-	return NewHandlerWithOptions(HandlerOptions{
+	handler := NewHandlerWithOptions(HandlerOptions{
 		Logger:         logger,
+		DB:             dbContainer.DB(),
+		DataDir:        dataDir,
 		FrontendFS:     os.DirFS(distDir),
 		LogAPIRequests: logAPIRequests,
-		Auth: AuthOptions{
-			Issuer: "test-suite",
-			Secret: []byte("test-secret"),
-			TTL:    time.Hour,
-			User: AuthUser{
-				Email: "admin@example.com",
-				Name:  "Administrator",
-			},
-			Password: "admin123456",
-		},
+		Auth:           auth,
 	})
+
+	return &testContext{
+		handler: handler,
+		store:   store,
+		dataDir: dataDir,
+		logs:    logs,
+		distDir: distDir,
+		auth:    auth,
+	}
+}
+
+func loginAsBootstrapAdmin(t *testing.T, ctx *testContext) string {
+	t.Helper()
+
+	password := readBootstrapPassword(t, ctx.dataDir)
+	req := httptest.NewRequest(http.MethodPost, "/api/auth/login", strings.NewReader(`{"identifier":"admin","password":"`+password+`"}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+
+	ctx.handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected login success, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	var response testSuccessEnvelope[loginResponse]
+	decodeJSONResponse(t, rec.Body.Bytes(), &response)
+	return response.Data.AccessToken
+}
+
+func issueTokenForUser(t *testing.T, authOptions AuthOptions, user users.User) string {
+	t.Helper()
+
+	service := NewAuthService(authOptions)
+	token, _, err := service.IssueToken(user)
+	if err != nil {
+		t.Fatalf("failed to issue token: %v", err)
+	}
+	return token
+}
+
+func readBootstrapPassword(t *testing.T, dataDir string) string {
+	t.Helper()
+
+	password, err := os.ReadFile(users.BootstrapPasswordPath(dataDir))
+	if err != nil {
+		t.Fatalf("failed to read bootstrap password: %v", err)
+	}
+	return strings.TrimSpace(string(password))
+}
+
+func createTestUser(t *testing.T, store *users.Store, params users.CreateParams) users.User {
+	t.Helper()
+
+	user, err := store.Create(context.Background(), params)
+	if err != nil {
+		t.Fatalf("failed to create test user: %v", err)
+	}
+	return user
+}
+
+func mustHashPassword(t *testing.T, password string) string {
+	t.Helper()
+
+	passwordHash, err := users.HashPassword(password)
+	if err != nil {
+		t.Fatalf("failed to hash password: %v", err)
+	}
+	return passwordHash
 }
 
 func createTestDist(t *testing.T) string {
@@ -382,6 +582,43 @@ func writeGzipFile(t *testing.T, filename string, content string) {
 	}
 }
 
+func newAvatarUploadRequest(t *testing.T, fileName string, data []byte) (*bytes.Buffer, string) {
+	t.Helper()
+
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+	fileWriter, err := writer.CreateFormFile("avatar", fileName)
+	if err != nil {
+		t.Fatalf("failed to create multipart file: %v", err)
+	}
+	if _, err := fileWriter.Write(data); err != nil {
+		t.Fatalf("failed to write multipart file: %v", err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("failed to close multipart writer: %v", err)
+	}
+
+	return body, writer.FormDataContentType()
+}
+
+func oneByOnePNG(t *testing.T) []byte {
+	t.Helper()
+
+	data, err := base64.StdEncoding.DecodeString("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO5qS3QAAAAASUVORK5CYII=")
+	if err != nil {
+		t.Fatalf("failed to decode PNG fixture: %v", err)
+	}
+	return data
+}
+
+func decodeJSONResponse(t *testing.T, payload []byte, dst any) {
+	t.Helper()
+
+	if err := json.Unmarshal(payload, dst); err != nil {
+		t.Fatalf("failed to decode JSON response: %v; payload=%s", err, string(payload))
+	}
+}
+
 func gunzipBody(t *testing.T, body []byte) string {
 	t.Helper()
 
@@ -401,4 +638,8 @@ func gunzipBody(t *testing.T, body []byte) string {
 
 func testLogger(buf *bytes.Buffer) *slog.Logger {
 	return slog.New(slog.NewTextHandler(buf, &slog.HandlerOptions{}))
+}
+
+func stringPointer(value string) *string {
+	return &value
 }

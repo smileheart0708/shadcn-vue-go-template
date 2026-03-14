@@ -4,7 +4,7 @@ import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
-import { LoginError } from '@/lib/api/auth'
+import { getAPIErrorMessage } from '@/lib/api/error-messages'
 import { useAuthStore } from '@/stores/auth'
 
 import { cn } from '@/lib/utils'
@@ -20,7 +20,7 @@ const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
 
-const email = ref('')
+const identifier = ref('')
 const password = ref('')
 const isSubmitting = ref(false)
 
@@ -31,12 +31,12 @@ async function handleSubmit() {
 
   isSubmitting.value = true
 
-  const loginPromise = authStore.login({ email: email.value, password: password.value })
+  const loginPromise = authStore.login({ identifier: identifier.value, password: password.value })
 
   toast.promise(loginPromise, {
     loading: t('auth.signIn.signingIn'),
-    success: () => t('sonner.loginEvent.login_success'),
-    error: (error: unknown) => (error instanceof LoginError ? t(`sonner.loginEvent.${error.loginEvent}`) : t('auth.signIn.loginFailed')),
+    success: () => t('auth.signIn.loginSuccess'),
+    error: (error: unknown) => getAPIErrorMessage(t, error, 'auth.signIn.loginFailed'),
   })
 
   try {
@@ -68,12 +68,12 @@ async function handleSubmit() {
           </p>
         </div>
         <Field>
-          <FieldLabel for="email"> {{ t('common.field.email') }} </FieldLabel>
+          <FieldLabel for="identifier"> {{ t('common.field.usernameOrEmail') }} </FieldLabel>
           <Input
-            id="email"
-            v-model="email"
-            type="email"
-            :placeholder="t('auth.signIn.emailPlaceholder')"
+            id="identifier"
+            v-model="identifier"
+            type="text"
+            :placeholder="t('auth.signIn.identifierPlaceholder')"
             autocomplete="username"
             required
           />

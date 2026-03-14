@@ -1,54 +1,49 @@
 import { z } from 'zod'
 import { api, normalizeAPIError } from '@/lib/api/client'
+import { successEnvelopeSchema } from '@/lib/api/envelope'
 
-export const authUserSchema = z.object({ id: z.string(), email: z.email(), name: z.string() })
+export const authUserSchema = z.object({
+  id: z.number().int().positive(),
+  username: z.string(),
+  email: z.string().email().nullable(),
+  avatarUrl: z.string().nullable(),
+  role: z.number().int(),
+  mustChangePassword: z.boolean(),
+})
 
 export type AuthUser = z.infer<typeof authUserSchema>
 
 export interface LoginCredentials {
-  email: string
+  identifier: string
   password: string
 }
 
-export const loginResponseSchema = z.object({
+const loginPayloadSchema = z.object({
   accessToken: z.string(),
   tokenType: z.string(),
   expiresAt: z.string(),
   user: authUserSchema,
-  success: z.boolean(),
-  loginEvent: z.string(),
 })
 
-export type LoginResponse = z.infer<typeof loginResponseSchema>
+export const loginResponseSchema = successEnvelopeSchema(loginPayloadSchema)
 
-export const currentUserResponseSchema = z.object({ user: authUserSchema })
+export type LoginResponse = z.infer<typeof loginPayloadSchema>
 
-export type CurrentUserResponse = z.infer<typeof currentUserResponseSchema>
-
-export class LoginError extends Error {
-  loginEvent: string
-  constructor(loginEvent: string, message: string) {
-    super(message)
-    this.name = 'LoginError'
-    this.loginEvent = loginEvent
-  }
-}
+const currentUserResponseSchema = successEnvelopeSchema(authUserSchema)
 
 export async function login(credentials: LoginCredentials): Promise<LoginResponse> {
-  const payload = await api.post('/api/auth/login', { json: credentials }).json<unknown>()
-  const response = loginResponseSchema.parse(payload)
-
-  if (!response.success) {
-    throw new LoginError(response.loginEvent, response.loginEvent)
+  try {
+    const payload = await api.post('/api/auth/login', { json: credentials }).json<unknown>()
+    return loginResponseSchema.parse(payload).data
+  } catch (error) {
+    return normalizeAPIError(error)
   }
-
-  return response
 }
 
-export async function getCurrentUser(): Promise<CurrentUserResponse> {
+export async function getCurrentUser(): Promise<AuthUser> {
   try {
     const payload = await api.get('/api/auth/me').json<unknown>()
-    return currentUserResponseSchema.parse(payload)
+    return currentUserResponseSchema.parse(payload).data
   } catch (error) {
     return normalizeAPIError(error)
   }
