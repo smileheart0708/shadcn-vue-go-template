@@ -42,6 +42,7 @@ const privacy = ref({
 const saved = ref(false)
 const deleteDialogOpen = ref(false)
 const deleteCountdown = ref(0)
+const deleteAccountConfirmed = ref(false)
 
 function saveSettings() {
   saved.value = true
@@ -243,14 +244,20 @@ const localeOptions = Object.entries(localeNames).map(([value, label]) => ({
           </CardHeader>
           <CardContent>
             <div class="flex items-center gap-2">
-              <Checkbox id="delete-account" />
+              <Checkbox
+                id="delete-account"
+                v-model="deleteAccountConfirmed"
+              />
               <Label for="delete-account">{{ t('settings.account.dangerZoneConfirm') }}</Label>
             </div>
           </CardContent>
           <CardFooter>
             <AlertDialog v-model:open="deleteDialogOpen">
               <AlertDialogTrigger as-child>
-                <Button variant="destructive">
+                <Button
+                  variant="destructive"
+                  :disabled="!deleteAccountConfirmed"
+                >
                   {{ t('settings.account.deleteAccount') }}
                 </Button>
               </AlertDialogTrigger>
