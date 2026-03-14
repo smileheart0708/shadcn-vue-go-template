@@ -11,7 +11,6 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import {
@@ -379,22 +378,22 @@ const localeOptions = Object.entries(localeNames).map(([value, label]) => ({
           <CardContent class="space-y-6">
             <div class="space-y-2">
               <Label>{{ t('settings.appearance.colorTheme') }}</Label>
-              <ToggleGroup
-                type="single"
+              <Tabs
                 :model-value="themeStore.theme"
-                class="w-fit"
                 @update:model-value="handleThemeChange"
               >
-                <ToggleGroupItem value="light">
-                  {{ t('settings.appearance.light') }}
-                </ToggleGroupItem>
-                <ToggleGroupItem value="dark">
-                  {{ t('settings.appearance.dark') }}
-                </ToggleGroupItem>
-                <ToggleGroupItem value="system">
-                  {{ t('settings.appearance.system') }}
-                </ToggleGroupItem>
-              </ToggleGroup>
+                <TabsList>
+                  <TabsTrigger value="light">
+                    {{ t('settings.appearance.light') }}
+                  </TabsTrigger>
+                  <TabsTrigger value="dark">
+                    {{ t('settings.appearance.dark') }}
+                  </TabsTrigger>
+                  <TabsTrigger value="system">
+                    {{ t('settings.appearance.system') }}
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
             </div>
 
             <div class="space-y-2">
