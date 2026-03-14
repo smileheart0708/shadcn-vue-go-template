@@ -7,6 +7,7 @@ const AppShellLayout = () => import('@/layouts/AppShellLayout.vue')
 const BlankLayout = () => import('@/layouts/BlankLayout.vue')
 const Dashboard = () => import('@/views/Dashboard.vue')
 const Login = () => import('@/views/Login.vue')
+const Settings = () => import('@/views/Settings.vue')
 const NotFound = () => import('@/views/NotFound.vue')
 
 function defineAppShellRoute<T extends RouteRecordRaw & { meta: { titleKey: RouteTitleKey } }>(route: T) {
@@ -19,6 +20,12 @@ const appShellRoutes = [
     name: 'dashboard',
     component: Dashboard,
     meta: { titleKey: 'route.dashboard', requiresAuth: true },
+  }),
+  defineAppShellRoute({
+    path: 'settings',
+    name: 'settings',
+    component: Settings,
+    meta: { titleKey: 'route.settings', requiresAuth: true },
   }),
 ] satisfies RouteRecordRaw[]
 

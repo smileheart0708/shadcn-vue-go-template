@@ -12,9 +12,7 @@ export function installDocumentMetadata(router: Router) {
     const titleKey = getRouteTitleKey(router.currentRoute.value)
     const appName = i18n.global.t('app.name')
 
-    document.title = titleKey
-      ? i18n.global.t('app.titleWithPage', { name: appName, page: i18n.global.t(titleKey) })
-      : i18n.global.t('app.title', { name: appName })
+    document.title = titleKey ? i18n.global.t('app.titleWithPage', { name: appName, page: i18n.global.t(titleKey) }) : i18n.global.t('app.title', { name: appName })
   }
 
   watchEffect(() => {

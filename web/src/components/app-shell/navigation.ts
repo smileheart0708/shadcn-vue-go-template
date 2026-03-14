@@ -42,7 +42,7 @@ export function useAppShellNavigation(): ComputedRef<AppShellNavigation> {
         { title: t('nav.documents.wordAssistant'), icon: IconFileDescription, disabled: true },
       ],
       secondary: [
-        { title: t('nav.secondary.settings'), icon: IconSettings, disabled: true },
+        { title: t('nav.secondary.settings'), icon: IconSettings, to: { name: 'settings' } },
         { title: t('nav.secondary.getHelp'), icon: IconHelp, disabled: true },
         { title: t('nav.secondary.search'), icon: IconSearch, disabled: true },
       ],
