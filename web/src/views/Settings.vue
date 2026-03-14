@@ -326,7 +326,10 @@ async function confirmDelete() {
         value="account"
         class="space-y-4"
       >
-        <Card v-if="authStore.user?.mustChangePassword" class="border-amber-500/40 bg-amber-500/5">
+        <Card
+          v-if="authStore.user?.mustChangePassword"
+          class="border-amber-500/40 bg-amber-500/5"
+        >
           <CardHeader>
             <CardTitle>{{ t('settings.account.mustChangePasswordTitle') }}</CardTitle>
             <CardDescription>{{ t('settings.account.mustChangePasswordDesc') }}</CardDescription>

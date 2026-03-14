@@ -21,13 +21,16 @@ function createUnauthorizedResponse(message: string) {
 
 export const authHandlers = [
   http.post('/api/auth/login', async ({ request }) => {
-    const payload = await request.json().catch(() => null)
+    const payload = await request.json().catch((): null => null)
 
     if (!isLoginRequestBody(payload) || payload?.identifier !== MOCK_LOGIN_CREDENTIALS.identifier || payload?.password !== MOCK_LOGIN_CREDENTIALS.password) {
-      return HttpResponse.json({
-        success: false,
-        error: { code: 'invalid_credentials', message: 'Invalid credentials.' },
-      }, { status: 401 })
+      return HttpResponse.json(
+        {
+          success: false,
+          error: { code: 'invalid_credentials', message: 'Invalid credentials.' },
+        },
+        { status: 401 },
+      )
     }
 
     return HttpResponse.json({
@@ -45,7 +48,7 @@ export const authHandlers = [
     return HttpResponse.json({ success: true, data: MOCK_AUTH_USER })
   }),
   http.patch('/api/account/profile', async ({ request }) => {
-    const payload = await request.json().catch(() => null)
+    const payload = await request.json().catch((): null => null)
     if (!isRecord(payload)) {
       return HttpResponse.json({ success: false, error: { code: 'invalid_request', message: 'Invalid request.' } }, { status: 400 })
     }
