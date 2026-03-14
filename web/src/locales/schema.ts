@@ -16,7 +16,7 @@ export interface MessageSchema {
       submit: string
       update: string
     }
-    field: { email: string; password: string; username: string; usernameOrEmail: string }
+    field: { email: string; password: string; username: string; usernameOrEmail: string; name: string; confirmPassword: string }
     feedback: { networkError: string; required: string; unknownError: string }
     state: { empty: string; loading: string; noData: string }
     userRole: { 0: string; 1: string; 2: string }
@@ -39,7 +39,7 @@ export interface MessageSchema {
     accountDeleteFailed: string
     superAdminDeleteForbidden: string
   }
-  route: { dashboard: string; login: string; notFound: string; settings: string }
+  route: { dashboard: string; login: string; notFound: string; settings: string; register: string }
   settings: {
     title: string
     description: string
@@ -124,6 +124,24 @@ export interface MessageSchema {
       signingIn: string
       submit: string
       title: string
+    }
+    signUp: {
+      title: string
+      description: string
+      signIn: string
+      usernamePlaceholder: string
+      emailPlaceholder: string
+      passwordPlaceholder: string
+      confirmPassword: string
+      confirmPasswordPlaceholder: string
+      creating: string
+      submit: string
+      or: string
+      continueWithGithub: string
+      termsPrefix: string
+      terms: string
+      termsAnd: string
+      privacy: string
     }
   }
   table: {

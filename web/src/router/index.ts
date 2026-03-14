@@ -7,6 +7,7 @@ const AppShellLayout = () => import('@/layouts/AppShellLayout.vue')
 const BlankLayout = () => import('@/layouts/BlankLayout.vue')
 const Dashboard = () => import('@/views/Dashboard.vue')
 const Login = () => import('@/views/Login.vue')
+const Register = () => import('@/views/Register.vue')
 const Settings = () => import('@/views/Settings.vue')
 const NotFound = () => import('@/views/NotFound.vue')
 
@@ -38,6 +39,7 @@ const router = createRouter({
       children: [{ path: '', redirect: { name: 'dashboard' } }, ...appShellRoutes],
     },
     { path: '/login', name: 'login', component: Login, meta: { titleKey: 'route.login', guestOnly: true } },
+    { path: '/register', name: 'register', component: Register, meta: { titleKey: 'route.register', guestOnly: true } },
     // Only routes nested under AppShellLayout render the sidebar/header shell.
     {
       path: '/:pathMatch(.*)*',
