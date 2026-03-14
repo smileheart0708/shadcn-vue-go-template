@@ -22,9 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-data/
 nul
 *.exe
 *.exe~
 .env
-.data/
+/.data/
