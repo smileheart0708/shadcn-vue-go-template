@@ -1,5 +1,6 @@
 import { createApp } from 'vue'
 import './style.css'
+import 'vue-sonner/style.css'
 import App from './App.vue'
 import { installDocumentMetadata } from './plugins/document-metadata'
 import i18n from './plugins/i18n'

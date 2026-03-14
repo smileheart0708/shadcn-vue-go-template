@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import LoginForm from '@/components/login/LoginForm.vue'
-import Sonner from '@/components/ui/sonner/Sonner.vue'
 </script>
 
 <template>
@@ -8,6 +7,5 @@ import Sonner from '@/components/ui/sonner/Sonner.vue'
     <div class="w-full max-w-md">
       <LoginForm />
     </div>
-    <Sonner />
   </div>
 </template>

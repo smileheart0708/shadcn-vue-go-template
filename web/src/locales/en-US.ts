@@ -153,7 +153,7 @@ const enUS = {
     },
   },
   notFound: { description: 'The page you are looking for does not exist.' },
-  sonner: { loginSuccess: 'Login successful!' },
+  sonner: { loginSuccess: 'Login successful!', loginEvent: { login_success: 'Login successful!', invalid_credentials: 'Invalid email or password.' } },
   theme: { light: 'Light', dark: 'Dark', system: 'System' },
   nav: {
     main: { dashboard: 'Dashboard', lifecycle: 'Lifecycle', analytics: 'Analytics', projects: 'Projects', team: 'Team' },

@@ -53,6 +53,8 @@ type loginResponse struct {
 	TokenType   string    `json:"tokenType"`
 	ExpiresAt   time.Time `json:"expiresAt"`
 	User        AuthUser  `json:"user"`
+	Success     bool      `json:"success"`
+	LoginEvent  string    `json:"loginEvent"`
 }
 
 type meResponse struct {
@@ -124,6 +126,8 @@ func (s *AuthService) Authenticate(email string, password string) (loginResponse
 		TokenType:   "Bearer",
 		ExpiresAt:   expiresAt,
 		User:        user,
+		Success:     true,
+		LoginEvent:  "login_success",
 	}, nil
 }
 
@@ -187,7 +191,10 @@ func loginHandler(auth *AuthService) http.HandlerFunc {
 
 		response, err := auth.Authenticate(payload.Email, payload.Password)
 		if errors.Is(err, ErrInvalidCredentials) {
-			writeAPIError(w, http.StatusUnauthorized, "invalid_credentials", "Incorrect email or password.")
+			writeJSON(w, http.StatusOK, loginResponse{
+				Success:    false,
+				LoginEvent: "invalid_credentials",
+			})
 			return
 		}
 		if err != nil {

@@ -4,7 +4,7 @@ import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
-import { APIError } from '@/lib/api/client'
+import { LoginError } from '@/lib/api/auth'
 import { useAuthStore } from '@/stores/auth'
 
 import { cn } from '@/lib/utils'
@@ -31,15 +31,21 @@ async function handleSubmit() {
 
   isSubmitting.value = true
 
-  try {
-    await authStore.login({ email: email.value, password: password.value })
+  const loginPromise = authStore.login({ email: email.value, password: password.value })
 
+  toast.promise(loginPromise, {
+    loading: t('auth.signIn.signingIn'),
+    success: () => t('sonner.loginEvent.login_success'),
+    error: (error: unknown) => (error instanceof LoginError ? t(`sonner.loginEvent.${error.loginEvent}`) : t('auth.signIn.loginFailed')),
+  })
+
+  try {
+    await loginPromise
     const redirectTarget = typeof route.query.redirect === 'string' && route.query.redirect.startsWith('/') ? route.query.redirect : { name: 'dashboard' as const }
 
     await router.push(redirectTarget)
-  } catch (error) {
-    const message = error instanceof APIError ? error.message : t('auth.signIn.loginFailed')
-    toast.error(message)
+  } catch {
+    return
   } finally {
     isSubmitting.value = false
   }

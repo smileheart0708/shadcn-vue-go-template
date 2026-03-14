@@ -15,6 +15,8 @@ export const loginResponseSchema = z.object({
   tokenType: z.string(),
   expiresAt: z.string(),
   user: authUserSchema,
+  success: z.boolean(),
+  loginEvent: z.string(),
 })
 
 export type LoginResponse = z.infer<typeof loginResponseSchema>
@@ -23,13 +25,24 @@ export const currentUserResponseSchema = z.object({ user: authUserSchema })
 
 export type CurrentUserResponse = z.infer<typeof currentUserResponseSchema>
 
-export async function login(credentials: LoginCredentials): Promise<LoginResponse> {
-  try {
-    const payload = await api.post('/api/auth/login', { json: credentials }).json<unknown>()
-    return loginResponseSchema.parse(payload)
-  } catch (error) {
-    return normalizeAPIError(error)
+export class LoginError extends Error {
+  loginEvent: string
+  constructor(loginEvent: string, message: string) {
+    super(message)
+    this.name = 'LoginError'
+    this.loginEvent = loginEvent
   }
+}
+
+export async function login(credentials: LoginCredentials): Promise<LoginResponse> {
+  const payload = await api.post('/api/auth/login', { json: credentials }).json<unknown>()
+  const response = loginResponseSchema.parse(payload)
+
+  if (!response.success) {
+    throw new LoginError(response.loginEvent, response.loginEvent)
+  }
+
+  return response
 }
 
 export async function getCurrentUser(): Promise<CurrentUserResponse> {

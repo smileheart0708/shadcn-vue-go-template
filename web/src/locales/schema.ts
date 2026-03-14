@@ -138,7 +138,7 @@ export interface MessageSchema {
     tab: { outline: string; pastPerformance: string; keyPersonnel: string; focusDocuments: string }
   }
   notFound: { description: string }
-  sonner: { loginSuccess: string }
+  sonner: { loginSuccess: string; loginEvent: Record<string, string> }
   theme: { light: string; dark: string; system: string }
   nav: {
     main: { dashboard: string; lifecycle: string; analytics: string; projects: string; team: string }

@@ -24,10 +24,21 @@ export const authHandlers = [
     const payload = await request.json().catch(() => null)
 
     if (!isLoginRequestBody(payload) || payload?.email !== MOCK_LOGIN_CREDENTIALS.email || payload?.password !== MOCK_LOGIN_CREDENTIALS.password) {
-      return createUnauthorizedResponse('Invalid email or password.')
+      return HttpResponse.json({
+        accessToken: '',
+        tokenType: 'Bearer',
+        expiresAt: new Date().toISOString(),
+        user: MOCK_AUTH_USER,
+        success: false,
+        loginEvent: 'invalid_credentials',
+      })
     }
 
-    return HttpResponse.json(MOCK_LOGIN_RESPONSE)
+    return HttpResponse.json({
+      ...MOCK_LOGIN_RESPONSE,
+      success: true,
+      loginEvent: 'login_success',
+    })
   }),
   http.get('/api/auth/me', ({ request }) => {
     const authorization = request.headers.get('Authorization')

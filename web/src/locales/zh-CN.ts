@@ -153,7 +153,7 @@ const zhCN = {
     },
   },
   notFound: { description: '您访问的页面不存在。' },
-  sonner: { loginSuccess: '登录成功！' },
+  sonner: { loginSuccess: '登录成功！', loginEvent: { login_success: '登录成功！', invalid_credentials: '邮箱或密码错误。' } },
   theme: { light: '浅色', dark: '深色', system: '跟随系统' },
   nav: {
     main: { dashboard: '仪表盘', lifecycle: '生命周期', analytics: '分析', projects: '项目', team: '团队' },
