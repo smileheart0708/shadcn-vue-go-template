@@ -8,13 +8,10 @@ import (
 	"mime"
 	"net"
 	"net/http"
-	"os"
 	"path"
 	"strconv"
 	"strings"
 	"time"
-
-	"main/internal/config"
 )
 
 type HandlerOptions struct {
@@ -24,21 +21,6 @@ type HandlerOptions struct {
 	FrontendFS     fs.FS
 	Auth           AuthOptions
 	LogAPIRequests bool
-}
-
-func NewHandler(logger *slog.Logger, db *sql.DB, dataDir string) http.Handler {
-	return NewHandlerWithOptions(HandlerOptions{
-		Logger:         logger,
-		DB:             db,
-		DataDir:        dataDir,
-		FrontendFS:     os.DirFS(config.FrontendDistDir),
-		LogAPIRequests: config.APIRequestLogEnabled,
-		Auth: AuthOptions{
-			Issuer: config.JWTIssuer,
-			Secret: []byte(config.JWTSecret),
-			TTL:    config.JWTTTL,
-		},
-	})
 }
 
 func NewHandlerWithOptions(options HandlerOptions) http.Handler {

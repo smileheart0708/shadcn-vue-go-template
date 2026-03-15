@@ -1,7 +1,9 @@
 package config
 
 import (
+	"errors"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/ysmood/goe"
@@ -11,22 +13,99 @@ const (
 	DefaultJWTSecret = "change-me-in-production"
 )
 
-var DataDir = goe.Get("DATA_DIR", ".data")
-var DBName = goe.Get("DB_NAME", "data.db")
-var Port = goe.Get("PORT", 8080)
-var FrontendDistDir = goe.Get("WEB_DIST_DIR", "web/dist")
-var APIRequestLogEnabled = goe.Get("API_REQUEST_LOG_ENABLED", false)
-var JWTSecret = goe.Get("JWT_SECRET", DefaultJWTSecret)
-var JWTIssuer = goe.Get("JWT_ISSUER", "shadcn-vue-go-template")
-var JWTTTL = mustParseDuration("JWT_TTL", "24h")
+type Config struct {
+	DataDir              string
+	DBName               string
+	Port                 int
+	FrontendDistDir      string
+	APIRequestLogEnabled bool
+	JWTSecret            string
+	JWTTTL               time.Duration
+}
 
-func mustParseDuration(name string, fallback string) time.Duration {
-	value := goe.Get(name, fallback)
-
-	parsed, err := time.ParseDuration(value)
+func Load() error {
+	err := goe.Load(false, true, goe.DOTENV)
 	if err != nil {
-		panic(fmt.Sprintf("config %s must be a valid duration: %v", name, err))
+		if errors.Is(err, os.ErrNotExist) {
+			return nil
+		}
+
+		return fmt.Errorf("load .env: %w", err)
 	}
 
-	return parsed
+	return nil
+}
+
+func LoadConfig() (Config, error) {
+	dataDir, err := getEnv("DATA_DIR", ".data")
+	if err != nil {
+		return Config{}, err
+	}
+
+	dbName, err := getEnv("DB_NAME", "data.db")
+	if err != nil {
+		return Config{}, err
+	}
+
+	port, err := getEnv("PORT", 8080)
+	if err != nil {
+		return Config{}, err
+	}
+
+	frontendDistDir, err := getEnvAny([]string{"FRONTEND_DIST_DIR", "WEB_DIST_DIR"}, "web/dist")
+	if err != nil {
+		return Config{}, err
+	}
+
+	apiRequestLogEnabled, err := getEnv("API_REQUEST_LOG_ENABLED", false)
+	if err != nil {
+		return Config{}, err
+	}
+
+	jwtSecret, err := getEnv("JWT_SECRET", DefaultJWTSecret)
+	if err != nil {
+		return Config{}, err
+	}
+
+	jwtTTL, err := getEnv("JWT_TTL", 24*time.Hour)
+	if err != nil {
+		return Config{}, err
+	}
+
+	return Config{
+		DataDir:              dataDir,
+		DBName:               dbName,
+		Port:                 port,
+		FrontendDistDir:      frontendDistDir,
+		APIRequestLogEnabled: apiRequestLogEnabled,
+		JWTSecret:            jwtSecret,
+		JWTTTL:               jwtTTL,
+	}, nil
+}
+
+func (c Config) UsesDefaultJWTSecret() bool {
+	return c.JWTSecret == DefaultJWTSecret
+}
+
+func getEnv[T goe.EnvType](name string, fallback T) (T, error) {
+	return getEnvAny([]string{name}, fallback)
+}
+
+func getEnvAny[T goe.EnvType](names []string, fallback T) (T, error) {
+	for _, name := range names {
+		raw, ok := os.LookupEnv(name)
+		if !ok {
+			continue
+		}
+
+		value, err := goe.Parse[T](raw)
+		if err != nil {
+			var zero T
+			return zero, fmt.Errorf("config %s: %w", name, err)
+		}
+
+		return value, nil
+	}
+
+	return fallback, nil
 }

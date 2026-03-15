@@ -25,23 +25,34 @@ func main() {
 	logger := logging.New()
 	slog.SetDefault(logger)
 
-	dataDir, err := filepath.Abs(config.DataDir)
-	if err != nil {
-		slog.Error("failed to resolve data directory", "error", err, "data_dir", config.DataDir)
+	if err := config.Load(); err != nil {
+		slog.Error("failed to load environment", "error", err)
 		return
 	}
 
-	dbPath := filepath.Join(dataDir, config.DBName)
-	listenAddr := fmt.Sprintf(":%d", config.Port)
-	frontendDistDir, err := filepath.Abs(config.FrontendDistDir)
+	cfg, err := config.LoadConfig()
 	if err != nil {
-		slog.Error("failed to resolve frontend dist directory", "error", err, "frontend_dist_dir", config.FrontendDistDir)
+		slog.Error("failed to load configuration", "error", err)
+		return
+	}
+
+	dataDir, err := filepath.Abs(cfg.DataDir)
+	if err != nil {
+		slog.Error("failed to resolve data directory", "error", err, "data_dir", cfg.DataDir)
+		return
+	}
+
+	dbPath := filepath.Join(dataDir, cfg.DBName)
+	listenAddr := fmt.Sprintf(":%d", cfg.Port)
+	frontendDistDir, err := filepath.Abs(cfg.FrontendDistDir)
+	if err != nil {
+		slog.Error("failed to resolve frontend dist directory", "error", err, "frontend_dist_dir", cfg.FrontendDistDir)
 		return
 	}
 
 	logging.LogStartupBanner(logger, listenAddr, dataDir)
 	slog.Info("starting application", "data_dir", dataDir, "db_path", dbPath, "frontend_dist_dir", frontendDistDir)
-	if config.JWTSecret == config.DefaultJWTSecret {
+	if cfg.UsesDefaultJWTSecret() {
 		slog.Warn("using default JWT secret; set JWT_SECRET in production")
 	}
 
@@ -63,8 +74,18 @@ func main() {
 	}
 
 	server := &http.Server{
-		Addr:              listenAddr,
-		Handler:           httpapi.NewHandler(logger, dbContainer.DB(), dataDir),
+		Addr: listenAddr,
+		Handler: httpapi.NewHandlerWithOptions(httpapi.HandlerOptions{
+			Logger:         logger,
+			DB:             dbContainer.DB(),
+			DataDir:        dataDir,
+			FrontendFS:     os.DirFS(cfg.FrontendDistDir),
+			LogAPIRequests: cfg.APIRequestLogEnabled,
+			Auth: httpapi.AuthOptions{
+				Secret: []byte(cfg.JWTSecret),
+				TTL:    cfg.JWTTTL,
+			},
+		}),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      30 * time.Second,
