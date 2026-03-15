@@ -27,7 +27,6 @@ type testContext struct {
 	store     *users.Store
 	dataDir   string
 	logs      *bytes.Buffer
-	distDir   string
 	auth      AuthOptions
 	dbCleanup func()
 }
@@ -474,7 +473,6 @@ func newTestContext(t *testing.T, logAPIRequests bool) *testContext {
 		store:   store,
 		dataDir: dataDir,
 		logs:    logs,
-		distDir: distDir,
 		auth:    auth,
 	}
 }

@@ -148,7 +148,7 @@ go test -run TestHealthz ./internal/httpapi/
 ## Development Workflow
 
 1. **Frontend Development**: `cd web && pnpm dev`
-2. **Backend Development**: Run `go run .` in root (requires frontend built to `web/dist/`)
+2. **Backend Development**: Run `cd web && pnpm build` once, then `go run .` in root so the frontend assets can be embedded at compile time
 3. **API Proxy**: Frontend Vite config proxies `/api` to `http://localhost:8080`
 
 ## Environment Variables
@@ -162,7 +162,6 @@ go test -run TestHealthz ./internal/httpapi/
 | `DB_NAME` | `app.db` | SQLite database filename |
 | `API_REQUEST_LOG_ENABLED` | `false` | Enable backend API request logging |
 | `JWT_SECRET` | `dev-secret-change-in-prod` | JWT signing secret |
-| `FRONTEND_DIST_DIR` | `./web/dist` | Frontend assets directory |
 
 ## VSCode Extensions
 
@@ -176,7 +175,7 @@ Recommended extensions (see `.vscode/extensions.json`):
 
 ## Notes
 
-- Frontend assets (after build) are served by Go backend
+- Frontend assets are embedded into the Go binary after build and served by the backend
 - SPA fallback: non-API routes return `index.html` for client-side routing
 - Gzip compression enabled for static assets
 - JWT-based authentication with `/api/auth/login` and `/api/auth/me`

@@ -22,7 +22,9 @@ A full-stack SPA template with Vue 3 frontend and Go backend. The frontend serve
 # Frontend development (port 5173)
 cd web && pnpm dev
 
-# Backend development (requires frontend built to web/dist/)
+# Backend development (build frontend first so assets can be embedded)
+cd web && pnpm build
+cd ..
 go run .
 ```
 
@@ -49,7 +51,7 @@ Mock mode only intercepts `POST /api/auth/login` and `GET /api/auth/me`.
 # Windows
 .\build.ps1
 
-# Output: app.exe
+# Output: app.exe (single-file executable with embedded frontend assets)
 ```
 
 ## Project Structure
@@ -85,7 +87,6 @@ shadcn-vue-go-template/
 | `DB_NAME` | `app.db` | SQLite database filename |
 | `API_REQUEST_LOG_ENABLED` | `false` | Enable backend API request logging |
 | `JWT_SECRET` | `dev-secret-change-in-prod` | JWT signing secret |
-| `FRONTEND_DIST_DIR` | `./web/dist` | Frontend assets directory |
 | `VITE_API_MOCKING` | `false` | Enable frontend MSW auth mocks during Vite development |
 
 ## Commands
@@ -115,6 +116,7 @@ go test -run TestName    # Run a single test
 - JWT-based authentication (`/api/auth/login`, `/api/auth/me`)
 - SPA fallback routing (non-API routes return `index.html`)
 - Gzip compression for static assets
+- Frontend build artifacts embedded into the Go binary
 - SQLite database with modernc.org/sqlite
 - shadcn-vue-style UI components (sidebar, tabs, table, tooltip, sheet, switch, skeleton)
 - Vue I18n plugin registration with typed locale resources under `web/src/locales/`

@@ -36,6 +36,12 @@ func main() {
 		return
 	}
 
+	frontendAssets, err := frontendFS()
+	if err != nil {
+		slog.Error("failed to load embedded frontend assets", "error", err)
+		return
+	}
+
 	dataDir, err := filepath.Abs(cfg.DataDir)
 	if err != nil {
 		slog.Error("failed to resolve data directory", "error", err, "data_dir", cfg.DataDir)
@@ -44,14 +50,8 @@ func main() {
 
 	dbPath := filepath.Join(dataDir, cfg.DBName)
 	listenAddr := fmt.Sprintf(":%d", cfg.Port)
-	frontendDistDir, err := filepath.Abs(cfg.FrontendDistDir)
-	if err != nil {
-		slog.Error("failed to resolve frontend dist directory", "error", err, "frontend_dist_dir", cfg.FrontendDistDir)
-		return
-	}
 
 	logging.LogStartupBanner(logger, listenAddr, dataDir)
-	slog.Info("starting application", "data_dir", dataDir, "db_path", dbPath, "frontend_dist_dir", frontendDistDir)
 	if cfg.UsesDefaultJWTSecret() {
 		slog.Warn("using default JWT secret; set JWT_SECRET in production")
 	}
@@ -79,7 +79,7 @@ func main() {
 			Logger:         logger,
 			DB:             dbContainer.DB(),
 			DataDir:        dataDir,
-			FrontendFS:     os.DirFS(cfg.FrontendDistDir),
+			FrontendFS:     frontendAssets,
 			LogAPIRequests: cfg.APIRequestLogEnabled,
 			Auth: httpapi.AuthOptions{
 				Secret: []byte(cfg.JWTSecret),
@@ -95,7 +95,6 @@ func main() {
 
 	serverErrCh := make(chan error, 1)
 	go func() {
-		slog.Info("http server listening", "addr", listenAddr)
 		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			serverErrCh <- err
 			return

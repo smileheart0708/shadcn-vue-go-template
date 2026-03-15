@@ -17,7 +17,6 @@ type Config struct {
 	DataDir              string
 	DBName               string
 	Port                 int
-	FrontendDistDir      string
 	APIRequestLogEnabled bool
 	JWTSecret            string
 	JWTTTL               time.Duration
@@ -52,11 +51,6 @@ func LoadConfig() (Config, error) {
 		return Config{}, err
 	}
 
-	frontendDistDir, err := getEnvAny([]string{"FRONTEND_DIST_DIR", "WEB_DIST_DIR"}, "web/dist")
-	if err != nil {
-		return Config{}, err
-	}
-
 	apiRequestLogEnabled, err := getEnv("API_REQUEST_LOG_ENABLED", false)
 	if err != nil {
 		return Config{}, err
@@ -76,7 +70,6 @@ func LoadConfig() (Config, error) {
 		DataDir:              dataDir,
 		DBName:               dbName,
 		Port:                 port,
-		FrontendDistDir:      frontendDistDir,
 		APIRequestLogEnabled: apiRequestLogEnabled,
 		JWTSecret:            jwtSecret,
 		JWTTTL:               jwtTTL,
