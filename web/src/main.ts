@@ -8,7 +8,7 @@ import router from './router'
 import pinia from './stores/pinia'
 
 async function enableMocking() {
-  if (!import.meta.env.DEV || !import.meta.env.VITE_API_MOCKING) {
+  if (!import.meta.env.DEV || !__VITE_API_MOCKING__) {
     return
   }
 
