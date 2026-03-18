@@ -10,7 +10,7 @@ import { RouterView } from 'vue-router'
     <AppShellSidebar />
     <SidebarInset>
       <AppShellHeader />
-      <div class="flex flex-1 flex-col">
+      <div class="flex min-h-0 flex-1 flex-col">
         <RouterView />
       </div>
     </SidebarInset>

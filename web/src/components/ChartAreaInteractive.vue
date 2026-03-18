@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { ChartConfig } from '@/components/ui/chart'
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { useSidebar } from '@/components/ui/sidebar'
 
 // import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts"
 import { VisArea, VisAxis, VisLine, VisXYContainer } from '@unovis/vue'
@@ -109,8 +110,8 @@ const chartConfig = {
   // visitors: {
   //   label: 'Visitors',
   // },
-  mobile: { label: 'Mobile', color: 'var(--primary)' },
-  desktop: { label: 'Desktop', color: 'var(--primary)' },
+  mobile: { label: 'Mobile', color: 'var(--chart-1)' },
+  desktop: { label: 'Desktop', color: 'var(--chart-5)' },
 } satisfies ChartConfig
 
 const svgDefs = `
@@ -156,6 +157,55 @@ const filterRange = computed(() => {
     return date >= startDate
   })
 })
+
+const chartShell = ref<HTMLElement | null>(null)
+const { open } = useSidebar()
+const sidebarAnimationMs = 220
+let freezeTimer: number | null = null
+
+const clearFreezeTimer = () => {
+  if (freezeTimer !== null) {
+    window.clearTimeout(freezeTimer)
+    freezeTimer = null
+  }
+}
+
+const freezeChartDuringSidebarAnimation = () => {
+  const shell = chartShell.value
+  if (!shell) return
+
+  const visContainer = shell.querySelector<HTMLElement>('[data-vis-xy-container]')
+  if (!visContainer) return
+
+  visContainer.style.removeProperty('width')
+  visContainer.style.removeProperty('height')
+
+  const { width, height } = visContainer.getBoundingClientRect()
+  if (!width || !height) return
+
+  visContainer.style.width = `${width}px`
+  visContainer.style.height = `${height}px`
+  shell.style.overflow = 'hidden'
+
+  clearFreezeTimer()
+  freezeTimer = window.setTimeout(() => {
+    visContainer.style.removeProperty('width')
+    visContainer.style.removeProperty('height')
+    shell.style.removeProperty('overflow')
+  }, sidebarAnimationMs)
+}
+
+watch(
+  open,
+  () => {
+    freezeChartDuringSidebarAnimation()
+  },
+  { flush: 'sync' },
+)
+
+onBeforeUnmount(() => {
+  clearFreezeTimer()
+})
 </script>
 
 <template>
@@ -195,79 +245,81 @@ const filterRange = computed(() => {
       </Select>
     </CardHeader>
     <CardContent class="px-2 pt-4 sm:px-6 sm:pt-6 pb-4">
-      <ChartContainer
-        :config="chartConfig"
-        class="aspect-auto h-62.5 w-full"
-        :cursor="false"
-      >
-        <VisXYContainer
-          :data="filterRange"
-          :svg-defs="svgDefs"
-          :margin="{ left: -40 }"
-          :y-domain="[0, 1200]"
+      <div ref="chartShell">
+        <ChartContainer
+          :config="chartConfig"
+          class="aspect-auto h-62.5 w-full"
+          :cursor="false"
         >
-          <VisArea
-            :x="(d: Data) => d.date"
-            :y="[(d: Data) => d.mobile, (d: Data) => d.desktop]"
-            :color="
-              (datum: Data, i: number) => {
-                void datum
-                return ['url(#fillMobile)', 'url(#fillDesktop)'][i]
-              }
-            "
-            :opacity="0.6"
-          />
-          <VisLine
-            :x="(d: Data) => d.date"
-            :y="[(d: Data) => d.mobile, (d: Data) => d.mobile + d.desktop]"
-            :color="
-              (datum: Data, i: number) => {
-                void datum
-                return [chartConfig.mobile.color, chartConfig.desktop.color][i]
-              }
-            "
-            :line-width="1"
-          />
-          <VisAxis
-            type="x"
-            :x="(d: Data) => d.date"
-            :tick-line="false"
-            :domain-line="false"
-            :grid-line="false"
-            :num-ticks="6"
-            :tick-format="
-              (d: number) => {
-                const date = new Date(d)
-                return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-              }
-            "
-          />
-          <VisAxis
-            type="y"
-            :num-ticks="3"
-            :tick-line="false"
-            :domain-line="false"
-          />
-          <ChartTooltip />
-          <ChartCrosshair
-            :template="
-              componentToString(chartConfig, ChartTooltipContent, {
-                labelFormatter: (d: number | Date) => {
-                  return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-                },
-              })
-            "
-            :color="
-              (datum: Data, i: number) => {
-                void datum
-                return [chartConfig.mobile.color, chartConfig.desktop.color][i % 2]
-              }
-            "
-          />
-        </VisXYContainer>
+          <VisXYContainer
+            :data="filterRange"
+            :svg-defs="svgDefs"
+            :margin="{ left: -40 }"
+            :y-domain="[0, 1200]"
+          >
+            <VisArea
+              :x="(d: Data) => d.date"
+              :y="[(d: Data) => d.mobile, (d: Data) => d.desktop]"
+              :color="
+                (datum: Data, i: number) => {
+                  void datum
+                  return ['url(#fillMobile)', 'url(#fillDesktop)'][i]
+                }
+              "
+              :opacity="0.6"
+            />
+            <VisLine
+              :x="(d: Data) => d.date"
+              :y="[(d: Data) => d.mobile, (d: Data) => d.mobile + d.desktop]"
+              :color="
+                (datum: Data, i: number) => {
+                  void datum
+                  return [chartConfig.mobile.color, chartConfig.desktop.color][i]
+                }
+              "
+              :line-width="1"
+            />
+            <VisAxis
+              type="x"
+              :x="(d: Data) => d.date"
+              :tick-line="false"
+              :domain-line="false"
+              :grid-line="false"
+              :num-ticks="6"
+              :tick-format="
+                (d: number) => {
+                  const date = new Date(d)
+                  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                }
+              "
+            />
+            <VisAxis
+              type="y"
+              :num-ticks="3"
+              :tick-line="false"
+              :domain-line="false"
+            />
+            <ChartTooltip />
+            <ChartCrosshair
+              :template="
+                componentToString(chartConfig, ChartTooltipContent, {
+                  labelFormatter: (d: number | Date) => {
+                    return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                  },
+                })
+              "
+              :color="
+                (datum: Data, i: number) => {
+                  void datum
+                  return [chartConfig.mobile.color, chartConfig.desktop.color][i % 2]
+                }
+              "
+            />
+          </VisXYContainer>
 
-        <ChartLegendContent />
-      </ChartContainer>
+          <ChartLegendContent />
+        </ChartContainer>
+      </div>
     </CardContent>
   </Card>
 </template>
