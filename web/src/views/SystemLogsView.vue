@@ -2,7 +2,8 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
-import { RefreshCw } from 'lucide-vue-next'
+import { Download, RefreshCw } from 'lucide-vue-next'
+import SystemLogsExportDialog from '@/components/system-logs/SystemLogsExportDialog.vue'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -12,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Skeleton } from '@/components/ui/skeleton'
 import { getAPIErrorMessage } from '@/lib/api/error-messages'
 import { openSystemLogsStream, SYSTEM_LOG_LEVEL_VALUES, type SystemLogEntry, type SystemLogLevelFilter } from '@/lib/api/system-logs'
+import { formatSystemLogTimestamp } from '@/lib/system-logs/export'
 import { cn } from '@/lib/utils'
 
 const MAX_LOCAL_ENTRIES = 1000
@@ -28,6 +30,7 @@ const autoScroll = ref(true)
 const searchQuery = ref('')
 const levelFilter = ref<SystemLogLevelFilter>('ALL')
 const streamError = ref('')
+const exportDialogOpen = ref(false)
 const viewport = ref<HTMLDivElement | null>(null)
 
 let abortController: AbortController | null = null
@@ -83,18 +86,23 @@ async function connect() {
   connected.value = false
   loading.value = entries.value.length === 0
   streamError.value = ''
-  abortController = new AbortController()
+  const controller = new AbortController()
+  abortController = controller
 
   try {
     await openSystemLogsStream({
       tail: INITIAL_TAIL,
-      signal: abortController.signal,
+      signal: controller.signal,
       onEntry(entry) {
+        if (abortController !== controller || controller.signal.aborted) {
+          return
+        }
+
         appendEntry(entry)
       },
     })
   } catch (error) {
-    if (abortController?.signal.aborted) {
+    if (controller.signal.aborted || abortController !== controller) {
       return
     }
 
@@ -102,15 +110,19 @@ async function connect() {
     streamError.value = message
     toast.error(message)
   } finally {
-    connecting.value = false
-    connected.value = false
-    loading.value = false
+    if (abortController === controller) {
+      abortController = null
+      connecting.value = false
+      connected.value = false
+      loading.value = false
+    }
   }
 }
 
 function disconnect() {
-  abortController?.abort()
+  const controller = abortController
   abortController = null
+  controller?.abort()
   connecting.value = false
   connected.value = false
 }
@@ -165,10 +177,6 @@ function getLevelBadgeVariant(level: string): 'destructive' | 'warning' | 'outli
       return 'secondary'
   }
 }
-
-function formatUnixTimestamp(timestamp: number) {
-  return new Date(timestamp * 1000).toLocaleString()
-}
 </script>
 
 <template>
@@ -201,6 +209,15 @@ function formatUnixTimestamp(timestamp: number) {
         <CardTitle class="text-lg">{{ t('systemLogs.console.title') }}</CardTitle>
 
         <div class="flex flex-wrap items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            :disabled="entries.length === 0"
+            @click="exportDialogOpen = true"
+          >
+            <Download class="size-4" />
+            {{ t('systemLogs.actions.export') }}
+          </Button>
           <Button
             variant="outline"
             size="sm"
@@ -257,7 +274,7 @@ function formatUnixTimestamp(timestamp: number) {
         <div class="rounded-xl border bg-sidebar/40">
           <div
             ref="viewport"
-            class="h-[32rem] overflow-auto rounded-xl"
+            class="h-128 overflow-auto rounded-xl"
             @scroll="handleViewportScroll"
           >
             <div
@@ -294,7 +311,7 @@ function formatUnixTimestamp(timestamp: number) {
                 class="hover:bg-muted/60 grid grid-cols-[auto_auto_auto_1fr] items-start gap-2 rounded-lg border border-transparent px-3 py-2 transition-colors"
               >
                 <span class="text-muted-foreground tabular-nums">
-                  {{ formatUnixTimestamp(entry.timestamp) }}
+                  {{ formatSystemLogTimestamp(entry.timestamp) }}
                 </span>
                 <Badge :variant="getLevelBadgeVariant(entry.level)">
                   {{ entry.level }}
@@ -307,5 +324,10 @@ function formatUnixTimestamp(timestamp: number) {
         </div>
       </CardContent>
     </Card>
+
+    <SystemLogsExportDialog
+      v-model:open="exportDialogOpen"
+      :entries="entries"
+    />
   </div>
 </template>

@@ -205,9 +205,32 @@ const zhCN = {
     console: { title: '实时控制台' },
     actions: {
       clear: '清空',
+      export: '导出日志',
       pauseFollow: '暂停跟随',
       resumeFollow: '恢复跟随',
       reconnect: '重新连接',
+    },
+    export: {
+      title: '导出系统日志',
+      description: '从当前缓冲的 {count} 条日志里选择导出范围、等级和格式。',
+      fields: {
+        count: '导出范围',
+        level: '日志等级',
+        format: '文件格式',
+      },
+      counts: {
+        ALL: '全部',
+        10: '最近 10 条',
+        20: '最近 20 条',
+        50: '最近 50 条',
+        100: '最近 100 条',
+      },
+      formats: {
+        csv: 'CSV',
+        txt: 'TXT',
+        json: 'JSON',
+      },
+      preview: '将导出 {count} 条日志。',
     },
     filters: {
       searchPlaceholder: '搜索消息、来源或上下文',
@@ -223,6 +246,10 @@ const zhCN = {
     empty: {
       title: '没有匹配的日志',
       description: '等待新的日志到来，或者调整当前筛选条件。',
+    },
+    feedback: {
+      exportSuccess: '已导出 {count} 条日志。',
+      exportEmpty: '当前导出条件下没有可导出的日志。',
     },
   },
   nav: {

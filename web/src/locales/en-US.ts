@@ -205,9 +205,32 @@ const enUS = {
     console: { title: 'Live Console' },
     actions: {
       clear: 'Clear',
+      export: 'Export Logs',
       pauseFollow: 'Pause Follow',
       resumeFollow: 'Resume Follow',
       reconnect: 'Reconnect',
+    },
+    export: {
+      title: 'Export System Logs',
+      description: 'Choose the range, level, and format to export from the current buffer of {count} logs.',
+      fields: {
+        count: 'Export Range',
+        level: 'Log Level',
+        format: 'File Format',
+      },
+      counts: {
+        ALL: 'All',
+        10: 'Latest 10',
+        20: 'Latest 20',
+        50: 'Latest 50',
+        100: 'Latest 100',
+      },
+      formats: {
+        csv: 'CSV',
+        txt: 'TXT',
+        json: 'JSON',
+      },
+      preview: '{count} logs will be exported.',
     },
     filters: {
       searchPlaceholder: 'Search message, source, or context',
@@ -223,6 +246,10 @@ const enUS = {
     empty: {
       title: 'No matching logs',
       description: 'Wait for new logs or adjust the current filters.',
+    },
+    feedback: {
+      exportSuccess: 'Exported {count} logs.',
+      exportEmpty: 'There are no logs matching the current export filters.',
     },
   },
   nav: {

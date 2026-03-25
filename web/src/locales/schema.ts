@@ -184,13 +184,22 @@ export interface MessageSchema {
     summary: { buffered: string }
     connection: { connected: string; connecting: string; disconnected: string }
     console: { title: string }
-    actions: { clear: string; pauseFollow: string; resumeFollow: string; reconnect: string }
+    actions: { clear: string; export: string; pauseFollow: string; resumeFollow: string; reconnect: string }
+    export: {
+      title: string
+      description: string
+      fields: { count: string; level: string; format: string }
+      counts: { ALL: string; 10: string; 20: string; 50: string; 100: string }
+      formats: { csv: string; txt: string; json: string }
+      preview: string
+    }
     filters: {
       searchPlaceholder: string
       levelPlaceholder: string
       level: { all: string; DEBUG: string; INFO: string; WARN: string; ERROR: string }
     }
     empty: { title: string; description: string }
+    feedback: { exportSuccess: string; exportEmpty: string }
   }
   nav: {
     main: { dashboard: string; lifecycle: string; analytics: string; projects: string; team: string }
