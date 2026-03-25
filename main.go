@@ -22,7 +22,9 @@ import (
 const shutdownTimeout = 10 * time.Second
 
 func main() {
-	logger := logging.New()
+	logger, logStream := logging.NewWithStream(logging.StreamOptions{
+		Capacity: logging.DefaultStreamCapacity,
+	})
 	slog.SetDefault(logger)
 
 	if err := config.Load(); err != nil {
@@ -77,6 +79,7 @@ func main() {
 		Addr: listenAddr,
 		Handler: httpapi.NewHandlerWithOptions(httpapi.HandlerOptions{
 			Logger:         logger,
+			LogStream:      logStream,
 			DB:             dbContainer.DB(),
 			DataDir:        dataDir,
 			FrontendFS:     frontendAssets,
@@ -88,9 +91,10 @@ func main() {
 		}),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
-		WriteTimeout:      30 * time.Second,
-		IdleTimeout:       60 * time.Second,
-		MaxHeaderBytes:    1 << 20,
+		// SSE responses may stay open for a long time; rely on client cancellation and shutdown instead.
+		WriteTimeout:   0,
+		IdleTimeout:    60 * time.Second,
+		MaxHeaderBytes: 1 << 20,
 	}
 
 	serverErrCh := make(chan error, 1)

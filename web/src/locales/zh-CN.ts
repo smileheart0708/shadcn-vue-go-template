@@ -48,8 +48,9 @@ const zhCN = {
     passwordUpdateFailed: '更新密码失败。',
     accountDeleteFailed: '删除账号失败。',
     superAdminDeleteForbidden: '超级管理员不能删除自己的账号。',
+    systemLogStreamFailed: '系统日志流连接失败。',
   },
-  route: { dashboard: '仪表盘', login: '登录', notFound: '页面不存在', settings: '设置', register: '注册' },
+  route: { dashboard: '仪表盘', login: '登录', notFound: '页面不存在', settings: '设置', register: '注册', systemLogs: '系统日志' },
   settings: {
     title: '设置',
     description: '管理你的账号设置和偏好',
@@ -192,9 +193,41 @@ const zhCN = {
   },
   notFound: { description: '您访问的页面不存在。' },
   theme: { light: '浅色', dark: '深色', system: '跟随系统' },
+  systemLogs: {
+    title: '系统日志',
+    description: '实时查看当前进程的应用日志和访问日志。',
+    summary: { buffered: '已缓冲 {count} 条' },
+    connection: {
+      connected: '实时连接中',
+      connecting: '连接中',
+      disconnected: '已断开',
+    },
+    console: { title: '实时控制台' },
+    actions: {
+      clear: '清空',
+      pauseFollow: '暂停跟随',
+      resumeFollow: '恢复跟随',
+      reconnect: '重新连接',
+    },
+    filters: {
+      searchPlaceholder: '搜索消息、来源或上下文',
+      levelPlaceholder: '筛选等级',
+      level: {
+        all: '全部等级',
+        DEBUG: '调试',
+        INFO: '信息',
+        WARN: '警告',
+        ERROR: '错误',
+      },
+    },
+    empty: {
+      title: '没有匹配的日志',
+      description: '等待新的日志到来，或者调整当前筛选条件。',
+    },
+  },
   nav: {
     main: { dashboard: '仪表盘', lifecycle: '生命周期', analytics: '分析', projects: '项目', team: '团队' },
-    documents: { dataLibrary: '数据库', reports: '报告', wordAssistant: 'Word 助手', label: '文档', more: '更多' },
+    management: { systemLogs: '系统日志', label: '管理' },
     secondary: { settings: '设置', getHelp: '获取帮助', search: '搜索' },
     user: { account: '账户', billing: '账单', notifications: '通知', language: '语言', switchLanguage: '切换语言', logout: '退出登录' },
   },

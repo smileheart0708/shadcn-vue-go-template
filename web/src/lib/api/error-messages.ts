@@ -17,7 +17,8 @@ const API_ERROR_MESSAGE_KEYS = {
   avatar_update_failed: 'apiError.avatarUploadFailed',
   password_update_failed: 'apiError.passwordUpdateFailed',
   account_delete_failed: 'apiError.accountDeleteFailed',
-} as const
+  system_log_stream_unavailable: 'apiError.systemLogStreamFailed',
+  } as const
 
 type Translate = (key: string) => string
 
@@ -63,6 +64,8 @@ function getAPIErrorMessageKey(code: string): (typeof API_ERROR_MESSAGE_KEYS)[ke
       return API_ERROR_MESSAGE_KEYS.password_update_failed
     case 'account_delete_failed':
       return API_ERROR_MESSAGE_KEYS.account_delete_failed
+    case 'system_log_stream_unavailable':
+      return API_ERROR_MESSAGE_KEYS.system_log_stream_unavailable
     case 'super_admin_delete_forbidden':
       return API_ERROR_MESSAGE_KEYS.super_admin_delete_forbidden
     default:

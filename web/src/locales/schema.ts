@@ -38,8 +38,9 @@ export interface MessageSchema {
     passwordUpdateFailed: string
     accountDeleteFailed: string
     superAdminDeleteForbidden: string
+    systemLogStreamFailed: string
   }
-  route: { dashboard: string; login: string; notFound: string; settings: string; register: string }
+  route: { dashboard: string; login: string; notFound: string; settings: string; register: string; systemLogs: string }
   settings: {
     title: string
     description: string
@@ -177,9 +178,23 @@ export interface MessageSchema {
   }
   notFound: { description: string }
   theme: { light: string; dark: string; system: string }
+  systemLogs: {
+    title: string
+    description: string
+    summary: { buffered: string }
+    connection: { connected: string; connecting: string; disconnected: string }
+    console: { title: string }
+    actions: { clear: string; pauseFollow: string; resumeFollow: string; reconnect: string }
+    filters: {
+      searchPlaceholder: string
+      levelPlaceholder: string
+      level: { all: string; DEBUG: string; INFO: string; WARN: string; ERROR: string }
+    }
+    empty: { title: string; description: string }
+  }
   nav: {
     main: { dashboard: string; lifecycle: string; analytics: string; projects: string; team: string }
-    documents: { dataLibrary: string; reports: string; wordAssistant: string; label: string; more: string }
+    management: { systemLogs: string; label: string }
     secondary: { settings: string; getHelp: string; search: string }
     user: { account: string; billing: string; notifications: string; language: string; switchLanguage: string; logout: string }
   }

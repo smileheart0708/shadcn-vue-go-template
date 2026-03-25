@@ -48,8 +48,9 @@ const enUS = {
     passwordUpdateFailed: 'Failed to update password.',
     accountDeleteFailed: 'Failed to delete account.',
     superAdminDeleteForbidden: 'Super administrators cannot delete their own account.',
+    systemLogStreamFailed: 'Failed to connect to the system log stream.',
   },
-  route: { dashboard: 'Dashboard', login: 'Login', notFound: 'Page not found', settings: 'Settings', register: 'Register' },
+  route: { dashboard: 'Dashboard', login: 'Login', notFound: 'Page not found', settings: 'Settings', register: 'Register', systemLogs: 'System Logs' },
   settings: {
     title: 'Settings',
     description: 'Manage your account settings and preferences',
@@ -192,9 +193,41 @@ const enUS = {
   },
   notFound: { description: 'The page you are looking for does not exist.' },
   theme: { light: 'Light', dark: 'Dark', system: 'System' },
+  systemLogs: {
+    title: 'System Logs',
+    description: 'View live application and access logs from the current process.',
+    summary: { buffered: '{count} buffered' },
+    connection: {
+      connected: 'Connected',
+      connecting: 'Connecting',
+      disconnected: 'Disconnected',
+    },
+    console: { title: 'Live Console' },
+    actions: {
+      clear: 'Clear',
+      pauseFollow: 'Pause Follow',
+      resumeFollow: 'Resume Follow',
+      reconnect: 'Reconnect',
+    },
+    filters: {
+      searchPlaceholder: 'Search message, source, or context',
+      levelPlaceholder: 'Filter level',
+      level: {
+        all: 'All levels',
+        DEBUG: 'Debug',
+        INFO: 'Info',
+        WARN: 'Warn',
+        ERROR: 'Error',
+      },
+    },
+    empty: {
+      title: 'No matching logs',
+      description: 'Wait for new logs or adjust the current filters.',
+    },
+  },
   nav: {
     main: { dashboard: 'Dashboard', lifecycle: 'Lifecycle', analytics: 'Analytics', projects: 'Projects', team: 'Team' },
-    documents: { dataLibrary: 'Data Library', reports: 'Reports', wordAssistant: 'Word Assistant', label: 'Documents', more: 'More' },
+    management: { systemLogs: 'System Logs', label: 'Management' },
     secondary: { settings: 'Settings', getHelp: 'Get Help', search: 'Search' },
     user: { account: 'Account', billing: 'Billing', notifications: 'Notifications', language: 'Language', switchLanguage: 'Switch Language', logout: 'Log out' },
   },

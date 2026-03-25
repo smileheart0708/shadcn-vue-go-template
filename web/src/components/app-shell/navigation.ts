@@ -1,7 +1,10 @@
 import { computed, type Component, type ComputedRef } from 'vue'
 import type { RouteLocationRaw } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { IconChartBar, IconDashboard, IconDatabase, IconFileDescription, IconFolder, IconHelp, IconListDetails, IconReport, IconSearch, IconSettings, IconUsers } from '@tabler/icons-vue'
+import { IconChartBar, IconDashboard, IconFolder, IconHelp, IconListDetails, IconSearch, IconSettings } from '@tabler/icons-vue'
+import { Logs } from 'lucide-vue-next'
+import { hasMinimumUserRole, USER_ROLE } from '@/lib/auth/roles'
+import { useAuthStore } from '@/stores/auth'
 
 export interface AppShellNavItem {
   title: string
@@ -12,12 +15,13 @@ export interface AppShellNavItem {
 
 export interface AppShellNavigation {
   main: AppShellNavItem[]
-  documents: AppShellNavItem[]
+  management: AppShellNavItem[]
   secondary: AppShellNavItem[]
 }
 
 export function useAppShellNavigation(): ComputedRef<AppShellNavigation> {
   const { t } = useI18n()
+  const authStore = useAuthStore()
 
   return computed(() => {
     return {
@@ -26,13 +30,10 @@ export function useAppShellNavigation(): ComputedRef<AppShellNavigation> {
         { title: t('nav.main.lifecycle'), icon: IconListDetails, disabled: true },
         { title: t('nav.main.analytics'), icon: IconChartBar, disabled: true },
         { title: t('nav.main.projects'), icon: IconFolder, disabled: true },
-        { title: t('nav.main.team'), icon: IconUsers, disabled: true },
       ],
-      documents: [
-        { title: t('nav.documents.dataLibrary'), icon: IconDatabase, disabled: true },
-        { title: t('nav.documents.reports'), icon: IconReport, disabled: true },
-        { title: t('nav.documents.wordAssistant'), icon: IconFileDescription, disabled: true },
-      ],
+      management: hasMinimumUserRole(authStore.user?.role ?? 0, USER_ROLE.admin)
+        ? [{ title: t('nav.management.systemLogs'), icon: Logs, to: { name: 'system-logs' } }]
+        : [],
       secondary: [
         { title: t('nav.secondary.settings'), icon: IconSettings, to: { name: 'settings' } },
         { title: t('nav.secondary.getHelp'), icon: IconHelp, disabled: true },

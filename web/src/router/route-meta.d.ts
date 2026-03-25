@@ -6,6 +6,8 @@ declare module 'vue-router' {
     titleKey?: RouteTitleKey
     requiresAuth?: boolean
     guestOnly?: boolean
+    requiredRole?: number
+    maskUnauthorizedAsNotFound?: boolean
   }
 }
 

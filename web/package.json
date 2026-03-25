@@ -25,6 +25,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "dnd-kit-vue": "^0.0.2",
+    "eventsource-parser": "^3.0.6",
     "ky": "^1.14.3",
     "lucide-vue-next": "^0.577.0",
     "pinia": "^3.0.4",

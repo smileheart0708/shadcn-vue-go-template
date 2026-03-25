@@ -1,5 +1,6 @@
 import type { RouteRecordRaw } from 'vue-router'
 import { createRouter, createWebHistory } from 'vue-router'
+import { USER_ROLE } from '@/lib/auth/roles'
 import { installAuthGuard } from '@/middleware/auth'
 import type { RouteTitleKey } from '@/router/route-title'
 
@@ -9,6 +10,7 @@ const Dashboard = () => import('@/views/Dashboard.vue')
 const Login = () => import('@/views/Login.vue')
 const Register = () => import('@/views/Register.vue')
 const Settings = () => import('@/views/Settings.vue')
+const SystemLogs = () => import('@/views/SystemLogsView.vue')
 const NotFound = () => import('@/views/NotFound.vue')
 
 function defineAppShellRoute<T extends RouteRecordRaw & { meta: { titleKey: RouteTitleKey } }>(route: T) {
@@ -27,6 +29,12 @@ const appShellRoutes = [
     name: 'settings',
     component: Settings,
     meta: { titleKey: 'route.settings', requiresAuth: true },
+  }),
+  defineAppShellRoute({
+    path: 'system-logs',
+    name: 'system-logs',
+    component: SystemLogs,
+    meta: { titleKey: 'route.systemLogs', requiresAuth: true, requiredRole: USER_ROLE.admin, maskUnauthorizedAsNotFound: true },
   }),
 ] satisfies RouteRecordRaw[]
 

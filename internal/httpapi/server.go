@@ -12,10 +12,14 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"main/internal/logging"
+	"main/internal/users"
 )
 
 type HandlerOptions struct {
 	Logger         *slog.Logger
+	LogStream      *logging.Stream
 	DB             *sql.DB
 	DataDir        string
 	FrontendFS     fs.FS
@@ -30,6 +34,8 @@ func NewHandlerWithOptions(options HandlerOptions) http.Handler {
 	}
 
 	apiService := NewAPI(options.DB, options.DataDir, options.Auth)
+	apiService.logger = logger
+	apiService.logStream = options.LogStream
 	api := newAPIMux(apiService)
 	if options.LogAPIRequests {
 		api = Chain(api, requestLogger(logger))
@@ -58,6 +64,7 @@ func newAPIMux(api *API) http.Handler {
 	mux.Handle("POST /api/account/password", Chain(http.HandlerFunc(api.updatePasswordHandler), RequireAuth(api.auth)))
 	mux.Handle("DELETE /api/account", Chain(http.HandlerFunc(api.deleteAccountHandler), RequireAuth(api.auth)))
 	mux.Handle("GET /api/avatars/{filename}", http.HandlerFunc(api.avatarHandler))
+	mux.Handle("GET /api/admin/system-logs/stream", Chain(http.HandlerFunc(api.adminStreamSystemLogsHandler), RequireAuth(api.auth), RequireRole(users.RoleAdmin)))
 	return mux
 }
 
@@ -211,6 +218,7 @@ func setVary(header http.Header, value string) {
 
 func requestLogger(logger *slog.Logger) Middleware {
 	return func(next http.Handler) http.Handler {
+		requestLogger := logger.With("log_source", "http_access")
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			recorder := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
 			start := time.Now()
@@ -222,7 +230,7 @@ func requestLogger(logger *slog.Logger) Middleware {
 				route = r.URL.Path
 			}
 
-			logger.InfoContext(
+			requestLogger.InfoContext(
 				r.Context(),
 				"http request",
 				"method", r.Method,

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
-import AppShellNavDocuments from '@/components/app-shell/AppShellNavDocuments.vue'
+import AppShellNavManagement from '@/components/app-shell/AppShellNavManagement.vue'
 import AppShellNavMain from '@/components/app-shell/AppShellNavMain.vue'
 import AppShellNavSecondary from '@/components/app-shell/AppShellNavSecondary.vue'
 import AppShellNavUser from '@/components/app-shell/AppShellNavUser.vue'
@@ -40,7 +40,7 @@ async function handleLogout() {
     </SidebarHeader>
     <SidebarContent>
       <AppShellNavMain :items="navigation.main" />
-      <AppShellNavDocuments :items="navigation.documents" />
+      <AppShellNavManagement :items="navigation.management" />
       <AppShellNavSecondary
         :items="navigation.secondary"
         class="mt-auto"

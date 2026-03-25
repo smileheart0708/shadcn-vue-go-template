@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"bufio"
 	"bytes"
 	"compress/gzip"
 	"context"
@@ -19,12 +20,14 @@ import (
 	"time"
 
 	"main/internal/database"
+	"main/internal/logging"
 	"main/internal/users"
 )
 
 type testContext struct {
 	handler   http.Handler
 	store     *users.Store
+	logStream *logging.Stream
 	dataDir   string
 	logs      *bytes.Buffer
 	auth      AuthOptions
@@ -428,6 +431,141 @@ func TestUnknownAPIRouteDoesNotFallbackToSPA(t *testing.T) {
 	}
 }
 
+func TestAdminSystemLogsRequiresAuthentication(t *testing.T) {
+	t.Parallel()
+
+	ctx := newTestContext(t, false)
+	req := httptest.NewRequest(http.MethodGet, "/api/admin/system-logs/stream", nil)
+	rec := httptest.NewRecorder()
+
+	ctx.handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, rec.Code)
+	}
+}
+
+func TestAdminSystemLogsRequiresAdmin(t *testing.T) {
+	t.Parallel()
+
+	ctx := newTestContext(t, false)
+	user := createTestUser(t, ctx.store, users.CreateParams{
+		Username:     "member",
+		PasswordHash: mustHashPassword(t, "member123"),
+		Role:         users.RoleUser,
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/admin/system-logs/stream", nil)
+	req.Header.Set("Authorization", "Bearer "+issueTokenForUser(t, ctx.auth, user))
+	rec := httptest.NewRecorder()
+
+	ctx.handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("expected status %d, got %d", http.StatusForbidden, rec.Code)
+	}
+}
+
+func TestAdminSystemLogsStreamsReplayAndLiveEntries(t *testing.T) {
+	t.Parallel()
+
+	ctx := newTestContext(t, false)
+	ctx.logStream.Publish(logging.StreamEntry{
+		Timestamp: 1_700_000_001,
+		Level:     "INFO",
+		Message:   "boot complete",
+		Text:      "boot complete",
+		Source:    "app",
+	})
+
+	server := httptest.NewServer(ctx.handler)
+	defer server.Close()
+
+	reqCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, server.URL+"/api/admin/system-logs/stream?tail=1", nil)
+	if err != nil {
+		t.Fatalf("NewRequestWithContext() error = %v", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+loginAsBootstrapAdmin(t, ctx))
+
+	response, err := server.Client().Do(req)
+	if err != nil {
+		t.Fatalf("Do() error = %v", err)
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, response.StatusCode)
+	}
+	if contentType := response.Header.Get("Content-Type"); !strings.Contains(contentType, "text/event-stream") {
+		t.Fatalf("expected event stream content type, got %q", contentType)
+	}
+
+	ctx.logStream.Publish(logging.StreamEntry{
+		Timestamp: 1_700_000_002,
+		Level:     "ERROR",
+		Message:   "worker failed",
+		Text:      "worker failed operation=refresh",
+		Source:    "app",
+	})
+
+	events := readSystemLogEvents(t, response.Body, 2)
+	cancel()
+
+	if len(events) != 2 {
+		t.Fatalf("expected 2 events, got %d", len(events))
+	}
+	if events[0].Message != "boot complete" {
+		t.Fatalf("expected replay event first, got %+v", events[0])
+	}
+	if events[1].Level != "ERROR" || !strings.Contains(events[1].Text, "operation=refresh") {
+		t.Fatalf("expected live event second, got %+v", events[1])
+	}
+}
+
+func TestAdminSystemLogsInvalidTailFallsBackAndLogs(t *testing.T) {
+	t.Parallel()
+
+	ctx := newTestContext(t, false)
+	ctx.logStream.Publish(logging.StreamEntry{
+		Timestamp: 1_700_000_100,
+		Level:     "INFO",
+		Message:   "seed",
+		Text:      "seed",
+		Source:    "app",
+	})
+
+	server := httptest.NewServer(ctx.handler)
+	defer server.Close()
+
+	reqCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, server.URL+"/api/admin/system-logs/stream?tail=abc", nil)
+	if err != nil {
+		t.Fatalf("NewRequestWithContext() error = %v", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+loginAsBootstrapAdmin(t, ctx))
+
+	response, err := server.Client().Do(req)
+	if err != nil {
+		t.Fatalf("Do() error = %v", err)
+	}
+	defer response.Body.Close()
+
+	events := readSystemLogEvents(t, response.Body, 1)
+	cancel()
+
+	if len(events) != 1 || events[0].Message != "seed" {
+		t.Fatalf("expected fallback replay entry, got %+v", events)
+	}
+	if !strings.Contains(ctx.logs.String(), "invalid system log tail parameter") {
+		t.Fatalf("expected invalid tail warning in logs, got %q", ctx.logs.String())
+	}
+}
+
 func newTestContext(t *testing.T, logAPIRequests bool) *testContext {
 	t.Helper()
 
@@ -459,8 +597,13 @@ func newTestContext(t *testing.T, logAPIRequests bool) *testContext {
 		TTL:    time.Hour,
 	}
 
+	logStream := logging.NewStream(logging.StreamOptions{
+		Capacity: logging.DefaultStreamCapacity,
+	})
+
 	handler := NewHandlerWithOptions(HandlerOptions{
 		Logger:         logger,
+		LogStream:      logStream,
 		DB:             dbContainer.DB(),
 		DataDir:        dataDir,
 		FrontendFS:     os.DirFS(distDir),
@@ -469,11 +612,12 @@ func newTestContext(t *testing.T, logAPIRequests bool) *testContext {
 	})
 
 	return &testContext{
-		handler: handler,
-		store:   store,
-		dataDir: dataDir,
-		logs:    logs,
-		auth:    auth,
+		handler:   handler,
+		store:     store,
+		logStream: logStream,
+		dataDir:   dataDir,
+		logs:      logs,
+		auth:      auth,
 	}
 }
 
@@ -636,6 +780,36 @@ func gunzipBody(t *testing.T, body []byte) string {
 
 func testLogger(buf *bytes.Buffer) *slog.Logger {
 	return slog.New(slog.NewTextHandler(buf, &slog.HandlerOptions{}))
+}
+
+func readSystemLogEvents(t *testing.T, body io.Reader, count int) []logging.StreamEntry {
+	t.Helper()
+
+	reader := bufio.NewReader(body)
+	events := make([]logging.StreamEntry, 0, count)
+	deadline := time.Now().Add(2 * time.Second)
+
+	for len(events) < count {
+		if time.Now().After(deadline) {
+			t.Fatalf("timed out reading system log events; received %d", len(events))
+		}
+
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("ReadString() error = %v", err)
+		}
+		if !strings.HasPrefix(line, "data: ") {
+			continue
+		}
+
+		var entry logging.StreamEntry
+		if err := json.Unmarshal([]byte(strings.TrimSpace(strings.TrimPrefix(line, "data: "))), &entry); err != nil {
+			t.Fatalf("Unmarshal() error = %v", err)
+		}
+		events = append(events, entry)
+	}
+
+	return events
 }
 
 func stringPointer(value string) *string {

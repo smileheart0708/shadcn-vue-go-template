@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -17,6 +18,7 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 
+	"main/internal/logging"
 	"main/internal/users"
 )
 
@@ -36,9 +38,11 @@ type AuthOptions struct {
 }
 
 type API struct {
-	users   *users.Store
-	auth    *AuthService
-	dataDir string
+	users     *users.Store
+	auth      *AuthService
+	dataDir   string
+	logger    *slog.Logger
+	logStream *logging.Stream
 }
 
 type AuthService struct {
@@ -182,6 +186,25 @@ func RequireAuth(auth *AuthService) Middleware {
 
 			ctx := context.WithValue(r.Context(), authUserContextKey, principal)
 			next.ServeHTTP(w, r.WithContext(ctx))
+		})
+	}
+}
+
+func RequireRole(minRole int) Middleware {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			principal, ok := CurrentUser(r.Context())
+			if !ok {
+				writeAPIError(w, http.StatusUnauthorized, "unauthorized", "Authentication is required.")
+				return
+			}
+
+			if principal.Role < minRole {
+				writeAPIError(w, http.StatusForbidden, "forbidden", "You do not have permission to access this resource.")
+				return
+			}
+
+			next.ServeHTTP(w, r)
 		})
 	}
 }

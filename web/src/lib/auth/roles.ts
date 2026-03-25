@@ -6,6 +6,10 @@ export const USER_ROLE = {
 
 export type UserRole = (typeof USER_ROLE)[keyof typeof USER_ROLE]
 
+export function hasMinimumUserRole(role: number, minimumRole: number): boolean {
+  return role >= minimumRole
+}
+
 export function getUserRoleLabelKey(role: number): `common.userRole.${0 | 1 | 2}` {
   switch (role) {
     case USER_ROLE.admin:
