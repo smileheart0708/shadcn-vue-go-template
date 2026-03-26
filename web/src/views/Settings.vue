@@ -7,12 +7,7 @@ import { toast } from 'vue-sonner'
 import { usePollingTask } from '@/composables/usePollingTask'
 import { useAuthStore } from '@/stores/auth'
 import { useLocaleStore } from '@/stores/locale'
-import {
-  POLLING_INTERVAL_MAX_SECONDS,
-  POLLING_INTERVAL_MIN_SECONDS,
-  normalizePollingIntervalSeconds,
-  usePollingStore,
-} from '@/stores/polling'
+import { POLLING_INTERVAL_MAX_SECONDS, POLLING_INTERVAL_MIN_SECONDS, normalizePollingIntervalSeconds, usePollingStore } from '@/stores/polling'
 import { useThemeStore } from '@/stores/theme'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
@@ -152,9 +147,7 @@ const editAvatarImageSrc = computed(() => pendingAvatarPreviewURL.value ?? authS
 const roleLabel = computed(() => t(getUserRoleLabelKey(authStore.user?.role ?? 0)))
 const roleBadgeVariant = computed(() => getUserRoleBadgeVariant(authStore.user?.role ?? 0))
 const canDeleteAccount = computed(() => canDeleteOwnAccount(authStore.user?.role ?? 0))
-const currentUserPollingIntervalSeconds = computed(() =>
-  normalizePollingIntervalSeconds(pollingIntervalSliderValue.value[0] ?? pollingStore.currentUserIntervalSeconds),
-)
+const currentUserPollingIntervalSeconds = computed(() => normalizePollingIntervalSeconds(pollingIntervalSliderValue.value[0] ?? pollingStore.currentUserIntervalSeconds))
 const currentUserPolling = usePollingTask({
   key: 'auth.current-user',
   intervalMs: () => pollingStore.currentUserIntervalMs,
