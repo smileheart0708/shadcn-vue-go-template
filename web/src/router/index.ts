@@ -2,6 +2,7 @@ import type { RouteRecordRaw } from 'vue-router'
 import { createRouter, createWebHistory } from 'vue-router'
 import { USER_ROLE } from '@/lib/auth/roles'
 import { installAuthGuard } from '@/middleware/auth'
+import { installRequestLoadingTracking, installRouteLoading } from '@/router/route-loading'
 import type { RouteTitleKey } from '@/router/route-title'
 
 const AppShellLayout = () => import('@/layouts/AppShellLayout.vue')
@@ -48,7 +49,6 @@ const router = createRouter({
     },
     { path: '/login', name: 'login', component: Login, meta: { titleKey: 'route.login', guestOnly: true } },
     { path: '/register', name: 'register', component: Register, meta: { titleKey: 'route.register', guestOnly: true } },
-    // Only routes nested under AppShellLayout render the sidebar/header shell.
     {
       path: '/:pathMatch(.*)*',
       component: BlankLayout,
@@ -58,5 +58,7 @@ const router = createRouter({
 })
 
 installAuthGuard(router)
+installRouteLoading(router)
+installRequestLoadingTracking()
 
 export default router

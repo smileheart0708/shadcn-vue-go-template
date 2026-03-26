@@ -24,11 +24,12 @@ const zhCN = {
     },
     field: { email: '邮箱', password: '密码', username: '用户名', usernameOrEmail: '用户名或邮箱', name: '姓名', confirmPassword: '确认密码' },
     feedback: {
+      loadFailed: '页面加载失败，请刷新页面后重试。',
       networkError: '网络异常，请稍后重试。',
       required: '此字段为必填项。',
       unknownError: '发生未知错误，请稍后重试。',
     },
-    state: { empty: '暂无内容', loading: '加载中...', noData: '暂无数据' },
+    state: { empty: '暂无内容', loading: '加载中...', noData: '暂无数据', neverUsed: '从未使用' },
     userRole: { 0: '普通用户', 1: '管理员', 2: '超级管理员' },
   },
   apiError: {
@@ -50,7 +51,7 @@ const zhCN = {
     superAdminDeleteForbidden: '超级管理员不能删除自己的账号。',
     systemLogStreamFailed: '系统日志流连接失败。',
   },
-  route: { dashboard: '仪表盘', login: '登录', notFound: '页面不存在', settings: '设置', register: '注册', systemLogs: '系统日志' },
+  route: { dashboard: '仪表盘', login: '登录', notFound: '页面不存在', settings: '设置', register: '注册', systemLogs: '系统日志', feedback: { loadFailed: '页面加载失败，请刷新页面后重试。' } },
   settings: {
     title: '设置',
     description: '管理你的账号设置和偏好',

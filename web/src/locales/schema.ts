@@ -17,8 +17,8 @@ export interface MessageSchema {
       update: string
     }
     field: { email: string; password: string; username: string; usernameOrEmail: string; name: string; confirmPassword: string }
-    feedback: { networkError: string; required: string; unknownError: string }
-    state: { empty: string; loading: string; noData: string }
+    feedback: { loadFailed: string; networkError: string; required: string; unknownError: string }
+    state: { empty: string; loading: string; noData: string; neverUsed: string }
     userRole: { 0: string; 1: string; 2: string }
   }
   apiError: {
@@ -40,7 +40,7 @@ export interface MessageSchema {
     superAdminDeleteForbidden: string
     systemLogStreamFailed: string
   }
-  route: { dashboard: string; login: string; notFound: string; settings: string; register: string; systemLogs: string }
+  route: { dashboard: string; login: string; notFound: string; settings: string; register: string; systemLogs: string; feedback: { loadFailed: string } }
   settings: {
     title: string
     description: string

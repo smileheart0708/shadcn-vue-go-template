@@ -24,11 +24,12 @@ const enUS = {
     },
     field: { email: 'Email', password: 'Password', username: 'Username', usernameOrEmail: 'Username or Email', name: 'Name', confirmPassword: 'Confirm Password' },
     feedback: {
+      loadFailed: 'Failed to load the page. Please refresh and try again.',
       networkError: 'Network error. Please try again.',
       required: 'This field is required.',
       unknownError: 'Something went wrong. Please try again.',
     },
-    state: { empty: 'Nothing here yet.', loading: 'Loading...', noData: 'No data' },
+    state: { empty: 'Nothing here yet.', loading: 'Loading...', noData: 'No data', neverUsed: 'Never used' },
     userRole: { 0: 'User', 1: 'Admin', 2: 'Super Admin' },
   },
   apiError: {
@@ -50,7 +51,7 @@ const enUS = {
     superAdminDeleteForbidden: 'Super administrators cannot delete their own account.',
     systemLogStreamFailed: 'Failed to connect to the system log stream.',
   },
-  route: { dashboard: 'Dashboard', login: 'Login', notFound: 'Page not found', settings: 'Settings', register: 'Register', systemLogs: 'System Logs' },
+  route: { dashboard: 'Dashboard', login: 'Login', notFound: 'Page not found', settings: 'Settings', register: 'Register', systemLogs: 'System Logs', feedback: { loadFailed: 'Failed to load the page. Please refresh and try again.' } },
   settings: {
     title: 'Settings',
     description: 'Manage your account settings and preferences',
