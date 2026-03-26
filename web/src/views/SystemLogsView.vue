@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { useDocumentVisibility } from '@vueuse/core'
+import { computed, nextTick, onWatcherCleanup, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
 import { Download, RefreshCw } from 'lucide-vue-next'
@@ -11,6 +12,7 @@ import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyTitle } from '
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
+import { APIError } from '@/lib/api/client'
 import { getAPIErrorMessage } from '@/lib/api/error-messages'
 import { openSystemLogsStream, SYSTEM_LOG_LEVEL_VALUES, type SystemLogEntry, type SystemLogLevelFilter } from '@/lib/api/system-logs'
 import { formatSystemLogTimestamp } from '@/lib/system-logs/export'
@@ -19,8 +21,11 @@ import { cn } from '@/lib/utils'
 const MAX_LOCAL_ENTRIES = 1000
 const INITIAL_TAIL = 200
 const SCROLL_BOTTOM_THRESHOLD = 24
+const RECONNECT_BASE_DELAY_MS = 1_000
+const RECONNECT_MAX_DELAY_MS = 30_000
 
 const { t } = useI18n()
+const documentVisibility = useDocumentVisibility()
 
 const entries = ref<SystemLogEntry[]>([])
 const loading = ref(true)
@@ -32,6 +37,8 @@ const levelFilter = ref<SystemLogLevelFilter>('ALL')
 const streamError = ref('')
 const exportDialogOpen = ref(false)
 const viewport = ref<HTMLDivElement | null>(null)
+const reconnectKey = ref(0)
+const pageVisible = computed(() => documentVisibility.value === undefined || documentVisibility.value === 'visible')
 
 let abortController: AbortController | null = null
 
@@ -72,49 +79,97 @@ const connectionVariant = computed(() => {
   return 'secondary'
 })
 
-onMounted(() => {
-  void connect()
-})
-
-onBeforeUnmount(() => {
-  disconnect()
-})
-
-async function connect() {
-  disconnect()
-  connecting.value = true
-  connected.value = false
-  loading.value = entries.value.length === 0
-  streamError.value = ''
-  const controller = new AbortController()
-  abortController = controller
-
-  try {
-    await openSystemLogsStream({
-      tail: INITIAL_TAIL,
-      signal: controller.signal,
-      onEntry(entry) {
-        if (abortController !== controller || controller.signal.aborted) {
-          return
-        }
-
-        appendEntry(entry)
-      },
-    })
-  } catch (error) {
-    if (controller.signal.aborted || abortController !== controller) {
+watch(
+  () => [pageVisible.value, reconnectKey.value] as const,
+  ([visible]) => {
+    if (!visible) {
+      disconnect()
+      loading.value = entries.value.length === 0
       return
     }
 
-    const message = getAPIErrorMessage(t, error, 'apiError.systemLogStreamFailed')
-    streamError.value = message
-    toast.error(message)
-  } finally {
-    if (abortController === controller) {
-      abortController = null
+    const sessionController = new AbortController()
+    onWatcherCleanup(() => {
+      sessionController.abort()
+      disconnect()
+    })
+    void maintainStreamConnection(sessionController.signal)
+  },
+  { immediate: true },
+)
+
+async function maintainStreamConnection(sessionSignal: AbortSignal) {
+  let retryAttempt = 0
+
+  while (!sessionSignal.aborted) {
+    const controller = new AbortController()
+    abortController = controller
+    connecting.value = true
+    connected.value = false
+    loading.value = entries.value.length === 0
+
+    try {
+      await openSystemLogsStream({
+        tail: INITIAL_TAIL,
+        signal: controller.signal,
+        onOpen() {
+          if (abortController !== controller || controller.signal.aborted) {
+            return
+          }
+
+          retryAttempt = 0
+          connecting.value = false
+          connected.value = true
+          loading.value = false
+          streamError.value = ''
+        },
+        onEntry(entry) {
+          if (abortController !== controller || controller.signal.aborted) {
+            return
+          }
+
+          appendEntry(entry)
+        },
+      })
+    } catch (error) {
+      if (controller.signal.aborted || abortController !== controller || sessionSignal.aborted) {
+        return
+      }
+
       connecting.value = false
       connected.value = false
       loading.value = false
+
+      const message = getAPIErrorMessage(t, error, 'apiError.systemLogStreamFailed')
+      streamError.value = message
+
+      if (!shouldRetryStreamError(error)) {
+        toast.error(message)
+        return
+      }
+
+      retryAttempt += 1
+      if (!(await waitForReconnect(getReconnectDelayMs(retryAttempt), sessionSignal))) {
+        return
+      }
+      continue
+    } finally {
+      if (abortController === controller) {
+        abortController = null
+      }
+    }
+
+    if (sessionSignal.aborted || controller.signal.aborted) {
+      return
+    }
+
+    connecting.value = false
+    connected.value = false
+    loading.value = false
+
+    retryAttempt += 1
+    if (!(await waitForReconnect(getReconnectDelayMs(retryAttempt), sessionSignal))) {
+      return
     }
   }
 }
@@ -128,9 +183,11 @@ function disconnect() {
 }
 
 function appendEntry(entry: SystemLogEntry) {
-  connected.value = true
-  connecting.value = false
-  loading.value = false
+  // Reconnects replay a recent tail to avoid gaps, so dedupe by server-issued id.
+  if (entries.value.some((existingEntry) => existingEntry.id === entry.id)) {
+    return
+  }
+
   entries.value = [...entries.value, entry].slice(-MAX_LOCAL_ENTRIES)
 
   if (autoScroll.value) {
@@ -140,6 +197,11 @@ function appendEntry(entry: SystemLogEntry) {
 
 function clearEntries() {
   entries.value = []
+}
+
+function reconnect() {
+  streamError.value = ''
+  reconnectKey.value += 1
 }
 
 function resumeAutoScroll() {
@@ -176,6 +238,40 @@ function getLevelBadgeVariant(level: string): 'destructive' | 'warning' | 'outli
     default:
       return 'secondary'
   }
+}
+
+function shouldRetryStreamError(error: unknown) {
+  if (error instanceof APIError) {
+    return error.status === 408 || error.status === 429 || error.status >= 500
+  }
+
+  return error instanceof TypeError
+}
+
+function getReconnectDelayMs(attempt: number) {
+  const exponent = Math.max(0, attempt - 1)
+  return Math.min(RECONNECT_MAX_DELAY_MS, RECONNECT_BASE_DELAY_MS * 2 ** exponent)
+}
+
+function waitForReconnect(delayMs: number, signal: AbortSignal): Promise<boolean> {
+  return new Promise((resolve) => {
+    if (signal.aborted) {
+      resolve(false)
+      return
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      signal.removeEventListener('abort', handleAbort)
+      resolve(true)
+    }, delayMs)
+
+    function handleAbort() {
+      window.clearTimeout(timeoutId)
+      resolve(false)
+    }
+
+    signal.addEventListener('abort', handleAbort, { once: true })
+  })
 }
 </script>
 
@@ -236,7 +332,7 @@ function getLevelBadgeVariant(level: string): 'destructive' | 'warning' | 'outli
             variant="outline"
             size="sm"
             :disabled="connecting"
-            @click="connect"
+            @click="reconnect"
           >
             <RefreshCw :class="cn('size-4', connecting && 'animate-spin')" />
             {{ t('systemLogs.actions.reconnect') }}
