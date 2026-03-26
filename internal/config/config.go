@@ -1,17 +1,24 @@
 package config
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/ysmood/goe"
 )
 
 const (
-	DefaultJWTSecret = "change-me-in-production"
+	jwtSecretFileName     = ".jwt_secret"
+	jwtSecretEntropyBytes = 64
 )
+
+var errEmptyJWTSecretFile = errors.New("config JWT secret file is empty")
 
 type Config struct {
 	DataDir              string
@@ -59,7 +66,7 @@ func LoadConfig() (Config, error) {
 		return Config{}, err
 	}
 
-	jwtSecret, err := getEnv("JWT_SECRET", DefaultJWTSecret)
+	jwtSecret, err := loadJWTSecret(dataDir)
 	if err != nil {
 		return Config{}, err
 	}
@@ -97,10 +104,6 @@ func LoadConfig() (Config, error) {
 	}, nil
 }
 
-func (c Config) UsesDefaultJWTSecret() bool {
-	return c.JWTSecret == DefaultJWTSecret
-}
-
 func getEnv[T goe.EnvType](name string, fallback T) (T, error) {
 	return getEnvAny([]string{name}, fallback)
 }
@@ -122,4 +125,70 @@ func getEnvAny[T goe.EnvType](names []string, fallback T) (T, error) {
 	}
 
 	return fallback, nil
+}
+
+func loadJWTSecret(dataDir string) (string, error) {
+	if secret, ok := lookupNonEmptyEnv("JWT_SECRET"); ok {
+		return secret, nil
+	}
+
+	secretPath := filepath.Join(dataDir, jwtSecretFileName)
+	secret, err := readJWTSecretFile(secretPath)
+	switch {
+	case err == nil:
+		return secret, nil
+	case !errors.Is(err, os.ErrNotExist) && !errors.Is(err, errEmptyJWTSecretFile):
+		return "", fmt.Errorf("config JWT_SECRET: %w", err)
+	}
+
+	secret, err = generateJWTSecret()
+	if err != nil {
+		return "", fmt.Errorf("config JWT_SECRET: %w", err)
+	}
+
+	if err := os.MkdirAll(dataDir, 0o700); err != nil {
+		return "", fmt.Errorf("config JWT_SECRET: create data dir: %w", err)
+	}
+	if err := os.WriteFile(secretPath, []byte(secret), 0o600); err != nil {
+		return "", fmt.Errorf("config JWT_SECRET: write secret file: %w", err)
+	}
+
+	return secret, nil
+}
+
+func readJWTSecretFile(secretPath string) (string, error) {
+	secret, err := os.ReadFile(secretPath)
+	if err != nil {
+		return "", err
+	}
+
+	trimmed := strings.TrimSpace(string(secret))
+	if trimmed == "" {
+		return "", errEmptyJWTSecretFile
+	}
+
+	return trimmed, nil
+}
+
+func generateJWTSecret() (string, error) {
+	secret := make([]byte, jwtSecretEntropyBytes)
+	if _, err := rand.Read(secret); err != nil {
+		return "", fmt.Errorf("generate random secret: %w", err)
+	}
+
+	return hex.EncodeToString(secret), nil
+}
+
+func lookupNonEmptyEnv(name string) (string, bool) {
+	raw, ok := os.LookupEnv(name)
+	if !ok {
+		return "", false
+	}
+
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return "", false
+	}
+
+	return trimmed, true
 }

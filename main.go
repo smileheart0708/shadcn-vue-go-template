@@ -54,9 +54,6 @@ func main() {
 	listenAddr := fmt.Sprintf(":%d", cfg.Port)
 
 	logging.LogStartupBanner(logger, listenAddr, dataDir)
-	if cfg.UsesDefaultJWTSecret() {
-		slog.Warn("using default JWT secret; set JWT_SECRET in production")
-	}
 
 	dbContainer, err := database.Open(context.Background(), database.Options{
 		Path: dbPath,

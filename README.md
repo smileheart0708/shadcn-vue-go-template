@@ -86,7 +86,7 @@ shadcn-vue-go-template/
 | `DATA_DIR` | `./.data` | Data directory for SQLite DB |
 | `DB_NAME` | `data.db` | SQLite database filename |
 | `API_REQUEST_LOG_ENABLED` | `false` | Enable backend API request logging |
-| `JWT_SECRET` | `change-me-in-production` | JWT signing secret |
+| `JWT_SECRET` | generated in `DATA_DIR/.jwt_secret` | JWT signing secret. Environment variable wins; otherwise the app reuses the persisted file or generates a new high-entropy secret automatically. |
 | `REFRESH_COOKIE_NAME` | derived from `JWT_SECRET` | Optional refresh cookie name override. Set a unique value per project when multiple localhost apps share the same host. |
 | `VITE_API_MOCKING` | `false` | Enable frontend MSW auth mocks during Vite development |
 
