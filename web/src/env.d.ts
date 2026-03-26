@@ -9,4 +9,3 @@ interface ImportMeta {
 }
 
 declare const __VITE_API_MOCKING__: boolean
-

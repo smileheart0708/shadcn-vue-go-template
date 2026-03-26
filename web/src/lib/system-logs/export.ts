@@ -67,13 +67,7 @@ function createSystemLogExportBlob(entries: SystemLogEntry[], format: SystemLogE
 
 function serializeSystemLogsCSV(entries: SystemLogEntry[]): string {
   const header = ['timestamp', 'level', 'source', 'message', 'text']
-  const rows = entries.map((entry) => [
-    formatSystemLogTimestamp(entry.timestamp),
-    entry.level,
-    entry.source,
-    entry.message,
-    entry.text,
-  ])
+  const rows = entries.map((entry) => [formatSystemLogTimestamp(entry.timestamp), entry.level, entry.source, entry.message, entry.text])
 
   return [header, ...rows].map((row) => row.map(escapeCSVValue).join(',')).join('\r\n')
 }

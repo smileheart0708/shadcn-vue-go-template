@@ -18,7 +18,7 @@ const API_ERROR_MESSAGE_KEYS = {
   password_update_failed: 'apiError.passwordUpdateFailed',
   account_delete_failed: 'apiError.accountDeleteFailed',
   system_log_stream_unavailable: 'apiError.systemLogStreamFailed',
-  } as const
+} as const
 
 type Translate = (key: string) => string
 

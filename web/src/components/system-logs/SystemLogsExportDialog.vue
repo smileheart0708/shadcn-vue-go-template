@@ -38,13 +38,14 @@ const openModel = computed({
   set: (value: boolean) => emit('update:open', value),
 })
 
-const exportableCount = computed(() =>
-  selectSystemLogEntries({
-    entries: props.entries,
-    count: exportCount.value,
-    level: exportLevel.value,
-    format: exportFormat.value,
-  }).length,
+const exportableCount = computed(
+  () =>
+    selectSystemLogEntries({
+      entries: props.entries,
+      count: exportCount.value,
+      level: exportLevel.value,
+      format: exportFormat.value,
+    }).length,
 )
 
 function handleExport() {

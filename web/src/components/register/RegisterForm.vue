@@ -125,12 +125,14 @@ function handleSubmit() {
       <a
         href="#"
         class="font-medium hover:underline"
-      >{{ t('auth.signUp.terms') }}</a>
+        >{{ t('auth.signUp.terms') }}</a
+      >
       {{ t('auth.signUp.termsAnd') }}
       <a
         href="#"
         class="font-medium hover:underline"
-      >{{ t('auth.signUp.privacy') }}</a>
+        >{{ t('auth.signUp.privacy') }}</a
+      >
     </FieldDescription>
   </div>
 </template>
