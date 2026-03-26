@@ -22,6 +22,7 @@ type Config struct {
 	JWTTTL               time.Duration
 	RefreshIdleTTL       time.Duration
 	RefreshAbsoluteTTL   time.Duration
+	RefreshCookieName    string
 }
 
 func Load() error {
@@ -78,6 +79,11 @@ func LoadConfig() (Config, error) {
 		return Config{}, err
 	}
 
+	refreshCookieName, err := getEnv("REFRESH_COOKIE_NAME", "")
+	if err != nil {
+		return Config{}, err
+	}
+
 	return Config{
 		DataDir:              dataDir,
 		DBName:               dbName,
@@ -87,6 +93,7 @@ func LoadConfig() (Config, error) {
 		JWTTTL:               jwtTTL,
 		RefreshIdleTTL:       refreshIdleTTL,
 		RefreshAbsoluteTTL:   refreshAbsoluteTTL,
+		RefreshCookieName:    refreshCookieName,
 	}, nil
 }
 

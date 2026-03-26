@@ -26,13 +26,13 @@ import (
 )
 
 const (
-	minPasswordLength       = 8
-	maxAvatarFileSizeBytes  = 5 * 1024 * 1024
-	maxAvatarUploadBodySize = maxAvatarFileSizeBytes + (1 << 20)
-	refreshCookieName       = "refresh_token"
-	refreshCookiePath       = "/api/auth"
-	defaultCacheTTL         = 5 * time.Minute
-	sessionCacheTTL         = 2 * time.Minute
+	minPasswordLength        = 8
+	maxAvatarFileSizeBytes   = 5 * 1024 * 1024
+	maxAvatarUploadBodySize  = maxAvatarFileSizeBytes + (1 << 20)
+	defaultRefreshCookieName = "refresh_token"
+	refreshCookiePath        = "/api/auth"
+	defaultCacheTTL          = 5 * time.Minute
+	sessionCacheTTL          = 2 * time.Minute
 )
 
 var ErrMissingBearerToken = errors.New("missing bearer token")
@@ -48,6 +48,7 @@ type AuthOptions struct {
 	TTL                time.Duration
 	RefreshIdleTTL     time.Duration
 	RefreshAbsoluteTTL time.Duration
+	RefreshCookieName  string
 }
 
 type API struct {
@@ -64,6 +65,7 @@ type AuthService struct {
 	ttl                time.Duration
 	refreshIdleTTL     time.Duration
 	refreshAbsoluteTTL time.Duration
+	refreshCookieName  string
 	users              *users.Store
 	authVersionCache   *cache.Cache
 	sessionCache       *cache.Cache
@@ -171,6 +173,7 @@ func NewAuthService(options AuthOptions, userStore *users.Store) *AuthService {
 		ttl:                options.TTL,
 		refreshIdleTTL:     options.RefreshIdleTTL,
 		refreshAbsoluteTTL: options.RefreshAbsoluteTTL,
+		refreshCookieName:  resolveRefreshCookieName(options),
 		users:              userStore,
 		authVersionCache:   cache.New(defaultCacheTTL, defaultCacheTTL),
 		sessionCache:       cache.New(sessionCacheTTL, sessionCacheTTL),
@@ -588,7 +591,7 @@ func (api *API) loginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	setRefreshCookie(w, r, refreshToken, api.auth.refreshAbsoluteTTL)
+	api.auth.setRefreshCookie(w, r, refreshToken, api.auth.refreshAbsoluteTTL)
 	api.logAuthEvent(r.Context(), users.AuthLogParams{
 		UserID:     authInt64Pointer(user.ID),
 		SessionID:  authStringPointer(sessionID),
@@ -608,7 +611,7 @@ func (api *API) loginHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (api *API) refreshHandler(w http.ResponseWriter, r *http.Request) {
-	rawToken, err := readRefreshCookie(r)
+	rawToken, err := api.auth.readRefreshCookie(r)
 	if err != nil {
 		api.logAuthEvent(r.Context(), users.AuthLogParams{
 			IP:            nullableString(clientAddr(r.RemoteAddr)),
@@ -617,7 +620,7 @@ func (api *API) refreshHandler(w http.ResponseWriter, r *http.Request) {
 			Success:       false,
 			FailureReason: authStringPointer("refresh_cookie_missing"),
 		})
-		clearRefreshCookie(w, r)
+		api.auth.clearRefreshCookie(w, r)
 		writeAPIError(w, http.StatusUnauthorized, "invalid_refresh_token", "Refresh session is invalid or expired.")
 		return
 	}
@@ -638,12 +641,12 @@ func (api *API) refreshHandler(w http.ResponseWriter, r *http.Request) {
 			Success:       false,
 			FailureReason: authStringPointer(attempt.FailureReason),
 		})
-		clearRefreshCookie(w, r)
+		api.auth.clearRefreshCookie(w, r)
 		writeAPIError(w, http.StatusUnauthorized, "invalid_refresh_token", "Refresh session is invalid or expired.")
 		return
 	}
 
-	setRefreshCookie(w, r, result.RefreshToken, api.auth.refreshAbsoluteTTL)
+	api.auth.setRefreshCookie(w, r, result.RefreshToken, api.auth.refreshAbsoluteTTL)
 	api.logAuthEvent(r.Context(), users.AuthLogParams{
 		UserID:    authInt64Pointer(result.User.ID),
 		SessionID: authStringPointer(result.SessionID),
@@ -663,7 +666,7 @@ func (api *API) refreshHandler(w http.ResponseWriter, r *http.Request) {
 
 func (api *API) logoutHandler(w http.ResponseWriter, r *http.Request) {
 	requestIP, requestUserAgent := authRequestMetadata(r)
-	rawToken, err := readRefreshCookie(r)
+	rawToken, err := api.auth.readRefreshCookie(r)
 	if err == nil {
 		sessionID, _, parseErr := parseRefreshToken(rawToken)
 		if parseErr == nil {
@@ -683,7 +686,7 @@ func (api *API) logoutHandler(w http.ResponseWriter, r *http.Request) {
 		_, _ = api.auth.RevokeRefreshSession(r.Context(), rawToken, "logout")
 	}
 
-	clearRefreshCookie(w, r)
+	api.auth.clearRefreshCookie(w, r)
 	writeSuccessJSON(w, http.StatusOK, logoutResponse{LoggedOut: true})
 }
 
@@ -848,7 +851,7 @@ func (api *API) updatePasswordHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	clearRefreshCookie(w, r)
+	api.auth.clearRefreshCookie(w, r)
 	writeSuccessJSON(w, http.StatusOK, user.Public())
 }
 
@@ -882,7 +885,7 @@ func (api *API) deleteAccountHandler(w http.ResponseWriter, r *http.Request) {
 		_ = os.Remove(filepath.Join(users.AvatarDir(api.dataDir), filepath.Base(*currentUser.AvatarPath)))
 	}
 
-	clearRefreshCookie(w, r)
+	api.auth.clearRefreshCookie(w, r)
 	writeSuccessJSON(w, http.StatusOK, deleteAccountResponse{Deleted: true})
 }
 
@@ -1018,8 +1021,8 @@ func bearerTokenFromHeader(header string) (string, error) {
 	return token, nil
 }
 
-func readRefreshCookie(r *http.Request) (string, error) {
-	cookie, err := r.Cookie(refreshCookieName)
+func (s *AuthService) readRefreshCookie(r *http.Request) (string, error) {
+	cookie, err := r.Cookie(s.refreshCookieName)
 	if err != nil {
 		return "", err
 	}
@@ -1030,9 +1033,9 @@ func readRefreshCookie(r *http.Request) (string, error) {
 	return cookie.Value, nil
 }
 
-func setRefreshCookie(w http.ResponseWriter, r *http.Request, refreshToken string, ttl time.Duration) {
+func (s *AuthService) setRefreshCookie(w http.ResponseWriter, r *http.Request, refreshToken string, ttl time.Duration) {
 	http.SetCookie(w, &http.Cookie{
-		Name:     refreshCookieName,
+		Name:     s.refreshCookieName,
 		Value:    refreshToken,
 		Path:     refreshCookiePath,
 		MaxAge:   int(ttl.Seconds()),
@@ -1042,9 +1045,9 @@ func setRefreshCookie(w http.ResponseWriter, r *http.Request, refreshToken strin
 	})
 }
 
-func clearRefreshCookie(w http.ResponseWriter, r *http.Request) {
+func (s *AuthService) clearRefreshCookie(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, &http.Cookie{
-		Name:     refreshCookieName,
+		Name:     s.refreshCookieName,
 		Value:    "",
 		Path:     refreshCookiePath,
 		MaxAge:   -1,
@@ -1052,6 +1055,18 @@ func clearRefreshCookie(w http.ResponseWriter, r *http.Request) {
 		SameSite: http.SameSiteLaxMode,
 		Secure:   requestUsesHTTPS(r),
 	})
+}
+
+func resolveRefreshCookieName(options AuthOptions) string {
+	if cookieName := strings.TrimSpace(options.RefreshCookieName); cookieName != "" {
+		return cookieName
+	}
+
+	// Browsers scope cookies by host and path, not port. Namespacing the default
+	// refresh cookie by the JWT secret keeps localhost apps from overwriting each
+	// other's sessions when they all run on localhost:8080.
+	sum := sha256.Sum256(options.Secret)
+	return defaultRefreshCookieName + "_" + hex.EncodeToString(sum[:6])
 }
 
 func requestUsesHTTPS(r *http.Request) bool {

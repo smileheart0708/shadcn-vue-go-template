@@ -137,6 +137,9 @@ func TestLoginSetsRefreshCookieAndWritesLog(t *testing.T) {
 	if !refreshCookie.HttpOnly {
 		t.Fatal("expected refresh cookie to be httpOnly")
 	}
+	if refreshCookie.Name != resolveRefreshCookieName(ctx.auth) {
+		t.Fatalf("expected refresh cookie name %q, got %q", resolveRefreshCookieName(ctx.auth), refreshCookie.Name)
+	}
 	if refreshCookie.Path != refreshCookiePath {
 		t.Fatalf("expected refresh cookie path %q, got %q", refreshCookiePath, refreshCookie.Path)
 	}
@@ -150,6 +153,27 @@ func TestLoginSetsRefreshCookieAndWritesLog(t *testing.T) {
 	}
 	if len(logs) != 1 || logs[0].EventType != "login_success" || !logs[0].Success {
 		t.Fatalf("expected one login_success log, got %+v", logs)
+	}
+}
+
+func TestLoginSupportsCustomRefreshCookieName(t *testing.T) {
+	t.Parallel()
+
+	ctx := newTestContextWithAuthOptions(t, false, AuthOptions{
+		Issuer:             "test-suite",
+		Secret:             []byte("test-secret"),
+		TTL:                time.Hour,
+		RefreshIdleTTL:     7 * 24 * time.Hour,
+		RefreshAbsoluteTTL: 30 * 24 * time.Hour,
+		RefreshCookieName:  "project_a_refresh_token",
+	})
+	_, refreshCookie := loginBootstrapAdminSession(t, ctx)
+
+	if refreshCookie == nil {
+		t.Fatal("expected refresh cookie to be set")
+	}
+	if refreshCookie.Name != "project_a_refresh_token" {
+		t.Fatalf("expected refresh cookie name %q, got %q", "project_a_refresh_token", refreshCookie.Name)
 	}
 }
 
@@ -238,7 +262,7 @@ func TestRefreshRotatesTokenAndWritesLog(t *testing.T) {
 		t.Fatal("expected refreshed access token")
 	}
 
-	nextCookie := findCookie(rec.Result().Cookies(), refreshCookieName)
+	nextCookie := findCookie(rec.Result().Cookies(), resolveRefreshCookieName(ctx.auth))
 	if nextCookie == nil {
 		t.Fatal("expected rotated refresh cookie")
 	}
@@ -831,7 +855,7 @@ func loginBootstrapAdminSession(t *testing.T, ctx *testContext) (loginResponse, 
 
 	var response testSuccessEnvelope[loginResponse]
 	decodeJSONResponse(t, rec.Body.Bytes(), &response)
-	refreshCookie := findCookie(rec.Result().Cookies(), refreshCookieName)
+	refreshCookie := findCookie(rec.Result().Cookies(), resolveRefreshCookieName(ctx.auth))
 	return response.Data, refreshCookie
 }
 

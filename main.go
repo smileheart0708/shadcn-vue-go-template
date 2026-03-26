@@ -89,6 +89,7 @@ func main() {
 				TTL:                cfg.JWTTTL,
 				RefreshIdleTTL:     cfg.RefreshIdleTTL,
 				RefreshAbsoluteTTL: cfg.RefreshAbsoluteTTL,
+				RefreshCookieName:  cfg.RefreshCookieName,
 			},
 		}),
 		ReadHeaderTimeout: 5 * time.Second,

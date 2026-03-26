@@ -84,9 +84,10 @@ shadcn-vue-go-template/
 |----------|---------|-------------|
 | `PORT` | `8080` | HTTP server port |
 | `DATA_DIR` | `./.data` | Data directory for SQLite DB |
-| `DB_NAME` | `app.db` | SQLite database filename |
+| `DB_NAME` | `data.db` | SQLite database filename |
 | `API_REQUEST_LOG_ENABLED` | `false` | Enable backend API request logging |
-| `JWT_SECRET` | `dev-secret-change-in-prod` | JWT signing secret |
+| `JWT_SECRET` | `change-me-in-production` | JWT signing secret |
+| `REFRESH_COOKIE_NAME` | derived from `JWT_SECRET` | Optional refresh cookie name override. Set a unique value per project when multiple localhost apps share the same host. |
 | `VITE_API_MOCKING` | `false` | Enable frontend MSW auth mocks during Vite development |
 
 ## Commands
