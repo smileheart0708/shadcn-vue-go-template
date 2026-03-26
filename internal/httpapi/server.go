@@ -2,7 +2,6 @@ package httpapi
 
 import (
 	"bytes"
-	"database/sql"
 	"io/fs"
 	"log/slog"
 	"mime"
@@ -13,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"main/internal/auth"
 	"main/internal/logging"
 	"main/internal/users"
 )
@@ -20,10 +20,10 @@ import (
 type HandlerOptions struct {
 	Logger         *slog.Logger
 	LogStream      *logging.Stream
-	DB             *sql.DB
+	UserStore      *users.Store
 	DataDir        string
 	FrontendFS     fs.FS
-	Auth           AuthOptions
+	Auth           auth.Options
 	LogAPIRequests bool
 }
 
@@ -33,7 +33,7 @@ func NewHandlerWithOptions(options HandlerOptions) http.Handler {
 		logger = slog.Default()
 	}
 
-	apiService := NewAPI(options.DB, options.DataDir, options.Auth)
+	apiService := NewAPI(options.UserStore, options.DataDir, options.Auth)
 	apiService.logger = logger
 	apiService.logStream = options.LogStream
 	api := newAPIMux(apiService)

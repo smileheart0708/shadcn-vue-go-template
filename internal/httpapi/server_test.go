@@ -19,6 +19,7 @@ import (
 	"testing"
 	"time"
 
+	"main/internal/auth"
 	"main/internal/database"
 	"main/internal/logging"
 	"main/internal/users"
@@ -30,7 +31,7 @@ type testContext struct {
 	logStream *logging.Stream
 	dataDir   string
 	logs      *bytes.Buffer
-	auth      AuthOptions
+	auth      auth.Options
 	dbCleanup func()
 }
 
@@ -137,11 +138,11 @@ func TestLoginSetsRefreshCookieAndWritesLog(t *testing.T) {
 	if !refreshCookie.HttpOnly {
 		t.Fatal("expected refresh cookie to be httpOnly")
 	}
-	if refreshCookie.Name != resolveRefreshCookieName(ctx.auth) {
-		t.Fatalf("expected refresh cookie name %q, got %q", resolveRefreshCookieName(ctx.auth), refreshCookie.Name)
+	if refreshCookie.Name != auth.ResolveRefreshCookieName(ctx.auth) {
+		t.Fatalf("expected refresh cookie name %q, got %q", auth.ResolveRefreshCookieName(ctx.auth), refreshCookie.Name)
 	}
-	if refreshCookie.Path != refreshCookiePath {
-		t.Fatalf("expected refresh cookie path %q, got %q", refreshCookiePath, refreshCookie.Path)
+	if refreshCookie.Path != auth.RefreshCookiePath {
+		t.Fatalf("expected refresh cookie path %q, got %q", auth.RefreshCookiePath, refreshCookie.Path)
 	}
 	if response.AccessToken == "" {
 		t.Fatal("expected access token in login response")
@@ -159,7 +160,7 @@ func TestLoginSetsRefreshCookieAndWritesLog(t *testing.T) {
 func TestLoginSupportsCustomRefreshCookieName(t *testing.T) {
 	t.Parallel()
 
-	ctx := newTestContextWithAuthOptions(t, false, AuthOptions{
+	ctx := newTestContextWithAuthOptions(t, false, auth.Options{
 		Issuer:             "test-suite",
 		Secret:             []byte("test-secret"),
 		TTL:                time.Hour,
@@ -262,7 +263,7 @@ func TestRefreshRotatesTokenAndWritesLog(t *testing.T) {
 		t.Fatal("expected refreshed access token")
 	}
 
-	nextCookie := findCookie(rec.Result().Cookies(), resolveRefreshCookieName(ctx.auth))
+	nextCookie := findCookie(rec.Result().Cookies(), auth.ResolveRefreshCookieName(ctx.auth))
 	if nextCookie == nil {
 		t.Fatal("expected rotated refresh cookie")
 	}
@@ -282,7 +283,7 @@ func TestRefreshRotatesTokenAndWritesLog(t *testing.T) {
 func TestExpiredAccessTokenCanRefreshSession(t *testing.T) {
 	t.Parallel()
 
-	ctx := newTestContextWithAuthOptions(t, false, AuthOptions{
+	ctx := newTestContextWithAuthOptions(t, false, auth.Options{
 		Issuer:             "test-suite",
 		Secret:             []byte("test-secret"),
 		TTL:                5 * time.Millisecond,
@@ -774,7 +775,7 @@ func TestAdminSystemLogsInvalidTailFallsBackAndLogs(t *testing.T) {
 }
 
 func newTestContext(t *testing.T, logAPIRequests bool) *testContext {
-	return newTestContextWithAuthOptions(t, logAPIRequests, AuthOptions{
+	return newTestContextWithAuthOptions(t, logAPIRequests, auth.Options{
 		Issuer:             "test-suite",
 		Secret:             []byte("test-secret"),
 		TTL:                time.Hour,
@@ -783,7 +784,7 @@ func newTestContext(t *testing.T, logAPIRequests bool) *testContext {
 	})
 }
 
-func newTestContextWithAuthOptions(t *testing.T, logAPIRequests bool, auth AuthOptions) *testContext {
+func newTestContextWithAuthOptions(t *testing.T, logAPIRequests bool, authOptions auth.Options) *testContext {
 	t.Helper()
 
 	dataDir := t.TempDir()
@@ -815,11 +816,11 @@ func newTestContextWithAuthOptions(t *testing.T, logAPIRequests bool, auth AuthO
 	handler := NewHandlerWithOptions(HandlerOptions{
 		Logger:         logger,
 		LogStream:      logStream,
-		DB:             dbContainer.DB(),
+		UserStore:      store,
 		DataDir:        dataDir,
 		FrontendFS:     os.DirFS(distDir),
 		LogAPIRequests: logAPIRequests,
-		Auth:           auth,
+		Auth:           authOptions,
 	})
 
 	return &testContext{
@@ -828,7 +829,7 @@ func newTestContextWithAuthOptions(t *testing.T, logAPIRequests bool, auth AuthO
 		logStream: logStream,
 		dataDir:   dataDir,
 		logs:      logs,
-		auth:      auth,
+		auth:      authOptions,
 	}
 }
 
@@ -855,14 +856,14 @@ func loginBootstrapAdminSession(t *testing.T, ctx *testContext) (loginResponse, 
 
 	var response testSuccessEnvelope[loginResponse]
 	decodeJSONResponse(t, rec.Body.Bytes(), &response)
-	refreshCookie := findCookie(rec.Result().Cookies(), resolveRefreshCookieName(ctx.auth))
+	refreshCookie := findCookie(rec.Result().Cookies(), auth.ResolveRefreshCookieName(ctx.auth))
 	return response.Data, refreshCookie
 }
 
 func issueTokenForUser(t *testing.T, ctx *testContext, user users.User) string {
 	t.Helper()
 
-	service := NewAuthService(ctx.auth, ctx.store)
+	service := auth.NewService(ctx.auth, ctx.store)
 	sessionID, _, err := service.CreateRefreshSession(context.Background(), user, "", "")
 	if err != nil {
 		t.Fatalf("failed to create refresh session: %v", err)

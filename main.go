@@ -12,6 +12,7 @@ import (
 	"syscall"
 	"time"
 
+	"main/internal/auth"
 	"main/internal/config"
 	"main/internal/database"
 	"main/internal/httpapi"
@@ -22,32 +23,35 @@ import (
 const shutdownTimeout = 10 * time.Second
 
 func main() {
+	if err := run(); err != nil {
+		slog.Error("application failed", "error", err)
+		os.Exit(1)
+	}
+}
+
+func run() error {
 	logger, logStream := logging.NewWithStream(logging.StreamOptions{
 		Capacity: logging.DefaultStreamCapacity,
 	})
 	slog.SetDefault(logger)
 
 	if err := config.Load(); err != nil {
-		slog.Error("failed to load environment", "error", err)
-		return
+		return fmt.Errorf("load environment: %w", err)
 	}
 
 	cfg, err := config.LoadConfig()
 	if err != nil {
-		slog.Error("failed to load configuration", "error", err)
-		return
+		return fmt.Errorf("load configuration: %w", err)
 	}
 
 	frontendAssets, err := frontendFS()
 	if err != nil {
-		slog.Error("failed to load embedded frontend assets", "error", err)
-		return
+		return fmt.Errorf("load embedded frontend assets: %w", err)
 	}
 
 	dataDir, err := filepath.Abs(cfg.DataDir)
 	if err != nil {
-		slog.Error("failed to resolve data directory", "error", err, "data_dir", cfg.DataDir)
-		return
+		return fmt.Errorf("resolve data directory %q: %w", cfg.DataDir, err)
 	}
 
 	dbPath := filepath.Join(dataDir, cfg.DBName)
@@ -59,8 +63,7 @@ func main() {
 		Path: dbPath,
 	})
 	if err != nil {
-		slog.Error("failed to open database", "error", err)
-		return
+		return fmt.Errorf("open database %q: %w", dbPath, err)
 	}
 	defer closeDB(dbContainer)
 
@@ -68,8 +71,7 @@ func main() {
 
 	userStore := users.NewStore(dbContainer.DB())
 	if err := users.NewBootstrapManager(userStore, dataDir, logger).Ensure(context.Background()); err != nil {
-		slog.Error("failed to bootstrap default super admin", "error", err)
-		return
+		return fmt.Errorf("bootstrap default super admin: %w", err)
 	}
 
 	server := &http.Server{
@@ -77,11 +79,11 @@ func main() {
 		Handler: httpapi.NewHandlerWithOptions(httpapi.HandlerOptions{
 			Logger:         logger,
 			LogStream:      logStream,
-			DB:             dbContainer.DB(),
+			UserStore:      userStore,
 			DataDir:        dataDir,
 			FrontendFS:     frontendAssets,
 			LogAPIRequests: cfg.APIRequestLogEnabled,
-			Auth: httpapi.AuthOptions{
+			Auth: auth.Options{
 				Secret:             []byte(cfg.JWTSecret),
 				TTL:                cfg.JWTTTL,
 				RefreshIdleTTL:     cfg.RefreshIdleTTL,
@@ -112,9 +114,9 @@ func main() {
 	select {
 	case err := <-serverErrCh:
 		if err != nil {
-			slog.Error("http server stopped unexpectedly", "error", err)
+			return fmt.Errorf("http server stopped unexpectedly: %w", err)
 		}
-		return
+		return nil
 	case <-signalCtx.Done():
 		slog.Info("shutdown signal received")
 	}
@@ -123,16 +125,15 @@ func main() {
 	defer cancel()
 
 	if err := server.Shutdown(shutdownCtx); err != nil {
-		slog.Error("failed to shut down http server", "error", err)
-		return
+		return fmt.Errorf("shutdown http server: %w", err)
 	}
 
 	if err := <-serverErrCh; err != nil {
-		slog.Error("http server stopped unexpectedly", "error", err)
-		return
+		return fmt.Errorf("http server stopped unexpectedly: %w", err)
 	}
 
 	slog.Info("application stopped")
+	return nil
 }
 
 func closeDB(dbContainer *database.DBContainer) {

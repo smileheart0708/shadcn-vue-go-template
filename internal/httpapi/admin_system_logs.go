@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"time"
 
+	"main/internal/auth"
 	"main/internal/logging"
 )
 
@@ -41,7 +42,7 @@ func (api *API) adminStreamSystemLogsHandler(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	currentUser, ok := CurrentUser(r.Context())
+	currentUser, ok := auth.PrincipalFromContext(r.Context())
 	if !ok {
 		logger.ErrorContext(
 			r.Context(),
