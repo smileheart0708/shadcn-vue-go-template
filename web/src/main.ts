@@ -21,16 +21,17 @@ async function bootstrap() {
   await enableMocking()
 
   const app = createApp(App)
+  const authStore = useAuthStore(pinia)
 
   app.use(pinia)
+  // Restore auth state before the router starts its first navigation.
+  authStore.bindRouter(router)
+  await authStore.initialize()
+
   app.use(router)
   app.use(i18n)
 
   installDocumentMetadata(router)
-
-  const authStore = useAuthStore(pinia)
-  authStore.bindRouter(router)
-  await authStore.initialize()
 
   await router.isReady()
   app.mount('#app')
