@@ -9,6 +9,17 @@ import (
 	"time"
 )
 
+const userSelectColumns = `
+id,
+username,
+email,
+password_hash,
+avatar_path,
+role,
+bootstrap_password_active,
+auth_version,
+password_changed_at`
+
 var ErrUserNotFound = errors.New("users: user not found")
 var ErrUsernameTaken = errors.New("users: username already exists")
 var ErrEmailTaken = errors.New("users: email already exists")
@@ -88,7 +99,7 @@ func (s *Store) CountSuperAdmins(ctx context.Context) (int, error) {
 }
 
 func (s *Store) GetFirstSuperAdmin(ctx context.Context) (User, error) {
-	return s.queryOne(ctx, `SELECT id, username, email, password_hash, avatar_path, role, bootstrap_password_active FROM users WHERE role = ? ORDER BY id LIMIT 1`, RoleSuperAdmin)
+	return s.queryOne(ctx, `SELECT `+userSelectColumns+` FROM users WHERE role = ? ORDER BY id LIMIT 1`, RoleSuperAdmin)
 }
 
 func (s *Store) FindByIdentifier(ctx context.Context, identifier string) (User, error) {
@@ -101,7 +112,7 @@ func (s *Store) FindByIdentifier(ctx context.Context, identifier string) (User, 
 
 	return s.queryOne(
 		ctx,
-		`SELECT id, username, email, password_hash, avatar_path, role, bootstrap_password_active
+		`SELECT `+userSelectColumns+`
 		FROM users
 		WHERE username = ? COLLATE NOCASE OR email = ? COLLATE NOCASE
 		ORDER BY id
@@ -112,7 +123,20 @@ func (s *Store) FindByIdentifier(ctx context.Context, identifier string) (User, 
 }
 
 func (s *Store) GetByID(ctx context.Context, id int64) (User, error) {
-	return s.queryOne(ctx, `SELECT id, username, email, password_hash, avatar_path, role, bootstrap_password_active FROM users WHERE id = ?`, id)
+	return s.queryOne(ctx, `SELECT `+userSelectColumns+` FROM users WHERE id = ?`, id)
+}
+
+func (s *Store) GetAuthVersion(ctx context.Context, id int64) (int64, error) {
+	var authVersion int64
+	err := s.db.QueryRowContext(ctx, `SELECT auth_version FROM users WHERE id = ?`, id).Scan(&authVersion)
+	if errors.Is(err, sql.ErrNoRows) {
+		return 0, ErrUserNotFound
+	}
+	if err != nil {
+		return 0, fmt.Errorf("users: failed to load auth version: %w", err)
+	}
+
+	return authVersion, nil
 }
 
 func (s *Store) UpdateProfile(ctx context.Context, id int64, username string, email *string) (User, error) {
@@ -153,12 +177,20 @@ func (s *Store) UpdateAvatar(ctx context.Context, id int64, avatarPath *string) 
 }
 
 func (s *Store) UpdatePassword(ctx context.Context, id int64, passwordHash string, bootstrapPasswordActive bool) (User, error) {
+	now := time.Now().UTC()
 	result, err := s.db.ExecContext(
 		ctx,
-		`UPDATE users SET password_hash = ?, bootstrap_password_active = ?, updated_at = ? WHERE id = ?`,
+		`UPDATE users
+		SET password_hash = ?,
+			bootstrap_password_active = ?,
+			auth_version = auth_version + 1,
+			password_changed_at = ?,
+			updated_at = ?
+		WHERE id = ?`,
 		passwordHash,
 		boolToSQLiteInteger(bootstrapPasswordActive),
-		time.Now().Unix(),
+		now.Unix(),
+		now.Unix(),
 		id,
 	)
 	if err != nil {
@@ -185,6 +217,7 @@ func (s *Store) queryOne(ctx context.Context, query string, args ...any) (User, 
 	var email sql.NullString
 	var avatarPath sql.NullString
 	var bootstrapPasswordActive int64
+	var passwordChangedAt sql.NullInt64
 
 	err := s.db.QueryRowContext(ctx, query, args...).Scan(
 		&user.ID,
@@ -194,6 +227,8 @@ func (s *Store) queryOne(ctx context.Context, query string, args ...any) (User, 
 		&avatarPath,
 		&user.Role,
 		&bootstrapPasswordActive,
+		&user.AuthVersion,
+		&passwordChangedAt,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
 		return User{}, ErrUserNotFound
@@ -205,6 +240,7 @@ func (s *Store) queryOne(ctx context.Context, query string, args ...any) (User, 
 	user.Email = nullableStringPointer(email)
 	user.AvatarPath = nullableStringPointer(avatarPath)
 	user.BootstrapPasswordActive = bootstrapPasswordActive == 1
+	user.PasswordChangedAt = nullableUnixTimePointer(passwordChangedAt)
 
 	return user, nil
 }
@@ -260,6 +296,15 @@ func nullableStringPointer(value sql.NullString) *string {
 
 	copied := value.String
 	return &copied
+}
+
+func nullableUnixTimePointer(value sql.NullInt64) *time.Time {
+	if !value.Valid {
+		return nil
+	}
+
+	timestamp := time.Unix(value.Int64, 0).UTC()
+	return &timestamp
 }
 
 func boolToSQLiteInteger(value bool) int {

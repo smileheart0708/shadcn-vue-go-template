@@ -58,6 +58,8 @@ func newAPIMux(api *API) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/healthz", healthz)
 	mux.Handle("POST /api/auth/login", http.HandlerFunc(api.loginHandler))
+	mux.Handle("POST /api/auth/refresh", http.HandlerFunc(api.refreshHandler))
+	mux.Handle("POST /api/auth/logout", http.HandlerFunc(api.logoutHandler))
 	mux.Handle("GET /api/auth/me", Chain(http.HandlerFunc(api.meHandler), RequireAuth(api.auth)))
 	mux.Handle("PATCH /api/account/profile", Chain(http.HandlerFunc(api.updateProfileHandler), RequireAuth(api.auth)))
 	mux.Handle("POST /api/account/avatar", Chain(http.HandlerFunc(api.updateAvatarHandler), RequireAuth(api.auth)))

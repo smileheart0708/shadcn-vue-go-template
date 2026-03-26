@@ -5,6 +5,7 @@ import App from './App.vue'
 import { installDocumentMetadata } from './plugins/document-metadata'
 import i18n from './plugins/i18n'
 import router from './router'
+import { useAuthStore } from './stores/auth'
 import pinia from './stores/pinia'
 
 async function enableMocking() {
@@ -26,6 +27,10 @@ async function bootstrap() {
   app.use(i18n)
 
   installDocumentMetadata(router)
+
+  const authStore = useAuthStore(pinia)
+  authStore.bindRouter(router)
+  await authStore.initialize()
 
   await router.isReady()
   app.mount('#app')

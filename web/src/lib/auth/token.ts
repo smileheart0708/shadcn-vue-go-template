@@ -1,13 +1,13 @@
-const AUTH_TOKEN_STORAGE_KEY = 'auth.access_token'
+let authToken: string | null = null
 
 export function readAuthToken(): string | null {
-  return window.localStorage.getItem(AUTH_TOKEN_STORAGE_KEY)
+  return authToken
 }
 
 export function writeAuthToken(token: string): void {
-  window.localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, token)
+  authToken = token
 }
 
 export function clearAuthToken(): void {
-  window.localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY)
+  authToken = null
 }
