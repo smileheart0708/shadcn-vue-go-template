@@ -34,10 +34,7 @@ export class APIError extends Error {
   }
 }
 
-export function registerAuthClientHandlers(handlers: {
-  refreshAccessToken: RefreshAccessTokenHandler
-  onUnauthorized: UnauthorizedHandler
-}) {
+export function registerAuthClientHandlers(handlers: { refreshAccessToken: RefreshAccessTokenHandler; onUnauthorized: UnauthorizedHandler }) {
   refreshAccessTokenHandler = handlers.refreshAccessToken
   unauthorizedHandler = handlers.onUnauthorized
 }

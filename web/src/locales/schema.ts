@@ -46,7 +46,7 @@ export interface MessageSchema {
     description: string
     saved: string
     save: string
-    tabs: { account: string; appearance: string; notifications: string }
+    tabs: { basic: string; account: string; notifications: string }
     account: {
       profile: string
       profileDesc: string
@@ -89,7 +89,7 @@ export interface MessageSchema {
       deleteAccountSuccess: string
       superAdminDeleteForbidden: string
     }
-    appearance: {
+    basic: {
       theme: string
       themeDesc: string
       colorTheme: string
@@ -99,6 +99,8 @@ export interface MessageSchema {
       selectTheme: string
       language: string
       selectLanguage: string
+      dataRefreshInterval: string
+      dataRefreshIntervalDesc: string
     }
     notifications: {
       title: string

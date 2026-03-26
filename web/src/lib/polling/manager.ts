@@ -1,4 +1,4 @@
-import { readonly, ref, type Ref } from 'vue'
+import { readonly, ref, toValue, type MaybeRefOrGetter, type Ref } from 'vue'
 
 export type PollingRunReason = 'start' | 'interval' | 'manual' | 'resume'
 
@@ -11,7 +11,7 @@ type MaybePromise<T> = T | Promise<T>
 
 export interface PollingTaskOptions<TData> {
   key: string
-  intervalMs: number
+  intervalMs: MaybeRefOrGetter<number>
   maxBackoffMs?: number
   enabled?: () => boolean
   fetch: (context: PollingRunContext) => Promise<TData>
@@ -40,7 +40,7 @@ interface PollingTaskSubscription extends PollingTaskHandle {
 
 interface InternalPollingTaskOptions {
   key: string
-  intervalMs: number
+  intervalMs: MaybeRefOrGetter<number>
   maxBackoffMs?: number
   enabled?: () => boolean
   execute: (context: PollingRunContext) => Promise<void>
@@ -306,10 +306,13 @@ class InternalPollingTask {
       return
     }
 
-    this.timer = setTimeout(() => {
-      this.timer = null
-      this.requestImmediateRun('interval')
-    }, Math.max(0, delayMs))
+    this.timer = setTimeout(
+      () => {
+        this.timer = null
+        this.requestImmediateRun('interval')
+      },
+      Math.max(0, delayMs),
+    )
   }
 
   private abortInFlight() {
@@ -340,11 +343,11 @@ class InternalPollingTask {
   }
 
   private getSuccessDelayMs(options: InternalPollingTaskOptions) {
-    return Math.max(0, options.intervalMs)
+    return Math.max(0, toValue(options.intervalMs))
   }
 
   private getFailureDelayMs(options: InternalPollingTaskOptions) {
-    const baseDelayMs = Math.max(0, options.intervalMs)
+    const baseDelayMs = Math.max(0, toValue(options.intervalMs))
     const exponent = Math.max(0, this.failureCount - 1)
     const nextDelayMs = baseDelayMs * 2 ** exponent
     return Math.min(options.maxBackoffMs ?? DEFAULT_MAX_BACKOFF_MS, nextDelayMs)

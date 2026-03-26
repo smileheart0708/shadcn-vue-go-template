@@ -6,8 +6,14 @@ import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
 import { usePollingTask } from '@/composables/usePollingTask'
 import { useAuthStore } from '@/stores/auth'
-import { useThemeStore } from '@/stores/theme'
 import { useLocaleStore } from '@/stores/locale'
+import {
+  POLLING_INTERVAL_MAX_SECONDS,
+  POLLING_INTERVAL_MIN_SECONDS,
+  normalizePollingIntervalSeconds,
+  usePollingStore,
+} from '@/stores/polling'
+import { useThemeStore } from '@/stores/theme'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -18,6 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
+import { Slider } from '@/components/ui/slider'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -40,6 +47,7 @@ const { t } = useI18n()
 const authStore = useAuthStore()
 const themeStore = useThemeStore()
 const localeStore = useLocaleStore()
+const pollingStore = usePollingStore()
 
 const notifications = ref({
   emailNotifications: true,
@@ -62,6 +70,7 @@ const pendingAvatarFile = ref<File | null>(null)
 const pendingAvatarPreviewURL = ref<string | null>(null)
 const profileError = ref('')
 const passwordError = ref('')
+const pollingIntervalSliderValue = ref([pollingStore.currentUserIntervalSeconds])
 const passwordForm = ref({
   currentPassword: '',
   newPassword: '',
@@ -101,6 +110,36 @@ function handleLocaleChange(value: unknown) {
   }
 }
 
+function handlePollingIntervalSliderChange(value: number[] | undefined) {
+  if (!Array.isArray(value) || value.length === 0) {
+    return
+  }
+
+  pollingIntervalSliderValue.value = [normalizePollingIntervalSeconds(value[0] ?? pollingStore.currentUserIntervalSeconds)]
+}
+
+function commitPollingInterval(value: number[] | undefined) {
+  if (!Array.isArray(value) || value.length === 0) {
+    return
+  }
+
+  const nextSeconds = normalizePollingIntervalSeconds(value[0] ?? pollingStore.currentUserIntervalSeconds)
+  pollingIntervalSliderValue.value = [nextSeconds]
+
+  if (nextSeconds === pollingStore.currentUserIntervalSeconds) {
+    return
+  }
+
+  pollingStore.setCurrentUserIntervalSeconds(nextSeconds)
+
+  if (!currentUserPolling.running.value) {
+    return
+  }
+
+  currentUserPolling.pause()
+  currentUserPolling.resume()
+}
+
 const localeOptions = Object.entries(localeNames).map(([value, label]) => ({
   value,
   label,
@@ -113,15 +152,26 @@ const editAvatarImageSrc = computed(() => pendingAvatarPreviewURL.value ?? authS
 const roleLabel = computed(() => t(getUserRoleLabelKey(authStore.user?.role ?? 0)))
 const roleBadgeVariant = computed(() => getUserRoleBadgeVariant(authStore.user?.role ?? 0))
 const canDeleteAccount = computed(() => canDeleteOwnAccount(authStore.user?.role ?? 0))
+const currentUserPollingIntervalSeconds = computed(() =>
+  normalizePollingIntervalSeconds(pollingIntervalSliderValue.value[0] ?? pollingStore.currentUserIntervalSeconds),
+)
 const currentUserPolling = usePollingTask({
   key: 'auth.current-user',
-  intervalMs: 30_000,
+  intervalMs: () => pollingStore.currentUserIntervalMs,
   enabled: () => authStore.isAuthenticated,
   fetch: ({ signal }) => authStore.fetchCurrentUser({ signal, backgroundRequest: true }),
   apply: (user) => {
     authStore.applyCurrentUser(user)
   },
 })
+
+watch(
+  () => pollingStore.currentUserIntervalSeconds,
+  (seconds) => {
+    pollingIntervalSliderValue.value = [seconds]
+  },
+  { immediate: true },
+)
 
 watch(
   () => currentUserPolling.error.value,
@@ -335,14 +385,85 @@ async function confirmDelete() {
     </div>
 
     <Tabs
-      default-value="account"
+      default-value="basic"
       class="space-y-4"
     >
       <TabsList>
+        <TabsTrigger value="basic"> {{ t('settings.tabs.basic') }} </TabsTrigger>
         <TabsTrigger value="account"> {{ t('settings.tabs.account') }} </TabsTrigger>
-        <TabsTrigger value="appearance"> {{ t('settings.tabs.appearance') }} </TabsTrigger>
         <TabsTrigger value="notifications"> {{ t('settings.tabs.notifications') }} </TabsTrigger>
       </TabsList>
+
+      <TabsContent
+        value="basic"
+        class="space-y-4"
+      >
+        <Card>
+          <CardHeader>
+            <CardTitle>{{ t('settings.basic.theme') }}</CardTitle>
+            <CardDescription>{{ t('settings.basic.themeDesc') }}</CardDescription>
+          </CardHeader>
+          <CardContent class="space-y-6">
+            <div class="space-y-2">
+              <Label>{{ t('settings.basic.colorTheme') }}</Label>
+              <Tabs
+                :model-value="themeStore.theme"
+                @update:model-value="handleThemeChange"
+              >
+                <TabsList>
+                  <TabsTrigger value="light">
+                    {{ t('settings.basic.light') }}
+                  </TabsTrigger>
+                  <TabsTrigger value="dark">
+                    {{ t('settings.basic.dark') }}
+                  </TabsTrigger>
+                  <TabsTrigger value="system">
+                    {{ t('settings.basic.system') }}
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
+
+            <div class="space-y-2">
+              <Label>{{ t('settings.basic.language') }}</Label>
+              <Select
+                :model-value="localeStore.locale"
+                @update:model-value="handleLocaleChange"
+              >
+                <SelectTrigger>
+                  <SelectValue :placeholder="t('settings.basic.selectLanguage')" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem
+                    v-for="locale in localeOptions"
+                    :key="locale.value"
+                    :value="locale.value"
+                  >
+                    {{ locale.label }}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>{{ t('settings.basic.dataRefreshInterval') }}</CardTitle>
+            <CardDescription>{{ t('settings.basic.dataRefreshIntervalDesc', { seconds: currentUserPollingIntervalSeconds }) }}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Slider
+              :model-value="pollingIntervalSliderValue"
+              :min="POLLING_INTERVAL_MIN_SECONDS"
+              :max="POLLING_INTERVAL_MAX_SECONDS"
+              :step="1"
+              @update:model-value="handlePollingIntervalSliderChange"
+              @value-commit="commitPollingInterval"
+            />
+          </CardContent>
+        </Card>
+      </TabsContent>
 
       <TabsContent
         value="account"
@@ -574,60 +695,6 @@ async function confirmDelete() {
               </AlertDialogContent>
             </AlertDialog>
           </CardFooter>
-        </Card>
-      </TabsContent>
-
-      <TabsContent
-        value="appearance"
-        class="space-y-4"
-      >
-        <Card>
-          <CardHeader>
-            <CardTitle>{{ t('settings.appearance.theme') }}</CardTitle>
-            <CardDescription>{{ t('settings.appearance.themeDesc') }}</CardDescription>
-          </CardHeader>
-          <CardContent class="space-y-6">
-            <div class="space-y-2">
-              <Label>{{ t('settings.appearance.colorTheme') }}</Label>
-              <Tabs
-                :model-value="themeStore.theme"
-                @update:model-value="handleThemeChange"
-              >
-                <TabsList>
-                  <TabsTrigger value="light">
-                    {{ t('settings.appearance.light') }}
-                  </TabsTrigger>
-                  <TabsTrigger value="dark">
-                    {{ t('settings.appearance.dark') }}
-                  </TabsTrigger>
-                  <TabsTrigger value="system">
-                    {{ t('settings.appearance.system') }}
-                  </TabsTrigger>
-                </TabsList>
-              </Tabs>
-            </div>
-
-            <div class="space-y-2">
-              <Label>{{ t('settings.appearance.language') }}</Label>
-              <Select
-                :model-value="localeStore.locale"
-                @update:model-value="handleLocaleChange"
-              >
-                <SelectTrigger>
-                  <SelectValue :placeholder="t('settings.appearance.selectLanguage')" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem
-                    v-for="locale in localeOptions"
-                    :key="locale.value"
-                    :value="locale.value"
-                  >
-                    {{ locale.label }}
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </CardContent>
         </Card>
       </TabsContent>
 

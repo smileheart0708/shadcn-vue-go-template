@@ -175,10 +175,12 @@ export const useAuthStore = defineStore('auth', () => {
     const currentRoute = boundRouter.currentRoute.value
     const redirect = currentRoute.fullPath !== '/login' ? currentRoute.fullPath : undefined
 
-    await boundRouter.push({
-      name: 'login',
-      query: redirect ? { redirect } : undefined,
-    }).catch(() => undefined)
+    await boundRouter
+      .push({
+        name: 'login',
+        query: redirect ? { redirect } : undefined,
+      })
+      .catch(() => undefined)
   }
 
   return {

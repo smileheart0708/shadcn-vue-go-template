@@ -51,13 +51,21 @@ const enUS = {
     superAdminDeleteForbidden: 'Super administrators cannot delete their own account.',
     systemLogStreamFailed: 'Failed to connect to the system log stream.',
   },
-  route: { dashboard: 'Dashboard', login: 'Login', notFound: 'Page not found', settings: 'Settings', register: 'Register', systemLogs: 'System Logs', feedback: { loadFailed: 'Failed to load the page. Please refresh and try again.' } },
+  route: {
+    dashboard: 'Dashboard',
+    login: 'Login',
+    notFound: 'Page not found',
+    settings: 'Settings',
+    register: 'Register',
+    systemLogs: 'System Logs',
+    feedback: { loadFailed: 'Failed to load the page. Please refresh and try again.' },
+  },
   settings: {
     title: 'Settings',
     description: 'Manage your account settings and preferences',
     saved: 'Saved!',
     save: 'Save Changes',
-    tabs: { account: 'Account', appearance: 'Appearance', notifications: 'Notifications' },
+    tabs: { basic: 'Basic', account: 'Account', notifications: 'Notifications' },
     account: {
       profile: 'Profile Information',
       profileDesc: 'Update your personal information',
@@ -100,7 +108,7 @@ const enUS = {
       deleteAccountSuccess: 'Account deleted.',
       superAdminDeleteForbidden: 'Super administrators cannot delete their own account.',
     },
-    appearance: {
+    basic: {
       theme: 'Theme',
       themeDesc: 'Choose how the application looks',
       colorTheme: 'Color Theme',
@@ -110,6 +118,8 @@ const enUS = {
       selectTheme: 'Select theme',
       language: 'Language',
       selectLanguage: 'Select language',
+      dataRefreshInterval: 'Data Refresh Interval',
+      dataRefreshIntervalDesc: 'Auto refresh interval {seconds} seconds',
     },
     notifications: {
       title: 'Notification Preferences',

@@ -57,7 +57,7 @@ const zhCN = {
     description: '管理你的账号设置和偏好',
     saved: '已保存！',
     save: '保存更改',
-    tabs: { account: '账号', appearance: '外观', notifications: '通知' },
+    tabs: { basic: '基本', account: '账号', notifications: '通知' },
     account: {
       profile: '个人信息',
       profileDesc: '更新你的个人信息',
@@ -100,7 +100,7 @@ const zhCN = {
       deleteAccountSuccess: '账号已删除。',
       superAdminDeleteForbidden: '超级管理员不能删除自己的账号。',
     },
-    appearance: {
+    basic: {
       theme: '主题',
       themeDesc: '选择应用的外观',
       colorTheme: '颜色主题',
@@ -110,6 +110,8 @@ const zhCN = {
       selectTheme: '选择主题',
       language: '语言',
       selectLanguage: '选择语言',
+      dataRefreshInterval: '数据刷新间隔',
+      dataRefreshIntervalDesc: '自动刷新的时间间隔 {seconds} 秒',
     },
     notifications: {
       title: '通知偏好',
