@@ -4,6 +4,7 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
+import { usePollingTask } from '@/composables/usePollingTask'
 import { useAuthStore } from '@/stores/auth'
 import { useThemeStore } from '@/stores/theme'
 import { useLocaleStore } from '@/stores/locale'
@@ -112,6 +113,26 @@ const editAvatarImageSrc = computed(() => pendingAvatarPreviewURL.value ?? authS
 const roleLabel = computed(() => t(getUserRoleLabelKey(authStore.user?.role ?? 0)))
 const roleBadgeVariant = computed(() => getUserRoleBadgeVariant(authStore.user?.role ?? 0))
 const canDeleteAccount = computed(() => canDeleteOwnAccount(authStore.user?.role ?? 0))
+const currentUserPolling = usePollingTask({
+  key: 'auth.current-user',
+  intervalMs: 30_000,
+  enabled: () => authStore.isAuthenticated,
+  fetch: ({ signal }) => authStore.fetchCurrentUser({ signal, backgroundRequest: true }),
+  apply: (user) => {
+    authStore.applyCurrentUser(user)
+  },
+})
+
+watch(
+  () => currentUserPolling.error.value,
+  (error) => {
+    if (!error) {
+      return
+    }
+
+    toast.error(t('common.feedback.networkError'))
+  },
+)
 
 function resetEditForm() {
   editForm.value = {

@@ -33,6 +33,10 @@ export const loginResponseSchema = successEnvelopeSchema(loginPayloadSchema)
 const logoutResponseSchema = successEnvelopeSchema(logoutPayloadSchema)
 
 export type LoginResponse = z.infer<typeof loginPayloadSchema>
+export interface GetCurrentUserOptions {
+  signal?: AbortSignal
+  backgroundRequest?: boolean
+}
 
 const currentUserResponseSchema = successEnvelopeSchema(authUserSchema)
 
@@ -75,9 +79,16 @@ export async function logout() {
   }
 }
 
-export async function getCurrentUser(): Promise<AuthUser> {
+export async function getCurrentUser(options: GetCurrentUserOptions = {}): Promise<AuthUser> {
   try {
-    const payload = await authApi.get('/api/auth/me').json<unknown>()
+    const payload = await authApi
+      .get('/api/auth/me', {
+        signal: options.signal,
+        context: {
+          backgroundRequest: options.backgroundRequest === true,
+        },
+      })
+      .json<unknown>()
     return currentUserResponseSchema.parse(payload).data
   } catch (error) {
     return normalizeAPIError(error)

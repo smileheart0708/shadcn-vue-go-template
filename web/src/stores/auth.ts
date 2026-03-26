@@ -1,7 +1,7 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import type { Router } from 'vue-router'
-import type { AuthUser, LoginCredentials, LoginResponse } from '@/lib/api/auth'
+import type { AuthUser, GetCurrentUserOptions, LoginCredentials, LoginResponse } from '@/lib/api/auth'
 import type { ChangePasswordInput, UpdateProfileInput } from '@/lib/api/account'
 import { getCurrentUser, login as loginRequest, logout as logoutRequest, refreshSession } from '@/lib/api/auth'
 import { deleteAccount as deleteAccountRequest, updatePassword as updatePasswordRequest, updateProfile as updateProfileRequest, uploadAvatar as uploadAvatarRequest } from '@/lib/api/account'
@@ -53,6 +53,10 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   function setUser(nextUser: AuthUser | null) {
+    if (sameAuthUser(user.value, nextUser)) {
+      return
+    }
+
     user.value = nextUser
   }
 
@@ -69,7 +73,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   function applySession(response: LoginResponse) {
     setToken(response.accessToken)
-    setUser(response.user)
+    applyCurrentUser(response.user)
     initialized.value = true
   }
 
@@ -77,6 +81,14 @@ export const useAuthStore = defineStore('auth', () => {
     setToken(null)
     setUser(null)
     initialized.value = true
+  }
+
+  async function fetchCurrentUser(options: GetCurrentUserOptions = {}) {
+    return getCurrentUser(options)
+  }
+
+  function applyCurrentUser(nextUser: AuthUser) {
+    setUser(nextUser)
   }
 
   async function initialize() {
@@ -95,8 +107,8 @@ export const useAuthStore = defineStore('auth', () => {
         const currentToken = token.value
         if (currentToken) {
           try {
-            const nextUser = await getCurrentUser()
-            setUser(nextUser)
+            const nextUser = await fetchCurrentUser()
+            applyCurrentUser(nextUser)
             initialized.value = true
             return
           } catch {
@@ -127,14 +139,14 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function saveProfile(profile: UpdateProfileInput) {
     const nextUser = await updateProfileRequest(profile)
-    setUser(nextUser)
-    return nextUser
+    applyCurrentUser(nextUser)
+    return user.value ?? nextUser
   }
 
   async function uploadAvatar(file: File) {
     const nextUser = await uploadAvatarRequest(file)
-    setUser(nextUser)
-    return nextUser
+    applyCurrentUser(nextUser)
+    return user.value ?? nextUser
   }
 
   async function changePassword(input: ChangePasswordInput) {
@@ -177,6 +189,8 @@ export const useAuthStore = defineStore('auth', () => {
     user,
     isAuthenticated,
     bindRouter,
+    fetchCurrentUser,
+    applyCurrentUser,
     initialize,
     login,
     saveProfile,
@@ -187,6 +201,25 @@ export const useAuthStore = defineStore('auth', () => {
     resetSession,
   }
 })
+
+function sameAuthUser(currentUser: AuthUser | null, nextUser: AuthUser | null) {
+  if (currentUser === nextUser) {
+    return true
+  }
+
+  if (!currentUser || !nextUser) {
+    return currentUser === nextUser
+  }
+
+  return (
+    currentUser.id === nextUser.id &&
+    currentUser.username === nextUser.username &&
+    currentUser.email === nextUser.email &&
+    currentUser.avatarUrl === nextUser.avatarUrl &&
+    currentUser.role === nextUser.role &&
+    currentUser.mustChangePassword === nextUser.mustChangePassword
+  )
+}
 
 if (import.meta.hot) {
   import.meta.hot.dispose(() => {

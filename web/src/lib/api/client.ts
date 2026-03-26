@@ -5,9 +5,12 @@ interface APIErrorPayload {
   error?: { code?: string; message?: string }
 }
 
-interface AuthClientContext {
+export const BACKGROUND_REQUEST_HEADER = 'X-App-Background-Request'
+
+interface APIClientContext {
   authRetryAttempted?: boolean
   skipAuthRefresh?: boolean
+  backgroundRequest?: boolean
 }
 
 type RefreshAccessTokenHandler = () => Promise<string>
@@ -48,6 +51,8 @@ export function clearAuthClientHandlers() {
 const sharedHooks = {
   beforeRequest: [
     (request: Request, options: Options) => {
+      const context = readAPIClientContext(options)
+
       if (!request.headers.has('Accept')) {
         request.headers.set('Accept', 'application/json')
       }
@@ -55,6 +60,10 @@ const sharedHooks = {
       const requestHasJSONBody = 'json' in options && options.json !== undefined && !request.headers.has('Content-Type')
       if (requestHasJSONBody) {
         request.headers.set('Content-Type', 'application/json')
+      }
+
+      if (context.backgroundRequest) {
+        request.headers.set(BACKGROUND_REQUEST_HEADER, '1')
       }
     },
   ],
@@ -82,7 +91,7 @@ export const authApi = ky.create({
     ],
     afterResponse: [
       async (request, options, response) => {
-        const context = readAuthClientContext(options)
+        const context = readAPIClientContext(options)
         if (response.status !== 401 || context.skipAuthRefresh || context.authRetryAttempted || isAuthLifecycleRequest(request)) {
           return response
         }
@@ -110,7 +119,7 @@ export const authApi = ky.create({
           context: {
             ...context,
             authRetryAttempted: true,
-          } satisfies AuthClientContext,
+          } satisfies APIClientContext,
         })
       },
     ],
@@ -166,15 +175,16 @@ async function readResponsePayload(response: Response): Promise<unknown> {
   return text
 }
 
-function readAuthClientContext(options: Options): AuthClientContext {
+function readAPIClientContext(options: Options): APIClientContext {
   if (!isRecord(options.context)) {
     return {}
   }
 
-  const { authRetryAttempted, skipAuthRefresh } = options.context
+  const { authRetryAttempted, skipAuthRefresh, backgroundRequest } = options.context
   return {
     authRetryAttempted: authRetryAttempted === true,
     skipAuthRefresh: skipAuthRefresh === true,
+    backgroundRequest: backgroundRequest === true,
   }
 }
 
