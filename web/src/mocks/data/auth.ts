@@ -17,3 +17,8 @@ export const MOCK_LOGIN_RESPONSE = {
   expiresAt: '2099-01-01T00:00:00.000Z',
   user: MOCK_AUTH_USER,
 } as const
+
+export const MOCK_REFRESH_RESPONSE = {
+  ...MOCK_LOGIN_RESPONSE,
+  accessToken: 'mock-access-token-refreshed',
+} as const

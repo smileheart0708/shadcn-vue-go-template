@@ -273,6 +273,7 @@ async function updatePassword() {
     }
 
     toast.success(t('settings.account.passwordUpdated'))
+    await router.push({ name: 'login' })
   } catch (error) {
     const message = getAPIErrorMessage(t, error, 'apiError.passwordUpdateFailed')
     passwordError.value = message

@@ -20,6 +20,8 @@ type Config struct {
 	APIRequestLogEnabled bool
 	JWTSecret            string
 	JWTTTL               time.Duration
+	RefreshIdleTTL       time.Duration
+	RefreshAbsoluteTTL   time.Duration
 }
 
 func Load() error {
@@ -61,7 +63,17 @@ func LoadConfig() (Config, error) {
 		return Config{}, err
 	}
 
-	jwtTTL, err := getEnv("JWT_TTL", 24*time.Hour)
+	jwtTTL, err := getEnv("JWT_TTL", 10*time.Minute)
+	if err != nil {
+		return Config{}, err
+	}
+
+	refreshIdleTTL, err := getEnv("REFRESH_IDLE_TTL", 7*24*time.Hour)
+	if err != nil {
+		return Config{}, err
+	}
+
+	refreshAbsoluteTTL, err := getEnv("REFRESH_ABSOLUTE_TTL", 30*24*time.Hour)
 	if err != nil {
 		return Config{}, err
 	}
@@ -73,6 +85,8 @@ func LoadConfig() (Config, error) {
 		APIRequestLogEnabled: apiRequestLogEnabled,
 		JWTSecret:            jwtSecret,
 		JWTTTL:               jwtTTL,
+		RefreshIdleTTL:       refreshIdleTTL,
+		RefreshAbsoluteTTL:   refreshAbsoluteTTL,
 	}, nil
 }
 

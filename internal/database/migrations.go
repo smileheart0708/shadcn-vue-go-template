@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -39,6 +40,90 @@ ON users(email)
 WHERE email IS NOT NULL AND email <> '';`
 			if _, err := tx.ExecContext(ctx, createUsersEmailIndex); err != nil {
 				return fmt.Errorf("db: failed to create users email index: %w", err)
+			}
+
+			return nil
+		},
+	},
+	{
+		Version: 2,
+		Up: func(ctx context.Context, tx *sql.Tx) error {
+			const addAuthVersion = `
+ALTER TABLE users ADD COLUMN auth_version INTEGER NOT NULL DEFAULT 1;`
+			if _, err := tx.ExecContext(ctx, addAuthVersion); err != nil && !isDuplicateColumnError(err) {
+				return fmt.Errorf("db: failed to add users.auth_version: %w", err)
+			}
+
+			const addPasswordChangedAt = `
+ALTER TABLE users ADD COLUMN password_changed_at INTEGER NULL;`
+			if _, err := tx.ExecContext(ctx, addPasswordChangedAt); err != nil && !isDuplicateColumnError(err) {
+				return fmt.Errorf("db: failed to add users.password_changed_at: %w", err)
+			}
+
+			const createRefreshSessionsTable = `
+CREATE TABLE IF NOT EXISTS auth_refresh_sessions (
+    id TEXT PRIMARY KEY,
+    user_id INTEGER NOT NULL,
+    token_hash TEXT NOT NULL,
+    issued_at INTEGER NOT NULL,
+    last_used_at INTEGER NOT NULL,
+    expires_at INTEGER NOT NULL,
+    idle_expires_at INTEGER NOT NULL,
+    revoked_at INTEGER NULL,
+    revoke_reason TEXT NULL,
+    ip TEXT NULL,
+    user_agent TEXT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);`
+			if _, err := tx.ExecContext(ctx, createRefreshSessionsTable); err != nil {
+				return fmt.Errorf("db: failed to create auth_refresh_sessions table: %w", err)
+			}
+
+			const createRefreshUserIndex = `
+CREATE INDEX IF NOT EXISTS auth_refresh_sessions_user_idx
+ON auth_refresh_sessions(user_id);`
+			if _, err := tx.ExecContext(ctx, createRefreshUserIndex); err != nil {
+				return fmt.Errorf("db: failed to create auth_refresh_sessions user index: %w", err)
+			}
+
+			const createRefreshRevokedIndex = `
+CREATE INDEX IF NOT EXISTS auth_refresh_sessions_revoked_idx
+ON auth_refresh_sessions(revoked_at);`
+			if _, err := tx.ExecContext(ctx, createRefreshRevokedIndex); err != nil {
+				return fmt.Errorf("db: failed to create auth_refresh_sessions revoked index: %w", err)
+			}
+
+			const createAuthLoginLogsTable = `
+CREATE TABLE IF NOT EXISTS auth_login_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NULL,
+    session_id TEXT NULL,
+    identifier TEXT NULL,
+    ip TEXT NULL,
+    user_agent TEXT NULL,
+    event_type TEXT NOT NULL,
+    success INTEGER NOT NULL,
+    failure_reason TEXT NULL,
+    created_at INTEGER NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
+    FOREIGN KEY (session_id) REFERENCES auth_refresh_sessions(id) ON DELETE SET NULL
+);`
+			if _, err := tx.ExecContext(ctx, createAuthLoginLogsTable); err != nil {
+				return fmt.Errorf("db: failed to create auth_login_logs table: %w", err)
+			}
+
+			const createAuthLoginLogsCreatedAtIndex = `
+CREATE INDEX IF NOT EXISTS auth_login_logs_created_at_idx
+ON auth_login_logs(created_at DESC);`
+			if _, err := tx.ExecContext(ctx, createAuthLoginLogsCreatedAtIndex); err != nil {
+				return fmt.Errorf("db: failed to create auth_login_logs created_at index: %w", err)
+			}
+
+			const createAuthLoginLogsUserIndex = `
+CREATE INDEX IF NOT EXISTS auth_login_logs_user_idx
+ON auth_login_logs(user_id, created_at DESC);`
+			if _, err := tx.ExecContext(ctx, createAuthLoginLogsUserIndex); err != nil {
+				return fmt.Errorf("db: failed to create auth_login_logs user index: %w", err)
 			}
 
 			return nil
@@ -166,4 +251,13 @@ func applyMigration(ctx context.Context, db *sql.DB, m Migration) error {
 	}
 
 	return nil
+}
+
+func isDuplicateColumnError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	message := err.Error()
+	return strings.Contains(message, "duplicate column name: auth_version") || strings.Contains(message, "duplicate column name: password_changed_at")
 }

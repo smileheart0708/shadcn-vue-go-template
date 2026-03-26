@@ -1,5 +1,5 @@
 import { http, HttpResponse } from 'msw'
-import { MOCK_AUTH_TOKEN, MOCK_AUTH_USER, MOCK_LOGIN_CREDENTIALS, MOCK_LOGIN_RESPONSE } from '@/mocks/data/auth'
+import { MOCK_AUTH_TOKEN, MOCK_AUTH_USER, MOCK_LOGIN_CREDENTIALS, MOCK_LOGIN_RESPONSE, MOCK_REFRESH_RESPONSE } from '@/mocks/data/auth'
 
 interface LoginRequestBody {
   identifier?: string
@@ -20,33 +20,77 @@ function createUnauthorizedResponse(message: string) {
 }
 
 export const authHandlers = [
-  http.post('/api/auth/login', async ({ request }) => {
-    const payload = await request.json().catch((): null => null)
+  (() => {
+    let sessionActive = false
+    let currentAccessToken = MOCK_AUTH_TOKEN
 
-    if (!isLoginRequestBody(payload) || payload?.identifier !== MOCK_LOGIN_CREDENTIALS.identifier || payload?.password !== MOCK_LOGIN_CREDENTIALS.password) {
-      return HttpResponse.json(
-        {
-          success: false,
-          error: { code: 'invalid_credentials', message: 'Invalid credentials.' },
-        },
-        { status: 401 },
-      )
+    const activateSession = () => {
+      sessionActive = true
+      currentAccessToken = MOCK_LOGIN_RESPONSE.accessToken
     }
 
-    return HttpResponse.json({
-      success: true,
-      data: MOCK_LOGIN_RESPONSE,
-    })
-  }),
-  http.get('/api/auth/me', ({ request }) => {
-    const authorization = request.headers.get('Authorization')
+    return [
+      http.post('/api/auth/login', async ({ request }) => {
+        const payload = await request.json().catch((): null => null)
 
-    if (authorization !== `Bearer ${MOCK_AUTH_TOKEN}`) {
-      return createUnauthorizedResponse('Authentication required.')
-    }
+        if (!isLoginRequestBody(payload) || payload?.identifier !== MOCK_LOGIN_CREDENTIALS.identifier || payload?.password !== MOCK_LOGIN_CREDENTIALS.password) {
+          return HttpResponse.json(
+            {
+              success: false,
+              error: { code: 'invalid_credentials', message: 'Invalid credentials.' },
+            },
+            { status: 401 },
+          )
+        }
 
-    return HttpResponse.json({ success: true, data: MOCK_AUTH_USER })
-  }),
+        activateSession()
+
+        return HttpResponse.json({
+          success: true,
+          data: MOCK_LOGIN_RESPONSE,
+        })
+      }),
+      http.post('/api/auth/refresh', () => {
+        if (!sessionActive) {
+          return createUnauthorizedResponse('Refresh session is invalid.')
+        }
+
+        currentAccessToken = MOCK_REFRESH_RESPONSE.accessToken
+        return HttpResponse.json({
+          success: true,
+          data: {
+            ...MOCK_REFRESH_RESPONSE,
+            accessToken: currentAccessToken,
+          },
+        })
+      }),
+      http.post('/api/auth/logout', () => {
+        sessionActive = false
+        currentAccessToken = ''
+        return HttpResponse.json({ success: true, data: { loggedOut: true } })
+      }),
+      http.get('/api/auth/me', ({ request }) => {
+        const authorization = request.headers.get('Authorization')
+
+        if (!sessionActive || authorization !== `Bearer ${currentAccessToken}`) {
+          return createUnauthorizedResponse('Authentication required.')
+        }
+
+        return HttpResponse.json({ success: true, data: MOCK_AUTH_USER })
+      }),
+      http.post('/api/account/password', () => {
+        sessionActive = false
+        currentAccessToken = ''
+        return HttpResponse.json({
+          success: true,
+          data: {
+            ...MOCK_AUTH_USER,
+            mustChangePassword: false,
+          },
+        })
+      }),
+    ]
+  })(),
   http.patch('/api/account/profile', async ({ request }) => {
     const payload = await request.json().catch((): null => null)
     if (!isRecord(payload)) {
@@ -71,17 +115,8 @@ export const authHandlers = [
       },
     })
   }),
-  http.post('/api/account/password', () => {
-    return HttpResponse.json({
-      success: true,
-      data: {
-        ...MOCK_AUTH_USER,
-        mustChangePassword: false,
-      },
-    })
-  }),
   http.delete('/api/account', () => HttpResponse.json({ success: true, data: { deleted: true } })),
-]
+].flat()
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null

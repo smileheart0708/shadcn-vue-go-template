@@ -3,6 +3,7 @@ package users
 import (
 	"net/url"
 	"path"
+	"time"
 )
 
 const (
@@ -19,6 +20,8 @@ type User struct {
 	AvatarPath              *string
 	Role                    int
 	BootstrapPasswordActive bool
+	AuthVersion             int64
+	PasswordChangedAt       *time.Time
 }
 
 type PublicUser struct {

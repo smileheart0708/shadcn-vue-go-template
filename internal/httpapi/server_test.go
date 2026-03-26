@@ -125,6 +125,34 @@ func TestLoginAndMeFlow(t *testing.T) {
 	}
 }
 
+func TestLoginSetsRefreshCookieAndWritesLog(t *testing.T) {
+	t.Parallel()
+
+	ctx := newTestContext(t, false)
+	response, refreshCookie := loginBootstrapAdminSession(t, ctx)
+
+	if refreshCookie == nil {
+		t.Fatal("expected refresh cookie to be set")
+	}
+	if !refreshCookie.HttpOnly {
+		t.Fatal("expected refresh cookie to be httpOnly")
+	}
+	if refreshCookie.Path != refreshCookiePath {
+		t.Fatalf("expected refresh cookie path %q, got %q", refreshCookiePath, refreshCookie.Path)
+	}
+	if response.AccessToken == "" {
+		t.Fatal("expected access token in login response")
+	}
+
+	logs, err := ctx.store.ListAuthLogs(context.Background())
+	if err != nil {
+		t.Fatalf("failed to list auth logs: %v", err)
+	}
+	if len(logs) != 1 || logs[0].EventType != "login_success" || !logs[0].Success {
+		t.Fatalf("expected one login_success log, got %+v", logs)
+	}
+}
+
 func TestLoginSupportsEmailIdentifier(t *testing.T) {
 	t.Parallel()
 
@@ -177,6 +205,161 @@ func TestInvalidCredentialsReturnUnauthorized(t *testing.T) {
 	}
 	if response.Error.Code != "invalid_credentials" {
 		t.Fatalf("expected invalid_credentials, got %q", response.Error.Code)
+	}
+
+	logs, err := ctx.store.ListAuthLogs(context.Background())
+	if err != nil {
+		t.Fatalf("failed to list auth logs: %v", err)
+	}
+	if len(logs) != 1 || logs[0].EventType != "login_failed" || logs[0].Success {
+		t.Fatalf("expected one login_failed log, got %+v", logs)
+	}
+}
+
+func TestRefreshRotatesTokenAndWritesLog(t *testing.T) {
+	t.Parallel()
+
+	ctx := newTestContext(t, false)
+	_, refreshCookie := loginBootstrapAdminSession(t, ctx)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/auth/refresh", nil)
+	req.AddCookie(refreshCookie)
+	rec := httptest.NewRecorder()
+
+	ctx.handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, rec.Code, rec.Body.String())
+	}
+
+	var response testSuccessEnvelope[loginResponse]
+	decodeJSONResponse(t, rec.Body.Bytes(), &response)
+	if response.Data.AccessToken == "" {
+		t.Fatal("expected refreshed access token")
+	}
+
+	nextCookie := findCookie(rec.Result().Cookies(), refreshCookieName)
+	if nextCookie == nil {
+		t.Fatal("expected rotated refresh cookie")
+	}
+	if nextCookie.Value == refreshCookie.Value {
+		t.Fatal("expected refresh token rotation to change cookie value")
+	}
+
+	logs, err := ctx.store.ListAuthLogs(context.Background())
+	if err != nil {
+		t.Fatalf("failed to list auth logs: %v", err)
+	}
+	if len(logs) != 2 || logs[1].EventType != "refresh_success" || !logs[1].Success {
+		t.Fatalf("expected refresh_success log after login, got %+v", logs)
+	}
+}
+
+func TestExpiredAccessTokenCanRefreshSession(t *testing.T) {
+	t.Parallel()
+
+	ctx := newTestContextWithAuthOptions(t, false, AuthOptions{
+		Issuer:             "test-suite",
+		Secret:             []byte("test-secret"),
+		TTL:                5 * time.Millisecond,
+		RefreshIdleTTL:     7 * 24 * time.Hour,
+		RefreshAbsoluteTTL: 30 * 24 * time.Hour,
+	})
+	response, refreshCookie := loginBootstrapAdminSession(t, ctx)
+
+	time.Sleep(20 * time.Millisecond)
+
+	meReq := httptest.NewRequest(http.MethodGet, "/api/auth/me", nil)
+	meReq.Header.Set("Authorization", "Bearer "+response.AccessToken)
+	meRec := httptest.NewRecorder()
+	ctx.handler.ServeHTTP(meRec, meReq)
+
+	if meRec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected expired access token to fail with 401, got %d", meRec.Code)
+	}
+
+	refreshReq := httptest.NewRequest(http.MethodPost, "/api/auth/refresh", nil)
+	refreshReq.AddCookie(refreshCookie)
+	refreshRec := httptest.NewRecorder()
+	ctx.handler.ServeHTTP(refreshRec, refreshReq)
+
+	if refreshRec.Code != http.StatusOK {
+		t.Fatalf("expected refresh status %d, got %d: %s", http.StatusOK, refreshRec.Code, refreshRec.Body.String())
+	}
+}
+
+func TestPasswordChangeInvalidatesOldAccessAndRefreshTokens(t *testing.T) {
+	t.Parallel()
+
+	ctx := newTestContext(t, false)
+	loginResponse, refreshCookie := loginBootstrapAdminSession(t, ctx)
+	bootstrapPassword := readBootstrapPassword(t, ctx.dataDir)
+
+	changeReq := httptest.NewRequest(
+		http.MethodPost,
+		"/api/account/password",
+		strings.NewReader(`{"currentPassword":"`+bootstrapPassword+`","newPassword":"newsecure1"}`),
+	)
+	changeReq.Header.Set("Content-Type", "application/json")
+	changeReq.Header.Set("Authorization", "Bearer "+loginResponse.AccessToken)
+	changeReq.AddCookie(refreshCookie)
+	changeRec := httptest.NewRecorder()
+
+	ctx.handler.ServeHTTP(changeRec, changeReq)
+
+	if changeRec.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, changeRec.Code, changeRec.Body.String())
+	}
+
+	meReq := httptest.NewRequest(http.MethodGet, "/api/auth/me", nil)
+	meReq.Header.Set("Authorization", "Bearer "+loginResponse.AccessToken)
+	meRec := httptest.NewRecorder()
+	ctx.handler.ServeHTTP(meRec, meReq)
+
+	if meRec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected old access token to be rejected after password change, got %d", meRec.Code)
+	}
+
+	refreshReq := httptest.NewRequest(http.MethodPost, "/api/auth/refresh", nil)
+	refreshReq.AddCookie(refreshCookie)
+	refreshRec := httptest.NewRecorder()
+	ctx.handler.ServeHTTP(refreshRec, refreshReq)
+
+	if refreshRec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected old refresh token to be rejected after password change, got %d", refreshRec.Code)
+	}
+
+	logs, err := ctx.store.ListAuthLogs(context.Background())
+	if err != nil {
+		t.Fatalf("failed to list auth logs: %v", err)
+	}
+	if !containsAuthEvent(logs, "password_changed") || !containsAuthEvent(logs, "password_changed_forced_logout") {
+		t.Fatalf("expected password change auth logs, got %+v", logs)
+	}
+}
+
+func TestLogoutInvalidatesRefreshToken(t *testing.T) {
+	t.Parallel()
+
+	ctx := newTestContext(t, false)
+	_, refreshCookie := loginBootstrapAdminSession(t, ctx)
+
+	logoutReq := httptest.NewRequest(http.MethodPost, "/api/auth/logout", nil)
+	logoutReq.AddCookie(refreshCookie)
+	logoutRec := httptest.NewRecorder()
+	ctx.handler.ServeHTTP(logoutRec, logoutReq)
+
+	if logoutRec.Code != http.StatusOK {
+		t.Fatalf("expected logout status %d, got %d: %s", http.StatusOK, logoutRec.Code, logoutRec.Body.String())
+	}
+
+	refreshReq := httptest.NewRequest(http.MethodPost, "/api/auth/refresh", nil)
+	refreshReq.AddCookie(refreshCookie)
+	refreshRec := httptest.NewRecorder()
+	ctx.handler.ServeHTTP(refreshRec, refreshReq)
+
+	if refreshRec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected refresh token to be rejected after logout, got %d", refreshRec.Code)
 	}
 }
 
@@ -328,7 +511,7 @@ func TestDeleteAccountAllowsNormalUsers(t *testing.T) {
 		PasswordHash: mustHashPassword(t, "member123"),
 		Role:         users.RoleUser,
 	})
-	token := issueTokenForUser(t, ctx.auth, user)
+	token := issueTokenForUser(t, ctx, user)
 
 	req := httptest.NewRequest(http.MethodDelete, "/api/account", nil)
 	req.Header.Set("Authorization", "Bearer "+token)
@@ -456,7 +639,7 @@ func TestAdminSystemLogsRequiresAdmin(t *testing.T) {
 	})
 
 	req := httptest.NewRequest(http.MethodGet, "/api/admin/system-logs/stream", nil)
-	req.Header.Set("Authorization", "Bearer "+issueTokenForUser(t, ctx.auth, user))
+	req.Header.Set("Authorization", "Bearer "+issueTokenForUser(t, ctx, user))
 	rec := httptest.NewRecorder()
 
 	ctx.handler.ServeHTTP(rec, req)
@@ -567,6 +750,16 @@ func TestAdminSystemLogsInvalidTailFallsBackAndLogs(t *testing.T) {
 }
 
 func newTestContext(t *testing.T, logAPIRequests bool) *testContext {
+	return newTestContextWithAuthOptions(t, logAPIRequests, AuthOptions{
+		Issuer:             "test-suite",
+		Secret:             []byte("test-secret"),
+		TTL:                time.Hour,
+		RefreshIdleTTL:     7 * 24 * time.Hour,
+		RefreshAbsoluteTTL: 30 * 24 * time.Hour,
+	})
+}
+
+func newTestContextWithAuthOptions(t *testing.T, logAPIRequests bool, auth AuthOptions) *testContext {
 	t.Helper()
 
 	dataDir := t.TempDir()
@@ -590,12 +783,6 @@ func newTestContext(t *testing.T, logAPIRequests bool) *testContext {
 		t.Fatalf("failed to bootstrap default super admin: %v", err)
 	}
 	logs.Reset()
-
-	auth := AuthOptions{
-		Issuer: "test-suite",
-		Secret: []byte("test-secret"),
-		TTL:    time.Hour,
-	}
 
 	logStream := logging.NewStream(logging.StreamOptions{
 		Capacity: logging.DefaultStreamCapacity,
@@ -624,6 +811,13 @@ func newTestContext(t *testing.T, logAPIRequests bool) *testContext {
 func loginAsBootstrapAdmin(t *testing.T, ctx *testContext) string {
 	t.Helper()
 
+	response, _ := loginBootstrapAdminSession(t, ctx)
+	return response.AccessToken
+}
+
+func loginBootstrapAdminSession(t *testing.T, ctx *testContext) (loginResponse, *http.Cookie) {
+	t.Helper()
+
 	password := readBootstrapPassword(t, ctx.dataDir)
 	req := httptest.NewRequest(http.MethodPost, "/api/auth/login", strings.NewReader(`{"identifier":"admin","password":"`+password+`"}`))
 	req.Header.Set("Content-Type", "application/json")
@@ -637,14 +831,20 @@ func loginAsBootstrapAdmin(t *testing.T, ctx *testContext) string {
 
 	var response testSuccessEnvelope[loginResponse]
 	decodeJSONResponse(t, rec.Body.Bytes(), &response)
-	return response.Data.AccessToken
+	refreshCookie := findCookie(rec.Result().Cookies(), refreshCookieName)
+	return response.Data, refreshCookie
 }
 
-func issueTokenForUser(t *testing.T, authOptions AuthOptions, user users.User) string {
+func issueTokenForUser(t *testing.T, ctx *testContext, user users.User) string {
 	t.Helper()
 
-	service := NewAuthService(authOptions)
-	token, _, err := service.IssueToken(user)
+	service := NewAuthService(ctx.auth, ctx.store)
+	sessionID, _, err := service.CreateRefreshSession(context.Background(), user, "", "")
+	if err != nil {
+		t.Fatalf("failed to create refresh session: %v", err)
+	}
+
+	token, _, err := service.IssueToken(user, sessionID)
 	if err != nil {
 		t.Fatalf("failed to issue token: %v", err)
 	}
@@ -814,4 +1014,22 @@ func readSystemLogEvents(t *testing.T, body io.Reader, count int) []logging.Stre
 
 func stringPointer(value string) *string {
 	return &value
+}
+
+func findCookie(cookies []*http.Cookie, name string) *http.Cookie {
+	for _, cookie := range cookies {
+		if cookie.Name == name {
+			return cookie
+		}
+	}
+	return nil
+}
+
+func containsAuthEvent(records []users.AuthLogRecord, eventType string) bool {
+	for _, record := range records {
+		if record.EventType == eventType {
+			return true
+		}
+	}
+	return false
 }

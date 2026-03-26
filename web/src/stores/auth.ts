@@ -1,20 +1,56 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
+import type { Router } from 'vue-router'
 import type { AuthUser, LoginCredentials, LoginResponse } from '@/lib/api/auth'
 import type { ChangePasswordInput, UpdateProfileInput } from '@/lib/api/account'
-import { getCurrentUser, login as loginRequest } from '@/lib/api/auth'
+import { getCurrentUser, login as loginRequest, logout as logoutRequest, refreshSession } from '@/lib/api/auth'
 import { deleteAccount as deleteAccountRequest, updatePassword as updatePasswordRequest, updateProfile as updateProfileRequest, uploadAvatar as uploadAvatarRequest } from '@/lib/api/account'
+import { clearAuthClientHandlers, registerAuthClientHandlers } from '@/lib/api/client'
 import { clearAuthToken, readAuthToken, writeAuthToken } from '@/lib/auth/token'
 
 export const useAuthStore = defineStore('auth', () => {
   const initialized = ref(false)
-  const loading = ref(false)
+  const initializing = ref(false)
+  const refreshing = ref(false)
   const token = ref<string | null>(readAuthToken())
   const user = ref<AuthUser | null>(null)
 
   const isAuthenticated = computed(() => Boolean(token.value && user.value))
 
   let initializePromise: Promise<void> | null = null
+  let boundRouter: Router | null = null
+  let clientHandlersRegistered = false
+
+  function bindRouter(router: Router) {
+    boundRouter = router
+
+    if (clientHandlersRegistered) {
+      return
+    }
+
+    registerAuthClientHandlers({
+      refreshAccessToken: async () => {
+        refreshing.value = true
+
+        try {
+          const response = await refreshSession()
+          applySession(response)
+          return response.accessToken
+        } catch (error) {
+          resetSession()
+          throw error
+        } finally {
+          refreshing.value = false
+        }
+      },
+      onUnauthorized: async () => {
+        resetSession()
+        await redirectToLogin()
+      },
+    })
+
+    clientHandlersRegistered = true
+  }
 
   function setUser(nextUser: AuthUser | null) {
     user.value = nextUser
@@ -31,8 +67,20 @@ export const useAuthStore = defineStore('auth', () => {
     clearAuthToken()
   }
 
+  function applySession(response: LoginResponse) {
+    setToken(response.accessToken)
+    setUser(response.user)
+    initialized.value = true
+  }
+
+  function resetSession() {
+    setToken(null)
+    setUser(null)
+    initialized.value = true
+  }
+
   async function initialize() {
-    if (initialized.value) {
+    if (initialized.value && user.value !== null) {
       return
     }
 
@@ -40,24 +88,30 @@ export const useAuthStore = defineStore('auth', () => {
       return initializePromise
     }
 
-    if (!token.value) {
-      initialized.value = true
-      user.value = null
-      return
-    }
-
     initializePromise = (async () => {
-      loading.value = true
+      initializing.value = true
 
       try {
-        const nextUser = await getCurrentUser()
-        setUser(nextUser)
-      } catch {
-        setToken(null)
-        setUser(null)
+        const currentToken = token.value
+        if (currentToken) {
+          try {
+            const nextUser = await getCurrentUser()
+            setUser(nextUser)
+            initialized.value = true
+            return
+          } catch {
+            resetSession()
+          }
+        }
+
+        try {
+          const response = await refreshSession()
+          applySession(response)
+        } catch {
+          resetSession()
+        }
       } finally {
-        initialized.value = true
-        loading.value = false
+        initializing.value = false
         initializePromise = null
       }
     })()
@@ -67,9 +121,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function login(credentials: LoginCredentials): Promise<LoginResponse> {
     const response = await loginRequest(credentials)
-    setToken(response.accessToken)
-    setUser(response.user)
-    initialized.value = true
+    applySession(response)
     return response
   }
 
@@ -86,28 +138,45 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function changePassword(input: ChangePasswordInput) {
-    const nextUser = await updatePasswordRequest(input)
-    setUser(nextUser)
-    return nextUser
+    await updatePasswordRequest(input)
+    resetSession()
   }
 
   async function deleteAccount() {
     await deleteAccountRequest()
-    logout()
+    resetSession()
   }
 
-  function logout() {
-    setToken(null)
-    setUser(null)
-    initialized.value = true
+  async function logout() {
+    try {
+      await logoutRequest()
+    } finally {
+      resetSession()
+    }
+  }
+
+  async function redirectToLogin() {
+    if (!boundRouter) {
+      return
+    }
+
+    const currentRoute = boundRouter.currentRoute.value
+    const redirect = currentRoute.fullPath !== '/login' ? currentRoute.fullPath : undefined
+
+    await boundRouter.push({
+      name: 'login',
+      query: redirect ? { redirect } : undefined,
+    }).catch(() => undefined)
   }
 
   return {
     initialized,
-    loading,
+    initializing,
+    refreshing,
     token,
     user,
     isAuthenticated,
+    bindRouter,
     initialize,
     login,
     saveProfile,
@@ -115,5 +184,12 @@ export const useAuthStore = defineStore('auth', () => {
     changePassword,
     deleteAccount,
     logout,
+    resetSession,
   }
 })
+
+if (import.meta.hot) {
+  import.meta.hot.dispose(() => {
+    clearAuthClientHandlers()
+  })
+}

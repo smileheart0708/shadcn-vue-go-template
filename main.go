@@ -85,8 +85,10 @@ func main() {
 			FrontendFS:     frontendAssets,
 			LogAPIRequests: cfg.APIRequestLogEnabled,
 			Auth: httpapi.AuthOptions{
-				Secret: []byte(cfg.JWTSecret),
-				TTL:    cfg.JWTTTL,
+				Secret:             []byte(cfg.JWTSecret),
+				TTL:                cfg.JWTTTL,
+				RefreshIdleTTL:     cfg.RefreshIdleTTL,
+				RefreshAbsoluteTTL: cfg.RefreshAbsoluteTTL,
 			},
 		}),
 		ReadHeaderTimeout: 5 * time.Second,
