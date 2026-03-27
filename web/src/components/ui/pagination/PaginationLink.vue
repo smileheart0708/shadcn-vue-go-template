@@ -4,15 +4,18 @@ import type { ButtonVariants } from '@/components/ui/button'
 import { buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
-const props = withDefaults(defineProps<{
-  href?: string
-  size?: ButtonVariants['size']
-  isActive?: boolean
-  class?: HTMLAttributes['class']
-}>(), {
-  size: 'icon',
-  isActive: false,
-})
+const props = withDefaults(
+  defineProps<{
+    href?: string
+    size?: ButtonVariants['size']
+    isActive?: boolean
+    class?: HTMLAttributes['class']
+  }>(),
+  {
+    size: 'icon',
+    isActive: false,
+  },
+)
 </script>
 
 <template>
@@ -21,14 +24,16 @@ const props = withDefaults(defineProps<{
     data-slot="pagination-link"
     :data-active="isActive"
     :aria-current="isActive ? 'page' : undefined"
-    :class="cn(
-      buttonVariants({
-        variant: isActive ? 'outline' : 'ghost',
-        size,
-      }),
-      'cn-pagination-link',
-      props.class,
-    )"
+    :class="
+      cn(
+        buttonVariants({
+          variant: isActive ? 'outline' : 'ghost',
+          size,
+        }),
+        'cn-pagination-link',
+        props.class,
+      )
+    "
   >
     <slot />
   </a>

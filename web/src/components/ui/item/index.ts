@@ -1,16 +1,16 @@
-import type { VariantProps } from "class-variance-authority"
-import { cva } from "class-variance-authority"
+import type { VariantProps } from 'class-variance-authority'
+import { cva } from 'class-variance-authority'
 
-export { default as Item } from "./Item.vue"
-export { default as ItemActions } from "./ItemActions.vue"
-export { default as ItemContent } from "./ItemContent.vue"
-export { default as ItemDescription } from "./ItemDescription.vue"
-export { default as ItemFooter } from "./ItemFooter.vue"
-export { default as ItemGroup } from "./ItemGroup.vue"
-export { default as ItemHeader } from "./ItemHeader.vue"
-export { default as ItemMedia } from "./ItemMedia.vue"
-export { default as ItemSeparator } from "./ItemSeparator.vue"
-export { default as ItemTitle } from "./ItemTitle.vue"
+export { default as Item } from './Item.vue'
+export { default as ItemActions } from './ItemActions.vue'
+export { default as ItemContent } from './ItemContent.vue'
+export { default as ItemDescription } from './ItemDescription.vue'
+export { default as ItemFooter } from './ItemFooter.vue'
+export { default as ItemGroup } from './ItemGroup.vue'
+export { default as ItemHeader } from './ItemHeader.vue'
+export { default as ItemMedia } from './ItemMedia.vue'
+export { default as ItemSeparator } from './ItemSeparator.vue'
+export { default as ItemTitle } from './ItemTitle.vue'
 
 export const itemVariants = cva(
   'w-full group/item focus-visible:border-ring focus-visible:ring-ring/50 flex items-center flex-wrap outline-none transition-colors duration-100 focus-visible:ring-[3px] [a]:transition-colors',
@@ -35,18 +35,17 @@ export const itemVariants = cva(
 )
 
 export const itemMediaVariants = cva(
-  "flex shrink-0 items-center justify-center gap-2 group-has-[[data-slot=item-description]]/item:self-start [&_svg]:pointer-events-none group-has-[[data-slot=item-description]]/item:translate-y-0.5",
+  'flex shrink-0 items-center justify-center gap-2 group-has-[[data-slot=item-description]]/item:self-start [&_svg]:pointer-events-none group-has-[[data-slot=item-description]]/item:translate-y-0.5',
   {
     variants: {
       variant: {
-        default: "bg-transparent",
+        default: 'bg-transparent',
         icon: "size-8 border rounded-sm bg-muted [&_svg:not([class*='size-'])]:size-4",
-        image:
-          "size-10 rounded-sm overflow-hidden [&_img]:size-full [&_img]:object-cover",
+        image: 'size-10 rounded-sm overflow-hidden [&_img]:size-full [&_img]:object-cover',
       },
     },
     defaultVariants: {
-      variant: "default",
+      variant: 'default',
     },
   },
 )
