@@ -52,6 +52,7 @@ const zhCN = {
     systemLogStreamFailed: '系统日志流连接失败。',
   },
   route: {
+    adminSettings: '管理设置',
     dashboard: '仪表盘',
     login: '登录',
     notFound: '页面不存在',
@@ -60,6 +61,28 @@ const zhCN = {
     systemLogs: '系统日志',
     tasks: '任务',
     feedback: { loadFailed: '页面加载失败，请刷新页面后重试。' },
+  },
+  adminSettings: {
+    title: '管理设置',
+    description: '将仅管理员可见的系统级配置与个人账号偏好分离管理。',
+    badge: '仅管理员',
+    sections: {
+      access: {
+        title: '权限边界',
+        description: '这里用于承载系统级控制项，不应与个人设置混放。',
+        points: ['个人偏好继续留在用户设置页。', '任何管理能力都必须有后端角色校验。', '当数据归属不同，优先使用独立管理路由。'],
+      },
+      observability: {
+        title: '运维工具',
+        description: '系统日志页已经采用管理员独立路由模式，后续管理能力可沿用这套结构。',
+        cta: '打开系统日志',
+      },
+      roadmap: {
+        title: '推荐后续扩展',
+        description: '当后端提供真实管理能力后，再在这里继续补充卡片。',
+        items: ['认证与密码策略', '用户与角色管理', '功能开关或实例级偏好设置'],
+      },
+    },
   },
   settings: {
     title: '设置',
@@ -266,7 +289,7 @@ const zhCN = {
   },
   nav: {
     main: { dashboard: '仪表盘', tasks: '任务', lifecycle: '生命周期', analytics: '分析', projects: '项目', team: '团队' },
-    management: { systemLogs: '系统日志', label: '管理' },
+    management: { adminSettings: '管理设置', systemLogs: '系统日志', label: '管理' },
     secondary: { settings: '设置', getHelp: '获取帮助', search: '搜索' },
     user: { account: '账户', billing: '账单', notifications: '通知', language: '语言', switchLanguage: '切换语言', logout: '退出登录' },
   },

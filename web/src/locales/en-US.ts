@@ -52,6 +52,7 @@ const enUS = {
     systemLogStreamFailed: 'Failed to connect to the system log stream.',
   },
   route: {
+    adminSettings: 'Admin Settings',
     dashboard: 'Dashboard',
     login: 'Login',
     notFound: 'Page not found',
@@ -60,6 +61,32 @@ const enUS = {
     systemLogs: 'System Logs',
     tasks: 'Tasks',
     feedback: { loadFailed: 'Failed to load the page. Please refresh and try again.' },
+  },
+  adminSettings: {
+    title: 'Admin Settings',
+    description: 'Manage administrator-only configuration surfaces separately from personal account preferences.',
+    badge: 'Admin only',
+    sections: {
+      access: {
+        title: 'Access Boundary',
+        description: 'Use this area for system-level controls that should never appear in personal settings.',
+        points: [
+          'Keep personal preferences in the user settings page.',
+          'Protect any linked API with backend role checks.',
+          'Prefer dedicated admin routes when data ownership differs.',
+        ],
+      },
+      observability: {
+        title: 'Operational Tools',
+        description: 'System Logs already follows the admin-only route pattern and remains the reference implementation for future management features.',
+        cta: 'Open System Logs',
+      },
+      roadmap: {
+        title: 'Recommended Next Additions',
+        description: 'Add new cards here when the backend exposes real admin capabilities.',
+        items: ['Authentication and password policy', 'User and role administration', 'Feature flags or instance-wide preferences'],
+      },
+    },
   },
   settings: {
     title: 'Settings',
@@ -266,7 +293,7 @@ const enUS = {
   },
   nav: {
     main: { dashboard: 'Dashboard', tasks: 'Tasks', lifecycle: 'Lifecycle', analytics: 'Analytics', projects: 'Projects', team: 'Team' },
-    management: { systemLogs: 'System Logs', label: 'Management' },
+    management: { adminSettings: 'Admin Settings', systemLogs: 'System Logs', label: 'Management' },
     secondary: { settings: 'Settings', getHelp: 'Get Help', search: 'Search' },
     user: { account: 'Account', billing: 'Billing', notifications: 'Notifications', language: 'Language', switchLanguage: 'Switch Language', logout: 'Log out' },
   },

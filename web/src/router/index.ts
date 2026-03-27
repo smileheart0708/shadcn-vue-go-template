@@ -7,14 +7,15 @@ import type { RouteTitleKey } from '@/router/route-title'
 
 const AppShellLayout = () => import('@/layouts/AppShellLayout.vue')
 const BlankLayout = () => import('@/layouts/BlankLayout.vue')
-const Dashboard = () => import('@/views/Dashboard.vue')
-const Home = () => import('@/views/Home.vue')
-const Login = () => import('@/views/Login.vue')
-const Register = () => import('@/views/Register.vue')
-const Settings = () => import('@/views/Settings.vue')
+const Dashboard = () => import('@/views/DashboardView.vue')
+const Home = () => import('@/views/HomeView.vue')
+const Login = () => import('@/views/LoginView.vue')
+const Register = () => import('@/views/RegisterView.vue')
+const Settings = () => import('@/views/SettingsView.vue')
+const AdminSettings = () => import('@/views/AdminSettingsView.vue')
 const SystemLogs = () => import('@/views/SystemLogsView.vue')
 const Tasks = () => import('@/views/TasksView.vue')
-const NotFound = () => import('@/views/NotFound.vue')
+const NotFound = () => import('@/views/NotFoundView.vue')
 
 function defineAppShellRoute<T extends RouteRecordRaw & { meta: { titleKey: RouteTitleKey } }>(route: T) {
   return route
@@ -32,6 +33,12 @@ const appShellRoutes = [
     name: 'settings',
     component: Settings,
     meta: { titleKey: 'route.settings', requiresAuth: true },
+  }),
+  defineAppShellRoute({
+    path: 'admin/settings',
+    name: 'admin-settings',
+    component: AdminSettings,
+    meta: { titleKey: 'route.adminSettings', requiresAuth: true, requiredRole: USER_ROLE.admin, maskUnauthorizedAsNotFound: true },
   }),
   {
     path: 'tasks',

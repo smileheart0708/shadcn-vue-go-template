@@ -22,6 +22,7 @@ export interface AppShellNavigation {
 export function useAppShellNavigation(): ComputedRef<AppShellNavigation> {
   const { t } = useI18n()
   const authStore = useAuthStore()
+  const isAdmin = computed(() => hasMinimumUserRole(authStore.user?.role ?? 0, USER_ROLE.admin))
 
   return computed(() => {
     return {
@@ -32,7 +33,12 @@ export function useAppShellNavigation(): ComputedRef<AppShellNavigation> {
         { title: t('nav.main.analytics'), icon: IconChartBar, disabled: true },
         { title: t('nav.main.projects'), icon: IconFolder, disabled: true },
       ],
-      management: hasMinimumUserRole(authStore.user?.role ?? 0, USER_ROLE.admin) ? [{ title: t('nav.management.systemLogs'), icon: Logs, to: { name: 'system-logs' } }] : [],
+      management: isAdmin.value
+        ? [
+            { title: t('nav.management.adminSettings'), icon: IconSettings, to: { name: 'admin-settings' } },
+            { title: t('nav.management.systemLogs'), icon: Logs, to: { name: 'system-logs' } },
+          ]
+        : [],
       secondary: [
         { title: t('nav.secondary.settings'), icon: IconSettings, to: { name: 'settings' } },
         { title: t('nav.secondary.getHelp'), icon: IconHelp, disabled: true },
