@@ -1,7 +1,7 @@
 import { computed, type Component, type ComputedRef } from 'vue'
 import type { RouteLocationRaw } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { IconChartBar, IconDashboard, IconFolder, IconHelp, IconListDetails, IconSearch, IconSettings } from '@tabler/icons-vue'
+import { IconChartBar, IconChecklist, IconDashboard, IconFolder, IconHelp, IconListDetails, IconSearch, IconSettings } from '@tabler/icons-vue'
 import { Logs } from 'lucide-vue-next'
 import { hasMinimumUserRole, USER_ROLE } from '@/lib/auth/roles'
 import { useAuthStore } from '@/stores/auth'
@@ -27,6 +27,7 @@ export function useAppShellNavigation(): ComputedRef<AppShellNavigation> {
     return {
       main: [
         { title: t('nav.main.dashboard'), icon: IconDashboard, to: { name: 'dashboard' } },
+        { title: t('nav.main.tasks'), icon: IconChecklist, to: { name: 'tasks' } },
         { title: t('nav.main.lifecycle'), icon: IconListDetails, disabled: true },
         { title: t('nav.main.analytics'), icon: IconChartBar, disabled: true },
         { title: t('nav.main.projects'), icon: IconFolder, disabled: true },

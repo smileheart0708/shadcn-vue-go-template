@@ -12,6 +12,7 @@ const Login = () => import('@/views/Login.vue')
 const Register = () => import('@/views/Register.vue')
 const Settings = () => import('@/views/Settings.vue')
 const SystemLogs = () => import('@/views/SystemLogsView.vue')
+const Tasks = () => import('@/views/TasksView.vue')
 const NotFound = () => import('@/views/NotFound.vue')
 
 function defineAppShellRoute<T extends RouteRecordRaw & { meta: { titleKey: RouteTitleKey } }>(route: T) {
@@ -31,6 +32,12 @@ const appShellRoutes = [
     component: Settings,
     meta: { titleKey: 'route.settings', requiresAuth: true },
   }),
+  {
+    path: 'tasks',
+    name: 'tasks',
+    component: Tasks,
+    meta: { titleKey: 'route.tasks', requiresAuth: true },
+  },
   defineAppShellRoute({
     path: 'system-logs',
     name: 'system-logs',

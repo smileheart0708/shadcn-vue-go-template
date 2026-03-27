@@ -51,7 +51,16 @@ const zhCN = {
     superAdminDeleteForbidden: '超级管理员不能删除自己的账号。',
     systemLogStreamFailed: '系统日志流连接失败。',
   },
-  route: { dashboard: '仪表盘', login: '登录', notFound: '页面不存在', settings: '设置', register: '注册', systemLogs: '系统日志', feedback: { loadFailed: '页面加载失败，请刷新页面后重试。' } },
+  route: {
+    dashboard: '仪表盘',
+    login: '登录',
+    notFound: '页面不存在',
+    settings: '设置',
+    register: '注册',
+    systemLogs: '系统日志',
+    tasks: '任务',
+    feedback: { loadFailed: '页面加载失败，请刷新页面后重试。' },
+  },
   settings: {
     title: '设置',
     description: '管理你的账号设置和偏好',
@@ -256,7 +265,7 @@ const zhCN = {
     },
   },
   nav: {
-    main: { dashboard: '仪表盘', lifecycle: '生命周期', analytics: '分析', projects: '项目', team: '团队' },
+    main: { dashboard: '仪表盘', tasks: '任务', lifecycle: '生命周期', analytics: '分析', projects: '项目', team: '团队' },
     management: { systemLogs: '系统日志', label: '管理' },
     secondary: { settings: '设置', getHelp: '获取帮助', search: '搜索' },
     user: { account: '账户', billing: '账单', notifications: '通知', language: '语言', switchLanguage: '切换语言', logout: '退出登录' },

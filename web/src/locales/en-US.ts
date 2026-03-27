@@ -58,6 +58,7 @@ const enUS = {
     settings: 'Settings',
     register: 'Register',
     systemLogs: 'System Logs',
+    tasks: 'Tasks',
     feedback: { loadFailed: 'Failed to load the page. Please refresh and try again.' },
   },
   settings: {
@@ -264,7 +265,7 @@ const enUS = {
     },
   },
   nav: {
-    main: { dashboard: 'Dashboard', lifecycle: 'Lifecycle', analytics: 'Analytics', projects: 'Projects', team: 'Team' },
+    main: { dashboard: 'Dashboard', tasks: 'Tasks', lifecycle: 'Lifecycle', analytics: 'Analytics', projects: 'Projects', team: 'Team' },
     management: { systemLogs: 'System Logs', label: 'Management' },
     secondary: { settings: 'Settings', getHelp: 'Get Help', search: 'Search' },
     user: { account: 'Account', billing: 'Billing', notifications: 'Notifications', language: 'Language', switchLanguage: 'Switch Language', logout: 'Log out' },
