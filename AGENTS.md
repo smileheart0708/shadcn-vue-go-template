@@ -20,6 +20,7 @@
 - Frontend formatting follows Prettier: no semicolons, single quotes, 200 character print width, trailing commas, and LF line endings.
 - Follow existing Vue naming patterns: components in `PascalCase.vue`, composables as `use*.ts`, and route/store files with descriptive lowercase names.
 - Keep translation keys grouped logically in `web/src/locales/` and reuse shared namespaces such as `common.*`.
+- For new page or component loading states, add `Skeleton` locally at the relevant view or subcomponent instead of trying to auto-register or globally inject it. Keep the dependency explicit where the loading UI is needed.
 
 ## Testing Guidelines
 - Go tests live beside the code as `*_test.go` files.
