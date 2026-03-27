@@ -13,7 +13,7 @@ func TestStreamPublishAndSnapshot(t *testing.T) {
 
 	stream := NewStream(StreamOptions{Capacity: 3})
 
-	for index := 0; index < 5; index++ {
+	for index := range 5 {
 		stream.Publish(StreamEntry{
 			Timestamp: int64(index + 1),
 			Level:     "INFO",
@@ -41,7 +41,7 @@ func TestStreamDropsSlowSubscriber(t *testing.T) {
 	stream := NewStream(StreamOptions{Capacity: 4})
 	subscription := stream.Subscribe()
 
-	for index := 0; index < defaultSubscriberSize+1; index++ {
+	for index := range defaultSubscriberSize + 1 {
 		stream.Publish(StreamEntry{
 			Timestamp: int64(index + 1),
 			Level:     "INFO",

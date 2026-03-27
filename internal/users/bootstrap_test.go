@@ -110,7 +110,7 @@ func TestStoreEnforcesUniqueNullableEmail(t *testing.T) {
 
 	_, err := store.Create(context.Background(), CreateParams{
 		Username:     "first",
-		Email:        stringPointer("shared@example.com"),
+		Email:        new("shared@example.com"),
 		PasswordHash: mustHashPassword(t, "password123"),
 		Role:         RoleUser,
 	})
@@ -120,7 +120,7 @@ func TestStoreEnforcesUniqueNullableEmail(t *testing.T) {
 
 	_, err = store.Create(context.Background(), CreateParams{
 		Username:     "second",
-		Email:        stringPointer("shared@example.com"),
+		Email:        new("shared@example.com"),
 		PasswordHash: mustHashPassword(t, "password123"),
 		Role:         RoleUser,
 	})
@@ -178,8 +178,9 @@ func readPasswordFile(t *testing.T, dataDir string) string {
 	return strings.TrimSpace(string(password))
 }
 
+//go:fix inline
 func stringPointer(value string) *string {
-	return &value
+	return new(value)
 }
 
 func testLogger(buf *bytes.Buffer) *slog.Logger {

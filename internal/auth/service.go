@@ -245,7 +245,7 @@ func (s *Service) RefreshSession(ctx context.Context, rawToken string) (RefreshR
 	}
 
 	attempt := RefreshAttempt{
-		SessionID:     stringPtr(sessionID),
+		SessionID:     new(sessionID),
 		FailureReason: "refresh_failed",
 	}
 
@@ -258,7 +258,7 @@ func (s *Service) RefreshSession(ctx context.Context, rawToken string) (RefreshR
 		return RefreshResult{}, attempt, err
 	}
 
-	attempt.UserID = int64Ptr(sessionState.UserID)
+	attempt.UserID = new(sessionState.UserID)
 
 	tokenHash := hashRefreshToken(rawToken)
 	if subtle.ConstantTimeCompare([]byte(sessionState.TokenHash), []byte(tokenHash)) != 1 {
@@ -340,10 +340,10 @@ func (s *Service) RevokeRefreshSession(ctx context.Context, rawToken string, rea
 	}
 
 	if err := s.revokeRefreshSession(ctx, sessionID, reason); err != nil {
-		return stringPtr(sessionID), err
+		return new(sessionID), err
 	}
 
-	return stringPtr(sessionID), nil
+	return new(sessionID), nil
 }
 
 func (s *Service) RevokeRefreshSessionsByUser(ctx context.Context, userID int64, reason string) error {

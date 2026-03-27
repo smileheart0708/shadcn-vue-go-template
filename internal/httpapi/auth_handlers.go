@@ -45,7 +45,7 @@ func (api *API) loginHandler(w http.ResponseWriter, r *http.Request) {
 				UserAgent:     nullableString(requestUserAgent),
 				EventType:     "login_failed",
 				Success:       false,
-				FailureReason: authStringPointer("invalid_credentials"),
+				FailureReason: new("invalid_credentials"),
 			})
 			writeAPIError(w, http.StatusUnauthorized, "invalid_credentials", "Username/email or password is invalid.")
 			return
@@ -62,13 +62,13 @@ func (api *API) loginHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	if !passwordMatches {
 		api.logAuthEvent(r.Context(), users.AuthLogParams{
-			UserID:        authInt64Pointer(user.ID),
+			UserID:        new(user.ID),
 			Identifier:    nullableString(identifier),
 			IP:            nullableString(requestIP),
 			UserAgent:     nullableString(requestUserAgent),
 			EventType:     "login_failed",
 			Success:       false,
-			FailureReason: authStringPointer("invalid_credentials"),
+			FailureReason: new("invalid_credentials"),
 		})
 		writeAPIError(w, http.StatusUnauthorized, "invalid_credentials", "Username/email or password is invalid.")
 		return
@@ -89,8 +89,8 @@ func (api *API) loginHandler(w http.ResponseWriter, r *http.Request) {
 
 	api.auth.SetRefreshCookie(w, r, refreshToken)
 	api.logAuthEvent(r.Context(), users.AuthLogParams{
-		UserID:     authInt64Pointer(user.ID),
-		SessionID:  authStringPointer(sessionID),
+		UserID:     new(user.ID),
+		SessionID:  new(sessionID),
 		Identifier: nullableString(identifier),
 		IP:         nullableString(requestIP),
 		UserAgent:  nullableString(requestUserAgent),
@@ -114,7 +114,7 @@ func (api *API) refreshHandler(w http.ResponseWriter, r *http.Request) {
 			UserAgent:     nullableString(r.UserAgent()),
 			EventType:     "refresh_failed",
 			Success:       false,
-			FailureReason: authStringPointer("refresh_cookie_missing"),
+			FailureReason: new("refresh_cookie_missing"),
 		})
 		api.auth.ClearRefreshCookie(w, r)
 		writeAPIError(w, http.StatusUnauthorized, "invalid_refresh_token", "Refresh session is invalid or expired.")
@@ -135,7 +135,7 @@ func (api *API) refreshHandler(w http.ResponseWriter, r *http.Request) {
 			UserAgent:     nullableString(requestUserAgent),
 			EventType:     eventType,
 			Success:       false,
-			FailureReason: authStringPointer(attempt.FailureReason),
+			FailureReason: new(attempt.FailureReason),
 		})
 		api.auth.ClearRefreshCookie(w, r)
 		writeAPIError(w, http.StatusUnauthorized, "invalid_refresh_token", "Refresh session is invalid or expired.")
@@ -144,8 +144,8 @@ func (api *API) refreshHandler(w http.ResponseWriter, r *http.Request) {
 
 	api.auth.SetRefreshCookie(w, r, result.RefreshToken)
 	api.logAuthEvent(r.Context(), users.AuthLogParams{
-		UserID:    authInt64Pointer(result.User.ID),
-		SessionID: authStringPointer(result.SessionID),
+		UserID:    new(result.User.ID),
+		SessionID: new(result.SessionID),
 		IP:        nullableString(requestIP),
 		UserAgent: nullableString(requestUserAgent),
 		EventType: "refresh_success",
@@ -169,8 +169,8 @@ func (api *API) logoutHandler(w http.ResponseWriter, r *http.Request) {
 			sessionState, stateErr := api.auth.LoadRefreshSessionState(r.Context(), sessionID)
 			if stateErr == nil {
 				api.logAuthEvent(r.Context(), users.AuthLogParams{
-					UserID:    authInt64Pointer(sessionState.UserID),
-					SessionID: authStringPointer(sessionID),
+					UserID:    new(sessionState.UserID),
+					SessionID: new(sessionID),
 					IP:        nullableString(requestIP),
 					UserAgent: nullableString(requestUserAgent),
 					EventType: "logout",

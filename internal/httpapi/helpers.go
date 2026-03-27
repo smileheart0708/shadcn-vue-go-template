@@ -17,17 +17,12 @@ func nullableString(value string) *string {
 	return &value
 }
 
+//go:fix inline
 func authStringPointer(value string) *string {
-	return &value
+	return new(value)
 }
 
+//go:fix inline
 func authInt64Pointer(value int64) *int64 {
-	return &value
-}
-
-func min(left int, right int) int {
-	if left < right {
-		return left
-	}
-	return right
+	return new(value)
 }

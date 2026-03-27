@@ -88,7 +88,7 @@ func parsePasswordHash(encodedHash string) (passwordParams, []byte, []byte, erro
 func parsePasswordParams(raw string) (passwordParams, error) {
 	var params passwordParams
 
-	for _, part := range strings.Split(raw, ",") {
+	for part := range strings.SplitSeq(raw, ",") {
 		key, value, ok := strings.Cut(part, "=")
 		if !ok {
 			return passwordParams{}, errors.New("users: invalid password hash parameters")

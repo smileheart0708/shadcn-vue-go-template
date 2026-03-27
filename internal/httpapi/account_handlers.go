@@ -164,21 +164,21 @@ func (api *API) updatePasswordHandler(w http.ResponseWriter, r *http.Request) {
 
 	requestIP, requestUserAgent := requestMetadata(r)
 	api.logAuthEvent(r.Context(), users.AuthLogParams{
-		UserID:    authInt64Pointer(user.ID),
-		SessionID: authStringPointer(principal.SessionID),
+		UserID:    new(user.ID),
+		SessionID: new(principal.SessionID),
 		IP:        nullableString(requestIP),
 		UserAgent: nullableString(requestUserAgent),
 		EventType: "password_changed",
 		Success:   true,
 	})
 	api.logAuthEvent(r.Context(), users.AuthLogParams{
-		UserID:        authInt64Pointer(user.ID),
+		UserID:        new(user.ID),
 		SessionID:     nullableString(principal.SessionID),
 		IP:            nullableString(requestIP),
 		UserAgent:     nullableString(requestUserAgent),
 		EventType:     "password_changed_forced_logout",
 		Success:       true,
-		FailureReason: authStringPointer("all_sessions_revoked"),
+		FailureReason: new("all_sessions_revoked"),
 	})
 
 	if err := users.ClearBootstrapPasswordFile(api.dataDir); err != nil {

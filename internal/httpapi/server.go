@@ -156,7 +156,7 @@ func looksLikeStaticAsset(name string) bool {
 }
 
 func clientAcceptsGzip(header string) bool {
-	for _, part := range strings.Split(header, ",") {
+	for part := range strings.SplitSeq(header, ",") {
 		part = strings.TrimSpace(part)
 		if part == "" {
 			continue
@@ -182,7 +182,7 @@ func qualityValueAllowed(params string) bool {
 		return true
 	}
 
-	for _, param := range strings.Split(params, ";") {
+	for param := range strings.SplitSeq(params, ";") {
 		param = strings.TrimSpace(param)
 		if param == "" {
 			continue
@@ -207,7 +207,7 @@ func qualityValueAllowed(params string) bool {
 func setVary(header http.Header, value string) {
 	if current := header.Values("Vary"); len(current) > 0 {
 		for _, entry := range current {
-			for _, item := range strings.Split(entry, ",") {
+			for item := range strings.SplitSeq(entry, ",") {
 				if strings.EqualFold(strings.TrimSpace(item), value) {
 					return
 				}

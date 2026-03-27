@@ -105,12 +105,14 @@ func refreshSessionCacheKey(sessionID string) string {
 	return "refresh_session:" + sessionID
 }
 
+//go:fix inline
 func stringPtr(value string) *string {
-	return &value
+	return new(value)
 }
 
+//go:fix inline
 func int64Ptr(value int64) *int64 {
-	return &value
+	return new(value)
 }
 
 func stringPtrOrNil(value string) *string {
@@ -118,5 +120,5 @@ func stringPtrOrNil(value string) *string {
 	if value == "" {
 		return nil
 	}
-	return stringPtr(value)
+	return new(value)
 }

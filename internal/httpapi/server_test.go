@@ -185,7 +185,7 @@ func TestLoginSupportsEmailIdentifier(t *testing.T) {
 	password := "member123"
 	createTestUser(t, ctx.store, users.CreateParams{
 		Username:     "member",
-		Email:        stringPointer("member@example.com"),
+		Email:        new("member@example.com"),
 		PasswordHash: mustHashPassword(t, password),
 		Role:         users.RoleUser,
 	})
@@ -1037,8 +1037,9 @@ func readSystemLogEvents(t *testing.T, body io.Reader, count int) []logging.Stre
 	return events
 }
 
+//go:fix inline
 func stringPointer(value string) *string {
-	return &value
+	return new(value)
 }
 
 func findCookie(cookies []*http.Cookie, name string) *http.Cookie {
