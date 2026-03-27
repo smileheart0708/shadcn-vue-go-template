@@ -8,6 +8,7 @@ import type { RouteTitleKey } from '@/router/route-title'
 const AppShellLayout = () => import('@/layouts/AppShellLayout.vue')
 const BlankLayout = () => import('@/layouts/BlankLayout.vue')
 const Dashboard = () => import('@/views/Dashboard.vue')
+const Home = () => import('@/views/Home.vue')
 const Login = () => import('@/views/Login.vue')
 const Register = () => import('@/views/Register.vue')
 const Settings = () => import('@/views/Settings.vue')
@@ -51,8 +52,13 @@ const router = createRouter({
   routes: [
     {
       path: '/',
+      name: 'home',
+      component: Home,
+    },
+    {
+      path: '/',
       component: AppShellLayout,
-      children: [{ path: '', redirect: { name: 'dashboard' } }, ...appShellRoutes],
+      children: appShellRoutes,
     },
     { path: '/login', name: 'login', component: Login, meta: { titleKey: 'route.login', guestOnly: true } },
     { path: '/register', name: 'register', component: Register, meta: { titleKey: 'route.register', guestOnly: true } },
