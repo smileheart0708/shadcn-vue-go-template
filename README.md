@@ -1,139 +1,117 @@
 # shadcn-vue-go-template
 
-A full-stack SPA template with Vue 3 frontend and Go backend. The frontend serves as a modern UI layer with shadcn-vue-style components, while the Go backend provides REST API and serves the built frontend assets.
+一个可直接起步的全栈模板项目：前端使用 Vue 3 + TypeScript + Vite + Tailwind CSS v4，后端使用 Go 1.26+ + SQLite。项目已经内置了登录、注册、用户信息、系统日志、任务列表、主题切换、国际化和前端 mock 等基础能力，适合作为后台管理系统或业务 SPA 的起点。
 
-## Tech Stack
+## 你可以直接得到什么
 
-- **Frontend**: Vue 3 + TypeScript + Vite + TailwindCSS v4 + Pinia + Vue Router
-- **Backend**: Go 1.26+ with SQLite (modernc.org/sqlite)
-- **Package Manager**: pnpm (frontend), Go modules (backend)
+- 前后端分离的完整项目结构，Go 负责 API 和静态资源托管
+- 基于 JWT 的认证流程
+- shadcn-vue 风格的组件和页面骨架
+- `MSW` 前端 mock，方便不启动后端也能开发登录相关页面
+- Vue I18n、Pinia、Vue Router、表格、图表、拖拽等常用能力
 
-## Quick Start
+## 快速上手
 
-### Prerequisites
-
-- Go 1.26+
-- Node.js 18+
-- pnpm
-
-### Development
+### 1. 安装依赖
 
 ```bash
-# Frontend development (port 5173)
-cd web && pnpm dev
+cd web
+pnpm install
+```
 
-# Backend development (build frontend first so assets can be embedded)
-cd web && pnpm build
+### 2. 启动前端开发
+
+```bash
+cd web
+pnpm dev
+```
+
+默认运行在 `http://localhost:5173`。
+
+### 3. 启动后端开发
+
+先构建前端，再启动 Go 服务：
+
+```bash
+cd web
+pnpm build
+
 cd ..
 go run .
 ```
 
-### Frontend-Only Mock Development
+后端默认运行在 `http://localhost:8080`。
 
-`MSW` can mock the current auth API during Vite development so the frontend can run without the Go server.
-
-```bash
-cd web
-cp .env.example .env.local
-# Set VITE_API_MOCKING=true
-pnpm dev
-```
-
-Mock mode only intercepts `POST /api/auth/login` and `GET /api/auth/me`.
-
-- Demo email: `demo@example.com`
-- Demo password: `demo123456`
-- Mock token: `mock-access-token`
-
-### Production Build
+### 4. Windows 一键构建
 
 ```powershell
-# Windows
 .\build.ps1
-
-# Output: app.exe (single-file executable with embedded frontend assets)
 ```
 
-## Project Structure
+会生成带前端资源的单文件可执行程序 `app.exe`。
 
+## 项目结构
+
+```text
+.
+├── main.go                # Go 入口
+├── frontend_embed.go      # 前端资源嵌入
+├── internal/              # 后端业务代码
+│   ├── auth/
+│   ├── config/
+│   ├── database/
+│   ├── httpapi/
+│   ├── logging/
+│   └── users/
+└── web/                   # Vue 前端
+    ├── src/
+    │   ├── components/
+    │   ├── layouts/
+    │   ├── lib/
+    │   ├── locales/
+    │   ├── router/
+    │   ├── stores/
+    │   └── views/
+    └── dist/              # 构建产物
 ```
-shadcn-vue-go-template/
-├── web/                    # Vue 3 frontend
-│   ├── src/
-│   │   ├── components/    # UI components (shadcn-vue style)
-│   │   ├── composables/   # Vue composables
-│   │   ├── layouts/       # Page layouts
-│   │   ├── lib/          # Utilities (api, auth, utils)
-│   │   ├── middleware/   # Route middleware
-│   │   ├── router/       # Vue Router config
-│   │   ├── stores/       # Pinia stores
-│   │   └── views/       # Page views
-│   └── package.json
-├── internal/              # Go backend
-│   ├── config/           # Configuration
-│   ├── database/        # Database layer
-│   ├── httpapi/         # HTTP API handlers
-│   └── logging/         # Logging setup
-├── main.go               # Go entry point
-└── build.ps1             # Build script
-```
 
-## Environment Variables
+## 常用命令
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `PORT` | `8080` | HTTP server port |
-| `DATA_DIR` | `./.data` | Data directory for SQLite DB |
-| `DB_NAME` | `data.db` | SQLite database filename |
-| `API_REQUEST_LOG_ENABLED` | `false` | Enable backend API request logging |
-| `JWT_SECRET` | generated in `DATA_DIR/.jwt_secret` | JWT signing secret. Environment variable wins; otherwise the app reuses the persisted file or generates a new high-entropy secret automatically. |
-| `REFRESH_COOKIE_NAME` | derived from `JWT_SECRET` | Optional refresh cookie name override. Set a unique value per project when multiple localhost apps share the same host. |
-| `VITE_API_MOCKING` | `false` | Enable frontend MSW auth mocks during Vite development |
-
-## Commands
-
-### Frontend
+### 前端
 
 ```bash
 cd web
-pnpm install              # Install dependencies
-pnpm dev                  # Start dev server
-pnpm build                # Build for production
-pnpm typecheck            # TypeScript type checking
-pnpm lint                 # Run ESLint with auto-fix
+pnpm build         # 生产构建
+pnpm lint          # ESLint 检查
+pnpm typecheck     # TypeScript 检查
+pnpm format:check  # Prettier 检查
 ```
 
-### Backend
+### 后端
 
 ```bash
-go mod tidy               # Clean up Go dependencies
-go build -tags=go_json    # Build Go binary
-go test ./...             # Run all tests
-go test -run TestName    # Run a single test
+go test ./...              # 运行全部测试
+go build -tags=go_json .    # 构建后端
 ```
 
-## Features
+## 配置说明
 
-- JWT-based authentication (`/api/auth/login`, `/api/auth/me`)
-- SPA fallback routing (non-API routes return `index.html`)
-- Gzip compression for static assets
-- Frontend build artifacts embedded into the Go binary
-- SQLite database with modernc.org/sqlite
-- shadcn-vue-style UI components (sidebar, tabs, table, tooltip, sheet, switch, skeleton)
-- Vue I18n plugin registration with typed locale resources under `web/src/locales/`
+常用环境变量：
 
-## I18n
+- `PORT`：后端端口，默认 `8080`
+- `DATA_DIR`：SQLite 数据目录，默认 `./.data`
+- `DB_NAME`：数据库文件名，默认 `data.db`
+- `JWT_SECRET`：JWT 密钥；不配置时会自动生成并持久化
+- `VITE_API_MOCKING`：启用前端 auth mock
 
-The frontend now registers `vue-i18n` through `web/src/plugins/i18n.ts`.
+前端 mock 模式只覆盖登录和当前用户接口，适合 UI 联调。
 
-- Locale resources live in `web/src/locales/`
-- `zh-CN` is the default locale and `en-US` is the fallback locale
-- Locale choice is restored from `localStorage` key `app.locale`, otherwise the browser locale is used when it matches a supported locale
-- Shared text should be added under reusable namespaces such as `common.action`, `common.field`, `common.feedback`, and `common.state` before creating feature-specific keys
-- When adding new translation keys, update every locale file together and reuse existing keys instead of creating near-duplicate labels
+## 适合怎么改
 
-## Learn More
+如果你要基于这个模板继续开发，通常从这几处开始：
 
-- [Vue 3 Documentation](https://vuejs.org/)
-- [Go Documentation](https://go.dev/)
-- [TailwindCSS v4](https://tailwindcss.com/)
+- 新页面放到 `web/src/views/`
+- 可复用组件放到 `web/src/components/`
+- API 封装放到 `web/src/lib/api/`
+- 后端接口放到 `internal/httpapi/`
+- 用户和认证逻辑放到 `internal/users/` 和 `internal/auth/`
