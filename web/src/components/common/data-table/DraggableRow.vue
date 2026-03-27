@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import type { Row } from '@tanstack/vue-table'
-import type { TableData } from '@/components/data-table-schema'
 import { FlexRender } from '@tanstack/vue-table'
 import { useSortable } from 'dnd-kit-vue'
 import { TableCell, TableRow } from '@/components/ui/table'
+import type { TableData } from './schema'
 
 const props = defineProps<{ row: Row<TableData>; index: number }>()
 

@@ -17,7 +17,6 @@ import {
 } from '@tabler/icons-vue'
 import { FlexRender, getCoreRowModel, getFilteredRowModel, getPaginationRowModel, getSortedRowModel, useVueTable } from '@tanstack/vue-table'
 import { DragDropProvider } from 'dnd-kit-vue'
-import type { TableData } from '@/components/data-table-schema'
 import { Badge } from '@/components/ui/badge'
 
 import { Button } from '@/components/ui/button'
@@ -29,6 +28,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import type { TableData } from './schema'
 import DragHandle from './DragHandle.vue'
 import DraggableRow from './DraggableRow.vue'
 

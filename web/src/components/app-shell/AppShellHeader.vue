@@ -2,9 +2,9 @@
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import ModeToggle from '@/components/ModeToggle.vue'
 import { Separator } from '@/components/ui/separator'
 import { SidebarTrigger } from '@/components/ui/sidebar'
+import ModeToggle from '@/components/theme/ModeToggle.vue'
 import { getRouteTitleKey } from '@/router/route-title'
 
 const route = useRoute()
