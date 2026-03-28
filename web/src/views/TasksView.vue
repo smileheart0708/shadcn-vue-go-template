@@ -21,7 +21,13 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -37,6 +43,8 @@ interface TaskRow {
   status: TaskStatus
   priority: TaskPriority
 }
+
+type TaskColumnId = 'task' | 'title' | 'status' | 'priority'
 
 const tasks: TaskRow[] = [
   { id: 'TASK-8782', label: 'Documentation', title: "You can't compress the program without quantifying the open-source SSD pixel!", status: 'In Progress', priority: 'Medium' },
@@ -55,6 +63,14 @@ const filterText = ref('')
 const rowsPerPage = ref('10')
 const currentPage = ref(1)
 const selectedTaskIds = ref<string[]>([])
+const visibleColumns = ref<TaskColumnId[]>(['task', 'title', 'status', 'priority'])
+
+const columnOptions = [
+  { id: 'task', label: 'Task' },
+  { id: 'title', label: 'Title' },
+  { id: 'status', label: 'Status' },
+  { id: 'priority', label: 'Priority' },
+] as const satisfies ReadonlyArray<{ id: TaskColumnId; label: string }>
 
 const statusMeta = {
   Backlog: { icon: CircleHelp, iconClass: 'text-muted-foreground', labelClass: 'text-foreground' },
@@ -85,6 +101,10 @@ const pageCount = computed(() => Math.max(1, Math.ceil(filteredTasks.value.lengt
 const pagedTasks = computed(() => {
   const start = (currentPage.value - 1) * pageSize.value
   return filteredTasks.value.slice(start, start + pageSize.value)
+})
+const isColumnVisible = computed(() => {
+  const visible = new Set(visibleColumns.value)
+  return (columnId: TaskColumnId) => visible.has(columnId)
 })
 const selectedCount = computed(() => filteredTasks.value.filter((task) => selectedTaskIds.value.includes(task.id)).length)
 const allPageSelected = computed(() => pagedTasks.value.length > 0 && pagedTasks.value.every((task) => selectedTaskIds.value.includes(task.id)))
@@ -118,6 +138,19 @@ function toggleTaskSelection(taskId: string, nextValue: boolean) {
   }
 
   selectedTaskIds.value = selectedTaskIds.value.filter((id) => id !== taskId)
+}
+
+function toggleColumnVisibility(columnId: TaskColumnId, nextValue: boolean) {
+  if (nextValue) {
+    visibleColumns.value = columnOptions.filter((column) => column.id === columnId || visibleColumns.value.includes(column.id)).map((column) => column.id)
+    return
+  }
+
+  if (visibleColumns.value.length === 1) {
+    return
+  }
+
+  visibleColumns.value = visibleColumns.value.filter((id) => id !== columnId)
 }
 </script>
 
@@ -157,14 +190,32 @@ function toggleTaskSelection(taskId: string, nextValue: boolean) {
         </div>
       </div>
 
-      <Button
-        variant="outline"
-        size="sm"
-        class="h-9 w-full gap-2.5 sm:w-auto"
-      >
-        <SlidersHorizontal class="size-4" />
-        View
-      </Button>
+      <DropdownMenu>
+        <DropdownMenuTrigger as-child>
+          <Button
+            variant="outline"
+            size="sm"
+            class="h-9 w-full gap-2.5 sm:w-auto"
+          >
+            <SlidersHorizontal class="size-4" />
+            View
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent
+          align="end"
+          class="w-48"
+        >
+          <DropdownMenuCheckboxItem
+            v-for="column in columnOptions"
+            :key="column.id"
+            :model-value="isColumnVisible(column.id)"
+            :disabled="visibleColumns.length === 1 && isColumnVisible(column.id)"
+            @update:model-value="toggleColumnVisibility(column.id, !!$event)"
+          >
+            {{ column.label }}
+          </DropdownMenuCheckboxItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
 
     <div class="overflow-hidden rounded-lg border">
@@ -178,8 +229,16 @@ function toggleTaskSelection(taskId: string, nextValue: boolean) {
                 @update:model-value="toggleAllOnPage(!!$event)"
               />
             </TableHead>
-            <TableHead class="w-17.5 min-w-17.5 text-sm font-semibold">Task</TableHead>
-            <TableHead class="min-w-105 text-sm font-semibold">
+            <TableHead
+              v-if="isColumnVisible('task')"
+              class="w-17.5 min-w-17.5 text-sm font-semibold"
+            >
+              Task
+            </TableHead>
+            <TableHead
+              v-if="isColumnVisible('title')"
+              class="min-w-105 text-sm font-semibold"
+            >
               <button
                 type="button"
                 class="inline-flex items-center gap-2 font-semibold"
@@ -188,7 +247,10 @@ function toggleTaskSelection(taskId: string, nextValue: boolean) {
                 <ArrowUpDown class="size-4 text-muted-foreground" />
               </button>
             </TableHead>
-            <TableHead class="w-22 min-w-22 text-sm font-semibold">
+            <TableHead
+              v-if="isColumnVisible('status')"
+              class="w-22 min-w-22 text-sm font-semibold"
+            >
               <button
                 type="button"
                 class="inline-flex items-center gap-2 font-semibold"
@@ -197,7 +259,10 @@ function toggleTaskSelection(taskId: string, nextValue: boolean) {
                 <ArrowUpDown class="size-4 text-muted-foreground" />
               </button>
             </TableHead>
-            <TableHead class="w-20 min-w-20 text-sm font-semibold">
+            <TableHead
+              v-if="isColumnVisible('priority')"
+              class="w-20 min-w-20 text-sm font-semibold"
+            >
               <button
                 type="button"
                 class="inline-flex items-center gap-2 font-semibold"
@@ -221,8 +286,13 @@ function toggleTaskSelection(taskId: string, nextValue: boolean) {
                 @update:model-value="toggleTaskSelection(task.id, !!$event)"
               />
             </TableCell>
-            <TableCell class="font-medium">{{ task.id }}</TableCell>
-            <TableCell>
+            <TableCell
+              v-if="isColumnVisible('task')"
+              class="font-medium"
+            >
+              {{ task.id }}
+            </TableCell>
+            <TableCell v-if="isColumnVisible('title')">
               <div class="flex min-w-0 items-center gap-3">
                 <Badge
                   variant="outline"
@@ -235,7 +305,7 @@ function toggleTaskSelection(taskId: string, nextValue: boolean) {
                 </span>
               </div>
             </TableCell>
-            <TableCell>
+            <TableCell v-if="isColumnVisible('status')">
               <div class="flex items-center gap-2 text-sm">
                 <component
                   :is="statusMeta[task.status].icon"
@@ -244,7 +314,7 @@ function toggleTaskSelection(taskId: string, nextValue: boolean) {
                 <span :class="statusMeta[task.status].labelClass">{{ task.status }}</span>
               </div>
             </TableCell>
-            <TableCell>
+            <TableCell v-if="isColumnVisible('priority')">
               <div class="flex items-center gap-2 text-sm">
                 <component
                   :is="priorityMeta[task.priority].icon"
