@@ -7,6 +7,9 @@ import (
 	"testing"
 )
 
+const baselineMigrationVersion = 1
+const baselineMigrationName = "0001_baseline.sql"
+
 func TestRunMigrationsAppliesCurrentBaselineSchema(t *testing.T) {
 	t.Parallel()
 
@@ -64,18 +67,18 @@ func TestRunMigrationsAppliesCurrentBaselineSchema(t *testing.T) {
 	})
 
 	var migrationCount int
-	if err := db.QueryRow(`SELECT COUNT(*) FROM schema_migrations WHERE version = ?`, currentSchemaVersion).Scan(&migrationCount); err != nil {
+	if err := db.QueryRow(`SELECT COUNT(*) FROM schema_migrations WHERE version = ? AND name = ?`, baselineMigrationVersion, baselineMigrationName).Scan(&migrationCount); err != nil {
 		t.Fatalf("failed to query schema_migrations: %v", err)
 	}
 	if migrationCount != 1 {
-		t.Fatalf("expected one schema_migrations row for version %d, got %d", currentSchemaVersion, migrationCount)
+		t.Fatalf("expected one schema_migrations row for version %d, got %d", baselineMigrationVersion, migrationCount)
 	}
 
 	if err := RunMigrations(context.Background(), db); err != nil {
 		t.Fatalf("expected baseline schema application to be idempotent: %v", err)
 	}
 
-	if err := db.QueryRow(`SELECT COUNT(*) FROM schema_migrations WHERE version = ?`, currentSchemaVersion).Scan(&migrationCount); err != nil {
+	if err := db.QueryRow(`SELECT COUNT(*) FROM schema_migrations WHERE version = ? AND name = ?`, baselineMigrationVersion, baselineMigrationName).Scan(&migrationCount); err != nil {
 		t.Fatalf("failed to query schema_migrations after rerun: %v", err)
 	}
 	if migrationCount != 1 {
