@@ -383,6 +383,13 @@ func renderSlogValue(value slog.Value) string {
 		fallthrough
 	default:
 		raw := value.Any()
+		if err, ok := raw.(error); ok {
+			data, marshalErr := json.Marshal(err.Error())
+			if marshalErr != nil {
+				return err.Error()
+			}
+			return string(data)
+		}
 		data, err := json.Marshal(raw)
 		if err != nil {
 			return fmt.Sprintf("%v", raw)
