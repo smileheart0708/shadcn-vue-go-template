@@ -35,7 +35,7 @@ async function handleLogout() {
       >
         <img
           src="/logo.svg"
-          class="size-5"
+          class="size-8"
           alt="Logo"
         />
         <span class="text-base font-semibold">web</span>
