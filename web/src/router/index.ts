@@ -35,10 +35,10 @@ const appShellRoutes = [
     meta: { titleKey: 'route.settings', requiresAuth: true },
   }),
   defineAppShellRoute({
-    path: 'admin/settings',
-    name: 'admin-settings',
+    path: 'system-configs',
+    name: 'system-config',
     component: AdminSettings,
-    meta: { titleKey: 'route.adminSettings', requiresAuth: true, requiredRole: USER_ROLE.admin, maskUnauthorizedAsNotFound: true },
+    meta: { titleKey: 'route.systemConfig', requiresAuth: true, requiredRole: USER_ROLE.admin, maskUnauthorizedAsNotFound: true },
   }),
   {
     path: 'tasks',

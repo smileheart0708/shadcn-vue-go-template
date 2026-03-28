@@ -9,13 +9,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 
 const i18n = useI18n()
 
-function getMessageList(key: 'adminSettings.sections.access.points' | 'adminSettings.sections.roadmap.items') {
+function getMessageList(key: 'systemConfig.sections.access.points' | 'systemConfig.sections.roadmap.items') {
   const value = i18n.tm(key)
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : []
 }
 
-const accessPoints = computed(() => getMessageList('adminSettings.sections.access.points'))
-const roadmapItems = computed(() => getMessageList('adminSettings.sections.roadmap.items'))
+const accessPoints = computed(() => getMessageList('systemConfig.sections.access.points'))
+const roadmapItems = computed(() => getMessageList('systemConfig.sections.roadmap.items'))
 </script>
 
 <template>
@@ -23,10 +23,10 @@ const roadmapItems = computed(() => getMessageList('adminSettings.sections.roadm
     <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
       <div class="space-y-2">
         <div class="flex items-center gap-2">
-          <h1 class="text-2xl font-semibold">{{ i18n.t('adminSettings.title') }}</h1>
-          <Badge variant="outline">{{ i18n.t('adminSettings.badge') }}</Badge>
+          <h1 class="text-2xl font-semibold">{{ i18n.t('systemConfig.title') }}</h1>
+          <Badge variant="outline">{{ i18n.t('systemConfig.badge') }}</Badge>
         </div>
-        <p class="text-muted-foreground text-sm">{{ i18n.t('adminSettings.description') }}</p>
+        <p class="text-muted-foreground text-sm">{{ i18n.t('systemConfig.description') }}</p>
       </div>
       <div class="flex h-11 w-11 items-center justify-center rounded-xl border bg-muted/40">
         <ShieldCheck class="h-5 w-5" />
@@ -36,8 +36,8 @@ const roadmapItems = computed(() => getMessageList('adminSettings.sections.roadm
     <div class="grid gap-4 xl:grid-cols-3">
       <Card>
         <CardHeader>
-          <CardTitle>{{ i18n.t('adminSettings.sections.access.title') }}</CardTitle>
-          <CardDescription>{{ i18n.t('adminSettings.sections.access.description') }}</CardDescription>
+          <CardTitle>{{ i18n.t('systemConfig.sections.access.title') }}</CardTitle>
+          <CardDescription>{{ i18n.t('systemConfig.sections.access.description') }}</CardDescription>
         </CardHeader>
         <CardContent>
           <ul class="text-muted-foreground space-y-2 text-sm">
@@ -54,13 +54,13 @@ const roadmapItems = computed(() => getMessageList('adminSettings.sections.roadm
 
       <Card>
         <CardHeader>
-          <CardTitle>{{ i18n.t('adminSettings.sections.observability.title') }}</CardTitle>
-          <CardDescription>{{ i18n.t('adminSettings.sections.observability.description') }}</CardDescription>
+          <CardTitle>{{ i18n.t('systemConfig.sections.observability.title') }}</CardTitle>
+          <CardDescription>{{ i18n.t('systemConfig.sections.observability.description') }}</CardDescription>
         </CardHeader>
         <CardContent class="flex h-full items-end">
           <Button as-child>
             <RouterLink :to="{ name: 'system-logs' }">
-              {{ i18n.t('adminSettings.sections.observability.cta') }}
+              {{ i18n.t('systemConfig.sections.observability.cta') }}
             </RouterLink>
           </Button>
         </CardContent>
@@ -68,8 +68,8 @@ const roadmapItems = computed(() => getMessageList('adminSettings.sections.roadm
 
       <Card>
         <CardHeader>
-          <CardTitle>{{ i18n.t('adminSettings.sections.roadmap.title') }}</CardTitle>
-          <CardDescription>{{ i18n.t('adminSettings.sections.roadmap.description') }}</CardDescription>
+          <CardTitle>{{ i18n.t('systemConfig.sections.roadmap.title') }}</CardTitle>
+          <CardDescription>{{ i18n.t('systemConfig.sections.roadmap.description') }}</CardDescription>
         </CardHeader>
         <CardContent>
           <ul class="text-muted-foreground space-y-2 text-sm">

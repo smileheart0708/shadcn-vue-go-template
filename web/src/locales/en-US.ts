@@ -52,7 +52,7 @@ const enUS = {
     systemLogStreamFailed: 'Failed to connect to the system log stream.',
   },
   route: {
-    adminSettings: 'Admin Settings',
+    systemConfig: 'System Configuration',
     dashboard: 'Dashboard',
     login: 'Login',
     notFound: 'Page not found',
@@ -62,8 +62,8 @@ const enUS = {
     tasks: 'Tasks',
     feedback: { loadFailed: 'Failed to load the page. Please refresh and try again.' },
   },
-  adminSettings: {
-    title: 'Admin Settings',
+  systemConfig: {
+    title: 'System Configuration',
     description: 'Manage administrator-only configuration surfaces separately from personal account preferences.',
     badge: 'Admin only',
     sections: {
@@ -293,7 +293,7 @@ const enUS = {
   },
   nav: {
     main: { dashboard: 'Dashboard', tasks: 'Tasks', lifecycle: 'Lifecycle', analytics: 'Analytics', projects: 'Projects', team: 'Team' },
-    management: { adminSettings: 'Admin Settings', systemLogs: 'System Logs', label: 'Management' },
+    management: { systemConfig: 'System Configuration', systemLogs: 'System Logs', label: 'Management' },
     secondary: { settings: 'Settings', getHelp: 'Get Help', search: 'Search' },
     user: { account: 'Account', billing: 'Billing', notifications: 'Notifications', language: 'Language', switchLanguage: 'Switch Language', logout: 'Log out' },
   },

@@ -52,7 +52,7 @@ const zhCN = {
     systemLogStreamFailed: '系统日志流连接失败。',
   },
   route: {
-    adminSettings: '管理设置',
+    systemConfig: '系统配置',
     dashboard: '仪表盘',
     login: '登录',
     notFound: '页面不存在',
@@ -62,8 +62,8 @@ const zhCN = {
     tasks: '任务',
     feedback: { loadFailed: '页面加载失败，请刷新页面后重试。' },
   },
-  adminSettings: {
-    title: '管理设置',
+  systemConfig: {
+    title: '系统配置',
     description: '将仅管理员可见的系统级配置与个人账号偏好分离管理。',
     badge: '仅管理员',
     sections: {
@@ -289,7 +289,7 @@ const zhCN = {
   },
   nav: {
     main: { dashboard: '仪表盘', tasks: '任务', lifecycle: '生命周期', analytics: '分析', projects: '项目', team: '团队' },
-    management: { adminSettings: '管理设置', systemLogs: '系统日志', label: '管理' },
+    management: { systemConfig: '系统配置', systemLogs: '系统日志', label: '管理' },
     secondary: { settings: '设置', getHelp: '获取帮助', search: '搜索' },
     user: { account: '账户', billing: '账单', notifications: '通知', language: '语言', switchLanguage: '切换语言', logout: '退出登录' },
   },

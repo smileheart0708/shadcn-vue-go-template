@@ -40,8 +40,8 @@ export interface MessageSchema {
     superAdminDeleteForbidden: string
     systemLogStreamFailed: string
   }
-  route: { adminSettings: string; dashboard: string; login: string; notFound: string; settings: string; register: string; systemLogs: string; tasks: string; feedback: { loadFailed: string } }
-  adminSettings: {
+  route: { systemConfig: string; dashboard: string; login: string; notFound: string; settings: string; register: string; systemLogs: string; tasks: string; feedback: { loadFailed: string } }
+  systemConfig: {
     title: string
     description: string
     badge: string
@@ -215,7 +215,7 @@ export interface MessageSchema {
   }
   nav: {
     main: { dashboard: string; tasks: string; lifecycle: string; analytics: string; projects: string; team: string }
-    management: { adminSettings: string; systemLogs: string; label: string }
+    management: { systemConfig: string; systemLogs: string; label: string }
     secondary: { settings: string; getHelp: string; search: string }
     user: { account: string; billing: string; notifications: string; language: string; switchLanguage: string; logout: string }
   }

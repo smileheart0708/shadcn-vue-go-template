@@ -2,7 +2,7 @@ import { computed, type Component, type ComputedRef } from 'vue'
 import type { RouteLocationRaw } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { IconChartBar, IconChecklist, IconDashboard, IconFolder, IconHelp, IconListDetails, IconSearch, IconSettings } from '@tabler/icons-vue'
-import { Logs } from 'lucide-vue-next'
+import { Cog, Logs } from 'lucide-vue-next'
 import { hasMinimumUserRole, USER_ROLE } from '@/lib/auth/roles'
 import { useAuthStore } from '@/stores/auth'
 
@@ -35,7 +35,7 @@ export function useAppShellNavigation(): ComputedRef<AppShellNavigation> {
       ],
       management: isAdmin.value
         ? [
-            { title: t('nav.management.adminSettings'), icon: IconSettings, to: { name: 'admin-settings' } },
+            { title: t('nav.management.systemConfig'), icon: Cog, to: { name: 'system-config' } },
             { title: t('nav.management.systemLogs'), icon: Logs, to: { name: 'system-logs' } },
           ]
         : [],
