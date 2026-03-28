@@ -154,7 +154,10 @@ async function saveRegistrationMode() {
             class="gap-3"
           >
             <label class="flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition-colors hover:bg-muted/40">
-              <RadioGroupItem value="disabled" class="mt-1" />
+              <RadioGroupItem
+                value="disabled"
+                class="mt-1"
+              />
               <div class="space-y-1">
                 <div class="font-medium">{{ t('systemConfig.registration.options.disabled.title') }}</div>
                 <p class="text-muted-foreground text-sm">{{ t('systemConfig.registration.options.disabled.description') }}</p>
@@ -162,7 +165,10 @@ async function saveRegistrationMode() {
             </label>
 
             <label class="flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition-colors hover:bg-muted/40">
-              <RadioGroupItem value="password" class="mt-1" />
+              <RadioGroupItem
+                value="password"
+                class="mt-1"
+              />
               <div class="space-y-1">
                 <div class="font-medium">{{ t('systemConfig.registration.options.password.title') }}</div>
                 <p class="text-muted-foreground text-sm">{{ t('systemConfig.registration.options.password.description') }}</p>

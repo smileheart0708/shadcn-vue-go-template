@@ -97,7 +97,10 @@ async function handleSubmit() {
 
 <template>
   <div :class="cn('flex flex-col gap-6', props.class)">
-    <div v-if="loadingPolicy" class="space-y-4 rounded-xl border p-6">
+    <div
+      v-if="loadingPolicy"
+      class="space-y-4 rounded-xl border p-6"
+    >
       <div class="space-y-2 text-center">
         <Skeleton class="mx-auto h-6 w-40 rounded-md" />
         <Skeleton class="mx-auto h-4 w-60 rounded-md" />
@@ -121,7 +124,10 @@ async function handleSubmit() {
       </CardContent>
     </Card>
 
-    <Card v-else-if="registrationMode === 'disabled'" class="border-border/60 shadow-sm">
+    <Card
+      v-else-if="registrationMode === 'disabled'"
+      class="border-border/60 shadow-sm"
+    >
       <CardContent class="p-6 sm:p-8">
         <Empty class="gap-8 border-none px-0 py-4">
           <EmptyHeader>
@@ -148,13 +154,19 @@ async function handleSubmit() {
       </CardContent>
     </Card>
 
-    <form v-else @submit.prevent="handleSubmit">
+    <form
+      v-else
+      @submit.prevent="handleSubmit"
+    >
       <FieldGroup>
         <div class="flex flex-col items-center gap-2 text-center">
           <h1 class="text-xl font-bold">{{ t('auth.signUp.title') }}</h1>
           <FieldDescription>
             {{ t('auth.signUp.description') }}
-            <RouterLink to="/login" class="font-medium hover:underline">
+            <RouterLink
+              to="/login"
+              class="font-medium hover:underline"
+            >
               {{ t('auth.signUp.signIn') }}
             </RouterLink>
           </FieldDescription>
@@ -211,8 +223,14 @@ async function handleSubmit() {
         </Field>
 
         <Field>
-          <Button type="submit" :disabled="isSubmitting || refreshingPolicy">
-            <Spinner v-if="isSubmitting" class="mr-2" />
+          <Button
+            type="submit"
+            :disabled="isSubmitting || refreshingPolicy"
+          >
+            <Spinner
+              v-if="isSubmitting"
+              class="mr-2"
+            />
             {{ isSubmitting ? t('auth.signUp.creating') : t('auth.signUp.submit') }}
           </Button>
         </Field>

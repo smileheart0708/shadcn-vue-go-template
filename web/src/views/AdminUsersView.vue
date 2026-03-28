@@ -246,18 +246,32 @@ function formatDateTime(value: string) {
           @keydown.enter="submitFilters"
         />
         <div class="flex flex-wrap gap-3">
-          <Select v-model="roleFilter" @update:model-value="submitFilters">
+          <Select
+            v-model="roleFilter"
+            @update:model-value="submitFilters"
+          >
             <SelectTrigger class="w-full sm:w-45">
               <SelectValue :placeholder="t('adminUsers.filters.rolePlaceholder')" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="ALL">{{ t('adminUsers.filters.roleAll') }}</SelectItem>
               <SelectItem value="0">{{ t('common.userRole.0') }}</SelectItem>
-              <SelectItem v-if="isSuperAdmin" value="1">{{ t('common.userRole.1') }}</SelectItem>
-              <SelectItem v-if="isSuperAdmin" value="2">{{ t('common.userRole.2') }}</SelectItem>
+              <SelectItem
+                v-if="isSuperAdmin"
+                value="1"
+                >{{ t('common.userRole.1') }}</SelectItem
+              >
+              <SelectItem
+                v-if="isSuperAdmin"
+                value="2"
+                >{{ t('common.userRole.2') }}</SelectItem
+              >
             </SelectContent>
           </Select>
-          <Select v-model="statusFilter" @update:model-value="submitFilters">
+          <Select
+            v-model="statusFilter"
+            @update:model-value="submitFilters"
+          >
             <SelectTrigger class="w-full sm:w-45">
               <SelectValue :placeholder="t('adminUsers.filters.statusPlaceholder')" />
             </SelectTrigger>
@@ -271,7 +285,10 @@ function formatDateTime(value: string) {
       </div>
     </div>
 
-    <div v-if="loading" class="overflow-hidden rounded-lg border">
+    <div
+      v-if="loading"
+      class="overflow-hidden rounded-lg border"
+    >
       <Table>
         <TableHeader class="bg-muted">
           <TableRow class="hover:bg-transparent">
@@ -284,8 +301,14 @@ function formatDateTime(value: string) {
           </TableRow>
         </TableHeader>
         <TableBody>
-          <TableRow v-for="index in 8" :key="index">
-            <TableCell v-for="cell in 6" :key="cell">
+          <TableRow
+            v-for="index in 8"
+            :key="index"
+          >
+            <TableCell
+              v-for="cell in 6"
+              :key="cell"
+            >
               <Skeleton class="h-5 rounded-md" />
             </TableCell>
           </TableRow>
@@ -293,7 +316,10 @@ function formatDateTime(value: string) {
       </Table>
     </div>
 
-    <div v-else-if="loadFailed" class="overflow-hidden rounded-lg border">
+    <div
+      v-else-if="loadFailed"
+      class="overflow-hidden rounded-lg border"
+    >
       <div class="flex h-96 items-center justify-center">
         <Empty>
           <EmptyHeader>
@@ -301,7 +327,10 @@ function formatDateTime(value: string) {
             <EmptyDescription>{{ t('adminUsers.feedback.loadFailed') }}</EmptyDescription>
           </EmptyHeader>
           <EmptyContent>
-            <Button :disabled="refreshing" @click="loadUsers()">
+            <Button
+              :disabled="refreshing"
+              @click="loadUsers()"
+            >
               <Spinner
                 v-if="refreshing"
                 class="mr-2"
@@ -313,7 +342,10 @@ function formatDateTime(value: string) {
       </div>
     </div>
 
-    <div v-else class="space-y-4">
+    <div
+      v-else
+      class="space-y-4"
+    >
       <div class="overflow-hidden rounded-lg border">
         <Table>
           <TableHeader class="bg-muted">
@@ -375,14 +407,20 @@ function formatDateTime(value: string) {
                       :disabled="!canManageUser(user)"
                       @click="requestToggleBan(user)"
                     >
-                      <component :is="user.status === 'banned' ? ShieldCheck : ShieldBan" class="mr-2 size-4" />
+                      <component
+                        :is="user.status === 'banned' ? ShieldCheck : ShieldBan"
+                        class="mr-2 size-4"
+                      />
                       {{ user.status === 'banned' ? t('adminUsers.actions.unban') : t('adminUsers.actions.ban') }}
                     </Button>
                   </div>
                 </TableCell>
               </TableRow>
             </template>
-            <TableEmpty v-else :colspan="6">
+            <TableEmpty
+              v-else
+              :colspan="6"
+            >
               {{ t('adminUsers.table.empty') }}
             </TableEmpty>
           </TableBody>
@@ -390,7 +428,10 @@ function formatDateTime(value: string) {
       </div>
 
       <div class="flex flex-col gap-4 px-1 lg:flex-row lg:items-center lg:justify-between">
-        <div class="text-muted-foreground flex items-center gap-2 text-sm" aria-live="polite">
+        <div
+          class="text-muted-foreground flex items-center gap-2 text-sm"
+          aria-live="polite"
+        >
           <Spinner
             v-if="refreshing"
             class="size-4"
@@ -444,7 +485,10 @@ function formatDateTime(value: string) {
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel :disabled="confirmPending">{{ t('common.action.cancel') }}</AlertDialogCancel>
-          <AlertDialogAction :disabled="confirmPending" @click.prevent="confirmToggleBan">
+          <AlertDialogAction
+            :disabled="confirmPending"
+            @click.prevent="confirmToggleBan"
+          >
             <Spinner
               v-if="confirmPending"
               class="mr-2"

@@ -101,9 +101,7 @@ const metrics = [
                 <IconChartAreaLine class="size-5" />
               </EmptyMedia>
               <EmptyTitle>Reserved for the next dashboard module</EmptyTitle>
-              <EmptyDescription>
-                Keep this panel available for alerts, conversion funnels, or a quick summary table without changing the current desktop fold.
-              </EmptyDescription>
+              <EmptyDescription> Keep this panel available for alerts, conversion funnels, or a quick summary table without changing the current desktop fold. </EmptyDescription>
             </EmptyHeader>
             <EmptyContent class="max-w-none min-w-0">
               <div class="grid w-full gap-3">

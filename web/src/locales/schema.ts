@@ -43,7 +43,18 @@ export interface MessageSchema {
     superAdminDeleteForbidden: string
     systemLogStreamFailed: string
   }
-  route: { systemConfig: string; adminUsers: string; dashboard: string; login: string; notFound: string; settings: string; register: string; systemLogs: string; tasks: string; feedback: { loadFailed: string } }
+  route: {
+    systemConfig: string
+    adminUsers: string
+    dashboard: string
+    login: string
+    notFound: string
+    settings: string
+    register: string
+    systemLogs: string
+    tasks: string
+    feedback: { loadFailed: string }
+  }
   systemConfig: {
     title: string
     description: string
