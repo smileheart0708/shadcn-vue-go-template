@@ -152,7 +152,7 @@ func TestLoginSetsRefreshCookieAndWritesLog(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to list auth logs: %v", err)
 	}
-	if len(logs) != 1 || logs[0].EventType != "login_success" || !logs[0].Success {
+	if len(logs) != 1 || logs[0].EventType != users.AuthLogEventLoginSuccess || !logs[0].Success {
 		t.Fatalf("expected one login_success log, got %+v", logs)
 	}
 }
@@ -236,7 +236,7 @@ func TestInvalidCredentialsReturnUnauthorized(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to list auth logs: %v", err)
 	}
-	if len(logs) != 1 || logs[0].EventType != "login_failed" || logs[0].Success {
+	if len(logs) != 1 || logs[0].EventType != users.AuthLogEventLoginFailed || logs[0].Success {
 		t.Fatalf("expected one login_failed log, got %+v", logs)
 	}
 }
@@ -275,7 +275,7 @@ func TestRefreshRotatesTokenAndWritesLog(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to list auth logs: %v", err)
 	}
-	if len(logs) != 2 || logs[1].EventType != "refresh_success" || !logs[1].Success {
+	if len(logs) != 2 || logs[1].EventType != users.AuthLogEventRefreshSuccess || !logs[1].Success {
 		t.Fatalf("expected refresh_success log after login, got %+v", logs)
 	}
 }
@@ -358,7 +358,7 @@ func TestPasswordChangeInvalidatesOldAccessAndRefreshTokens(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to list auth logs: %v", err)
 	}
-	if !containsAuthEvent(logs, "password_changed") || !containsAuthEvent(logs, "password_changed_forced_logout") {
+	if !containsAuthEvent(logs, users.AuthLogEventPasswordChanged) || !containsAuthEvent(logs, users.AuthLogEventPasswordChangedForcedLogout) {
 		t.Fatalf("expected password change auth logs, got %+v", logs)
 	}
 }
@@ -423,11 +423,18 @@ func TestRefreshAfterUserDeletionDoesNotLogAuthInsertError(t *testing.T) {
 	if len(logs) != 2 {
 		t.Fatalf("expected login and refresh auth logs, got %+v", logs)
 	}
-	if logs[1].EventType != "refresh_failed" || logs[1].Success {
+	if logs[1].EventType != users.AuthLogEventRefreshFailed || logs[1].Success {
 		t.Fatalf("expected refresh_failed auth log, got %+v", logs[1])
 	}
-	if logs[1].UserID != nil || logs[1].SessionID != nil {
-		t.Fatalf("expected deleted references to be cleared, got %+v", logs[1])
+	if logs[1].UserID == nil || *logs[1].UserID != admin.ID {
+		t.Fatalf("expected deleted user reference %d to be preserved, got %+v", admin.ID, logs[1].UserID)
+	}
+	sessionID, _, err := auth.ParseRefreshToken(refreshCookie.Value)
+	if err != nil {
+		t.Fatalf("failed to parse refresh token: %v", err)
+	}
+	if logs[1].SessionID == nil || *logs[1].SessionID != sessionID {
+		t.Fatalf("expected deleted session reference %q to be preserved, got %+v", sessionID, logs[1].SessionID)
 	}
 }
 

@@ -6,14 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"time"
-
-	"modernc.org/sqlite"
 )
 
 var ErrRefreshSessionNotFound = errors.New("users: refresh session not found")
-
-// modernc.org/sqlite reports SQLITE_CONSTRAINT_FOREIGNKEY using the extended code 787.
-const sqliteForeignKeyConstraintCode = 787
 
 type RefreshSession struct {
 	ID            string
@@ -225,34 +220,21 @@ func (s *Store) RevokeRefreshSessionsByUser(ctx context.Context, userID int64, r
 }
 
 func (s *Store) InsertAuthLog(ctx context.Context, params AuthLogParams) error {
+	if s == nil || s.db == nil {
+		return errors.New("users: nil store")
+	}
+	if !IsValidAuthLogEventType(params.EventType) {
+		return fmt.Errorf("users: invalid auth log event type %q", params.EventType)
+	}
+
 	createdAt := params.CreatedAt
 	if createdAt.IsZero() {
 		createdAt = time.Now().UTC()
 	}
 
-	candidates := []AuthLogParams{params}
-	if params.SessionID != nil {
-		sanitized := params
-		sanitized.SessionID = nil
-		candidates = append(candidates, sanitized)
+	if err := s.insertAuthLog(ctx, params, createdAt); err != nil {
+		return fmt.Errorf("users: failed to insert auth log: %w", err)
 	}
-	if params.UserID != nil {
-		sanitized := params
-		sanitized.UserID = nil
-		sanitized.SessionID = nil
-		candidates = append(candidates, sanitized)
-	}
-
-	for index, candidate := range candidates {
-		err := s.insertAuthLog(ctx, candidate, createdAt)
-		if err == nil {
-			return nil
-		}
-		if !isForeignKeyConstraintError(err) || index == len(candidates)-1 {
-			return fmt.Errorf("users: failed to insert auth log: %w", err)
-		}
-	}
-
 	return nil
 }
 
@@ -346,15 +328,6 @@ func (s *Store) insertAuthLog(ctx context.Context, params AuthLogParams, created
 		createdAt.Unix(),
 	)
 	return err
-}
-
-func isForeignKeyConstraintError(err error) bool {
-	var sqliteErr *sqlite.Error
-	if !errors.As(err, &sqliteErr) {
-		return false
-	}
-
-	return sqliteErr.Code() == sqliteForeignKeyConstraintCode
 }
 
 func nullableInt64Pointer(value sql.NullInt64) *int64 {

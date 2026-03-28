@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -23,10 +24,10 @@ type Options struct {
 	// DisableForeignKeys 禁用外键约束（默认 false，推荐启用外键）
 	DisableForeignKeys bool
 
-	// MaxOpenConns SQLite 最佳实践通常是 1（默认 1）
+	// MaxOpenConns 必须保持为 1，避免连接级 PRAGMA 在多个 SQLite 连接之间失效。
 	MaxOpenConns int
 
-	// MaxIdleConns 默认 1
+	// MaxIdleConns 必须保持为 1，与 MaxOpenConns 一起固定为单连接模式。
 	MaxIdleConns int
 }
 
@@ -43,6 +44,19 @@ func (o Options) withDefaults() Options {
 	return o
 }
 
+func (o Options) validate() error {
+	switch {
+	case o.BusyTimeout < 0:
+		return errors.New("db: busy timeout must not be negative")
+	case o.MaxOpenConns != 1:
+		return fmt.Errorf("db: sqlite requires MaxOpenConns=1 to keep connection-level PRAGMAs reliable, got %d", o.MaxOpenConns)
+	case o.MaxIdleConns != 1:
+		return fmt.Errorf("db: sqlite requires MaxIdleConns=1 to keep connection-level PRAGMAs reliable, got %d", o.MaxIdleConns)
+	default:
+		return nil
+	}
+}
+
 // DBContainer 数据库连接容器，管理生命周期
 type DBContainer struct {
 	db   *sql.DB
@@ -53,6 +67,10 @@ type DBContainer struct {
 func Open(ctx context.Context, opts Options) (*DBContainer, error) {
 	opts = opts.withDefaults()
 	ctx = normalizeContext(ctx)
+
+	if err := opts.validate(); err != nil {
+		return nil, err
+	}
 
 	if opts.Path == "" {
 		return nil, errors.New("db: missing sqlite path")
@@ -141,12 +159,32 @@ func applyPragmas(ctx context.Context, db *sql.DB, opts Options) error {
 		if _, err := conn.ExecContext(ctx, "PRAGMA foreign_keys = ON"); err != nil {
 			return fmt.Errorf("db: failed to enable foreign_keys: %w", err)
 		}
+		var enabled int
+		if err := conn.QueryRowContext(ctx, "PRAGMA foreign_keys").Scan(&enabled); err != nil {
+			return fmt.Errorf("db: failed to verify foreign_keys: %w", err)
+		}
+		if enabled != 1 {
+			return fmt.Errorf("db: expected foreign_keys pragma to be enabled, got %d", enabled)
+		}
 	}
 
 	// 模板默认开启 WAL 模式
 	var mode string
 	if err := conn.QueryRowContext(ctx, "PRAGMA journal_mode=WAL").Scan(&mode); err != nil {
 		return fmt.Errorf("db: failed to enable WAL: %w", err)
+	}
+	if !strings.EqualFold(mode, "wal") {
+		return fmt.Errorf("db: expected WAL journal mode, got %q", mode)
+	}
+
+	if opts.BusyTimeout > 0 {
+		var actualBusyTimeout int64
+		if err := conn.QueryRowContext(ctx, "PRAGMA busy_timeout").Scan(&actualBusyTimeout); err != nil {
+			return fmt.Errorf("db: failed to verify busy_timeout: %w", err)
+		}
+		if actualBusyTimeout < opts.BusyTimeout.Milliseconds() {
+			return fmt.Errorf("db: expected busy_timeout >= %dms, got %dms", opts.BusyTimeout.Milliseconds(), actualBusyTimeout)
+		}
 	}
 
 	return nil

@@ -4,15 +4,17 @@ import (
 	"context"
 	"database/sql"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
 const (
-	baselineMigrationVersion = 1
-	baselineMigrationName    = "0001_baseline.sql"
+	baselineMigrationVersion    = 1
+	baselineMigrationName       = "0001_baseline.sql"
+	authLogsActiveUserIndexName = "auth_refresh_sessions_active_user_idx"
 )
 
-func TestRunMigrationsAppliesCurrentBaselineSchema(t *testing.T) {
+func TestRunMigrationsAppliesCurrentSchema(t *testing.T) {
 	t.Parallel()
 
 	container, err := Open(context.Background(), Options{
@@ -75,23 +77,41 @@ func TestRunMigrationsAppliesCurrentBaselineSchema(t *testing.T) {
 		"updated_at",
 	})
 
-	var migrationCount int
-	if err := db.QueryRow(`SELECT COUNT(*) FROM schema_migrations WHERE version = ? AND name = ?`, baselineMigrationVersion, baselineMigrationName).Scan(&migrationCount); err != nil {
-		t.Fatalf("failed to query schema_migrations: %v", err)
-	}
-	if migrationCount != 1 {
-		t.Fatalf("expected one schema_migrations row for version %d, got %d", baselineMigrationVersion, migrationCount)
-	}
-
 	if err := RunMigrations(context.Background(), db); err != nil {
-		t.Fatalf("expected baseline schema application to be idempotent: %v", err)
+		t.Fatalf("expected schema application to be idempotent: %v", err)
 	}
 
-	if err := db.QueryRow(`SELECT COUNT(*) FROM schema_migrations WHERE version = ? AND name = ?`, baselineMigrationVersion, baselineMigrationName).Scan(&migrationCount); err != nil {
-		t.Fatalf("failed to query schema_migrations after rerun: %v", err)
+	assertAppliedMigration(t, db, baselineMigrationVersion, baselineMigrationName)
+	assertForeignKeyCount(t, db, "auth_login_logs", 0)
+	assertIndexExists(t, db, authLogsActiveUserIndexName)
+}
+
+func TestRunMigrationsRejectsModifiedAppliedMigration(t *testing.T) {
+	t.Parallel()
+
+	container, err := Open(context.Background(), Options{
+		Path: filepath.Join(t.TempDir(), "app.db"),
+	})
+	if err != nil {
+		t.Fatalf("failed to open database: %v", err)
 	}
-	if migrationCount != 1 {
-		t.Fatalf("expected schema_migrations to remain deduplicated after rerun, got %d rows", migrationCount)
+	t.Cleanup(func() {
+		if err := container.Close(); err != nil {
+			t.Fatalf("failed to close database: %v", err)
+		}
+	})
+
+	db := container.DB()
+	if _, err := db.Exec(`UPDATE schema_migrations SET checksum = 'tampered' WHERE version = ?`, baselineMigrationVersion); err != nil {
+		t.Fatalf("failed to tamper with migration checksum: %v", err)
+	}
+
+	err = RunMigrations(context.Background(), db)
+	if err == nil {
+		t.Fatal("expected modified applied migration to be rejected")
+	}
+	if !strings.Contains(err.Error(), "checksum mismatch") {
+		t.Fatalf("expected checksum mismatch error, got %v", err)
 	}
 }
 
@@ -131,5 +151,56 @@ func assertTableColumns(t *testing.T, db *sql.DB, table string, want []string) {
 		if got[i] != want[i] {
 			t.Fatalf("expected column %d in %s to be %q, got %q", i, table, want[i], got[i])
 		}
+	}
+}
+
+func assertAppliedMigration(t *testing.T, db *sql.DB, version int64, name string) {
+	t.Helper()
+
+	var (
+		gotName  string
+		checksum sql.NullString
+	)
+	if err := db.QueryRow(`SELECT name, checksum FROM schema_migrations WHERE version = ?`, version).Scan(&gotName, &checksum); err != nil {
+		t.Fatalf("failed to query schema_migrations version %d: %v", version, err)
+	}
+	if gotName != name {
+		t.Fatalf("expected migration %d to be recorded as %q, got %q", version, name, gotName)
+	}
+	if !checksum.Valid || checksum.String == "" {
+		t.Fatalf("expected migration %d (%s) to have a checksum", version, name)
+	}
+}
+
+func assertForeignKeyCount(t *testing.T, db *sql.DB, table string, want int) {
+	t.Helper()
+
+	rows, err := db.Query(`PRAGMA foreign_key_list(` + table + `)`)
+	if err != nil {
+		t.Fatalf("failed to inspect foreign keys for %s: %v", table, err)
+	}
+	defer rows.Close()
+
+	count := 0
+	for rows.Next() {
+		count++
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatalf("failed to iterate foreign keys for %s: %v", table, err)
+	}
+	if count != want {
+		t.Fatalf("expected %d foreign keys for %s, got %d", want, table, count)
+	}
+}
+
+func assertIndexExists(t *testing.T, db *sql.DB, indexName string) {
+	t.Helper()
+
+	var count int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM sqlite_master WHERE type = 'index' AND name = ?`, indexName).Scan(&count); err != nil {
+		t.Fatalf("failed to query sqlite indexes: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("expected index %q to exist, got count=%d", indexName, count)
 	}
 }

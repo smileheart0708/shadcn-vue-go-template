@@ -46,12 +46,20 @@ CREATE TABLE IF NOT EXISTS auth_login_logs (
     identifier TEXT NULL,
     ip TEXT NULL,
     user_agent TEXT NULL,
-    event_type TEXT NOT NULL,
-    success INTEGER NOT NULL,
+    event_type TEXT NOT NULL CHECK (event_type IN (
+        'login_failed',
+        'login_success',
+        'register_success',
+        'refresh_failed',
+        'refresh_success',
+        'token_reuse_detected',
+        'logout',
+        'password_changed',
+        'password_changed_forced_logout'
+    )),
+    success INTEGER NOT NULL CHECK (success IN (0, 1)),
     failure_reason TEXT NULL,
-    created_at INTEGER NOT NULL,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
-    FOREIGN KEY (session_id) REFERENCES auth_refresh_sessions(id) ON DELETE SET NULL
+    created_at INTEGER NOT NULL
 );
 
 CREATE INDEX IF NOT EXISTS auth_login_logs_created_at_idx
@@ -59,6 +67,10 @@ ON auth_login_logs(created_at DESC);
 
 CREATE INDEX IF NOT EXISTS auth_login_logs_user_idx
 ON auth_login_logs(user_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS auth_refresh_sessions_active_user_idx
+ON auth_refresh_sessions(user_id)
+WHERE revoked_at IS NULL;
 
 CREATE TABLE IF NOT EXISTS system_settings (
     id INTEGER PRIMARY KEY CHECK (id = 1),

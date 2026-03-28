@@ -55,7 +55,7 @@ func (api *API) loginHandler(w http.ResponseWriter, r *http.Request) {
 				Identifier:    nullableString(identifier),
 				IP:            nullableString(requestIP),
 				UserAgent:     nullableString(requestUserAgent),
-				EventType:     "login_failed",
+				EventType:     users.AuthLogEventLoginFailed,
 				Success:       false,
 				FailureReason: new("invalid_credentials"),
 			})
@@ -78,7 +78,7 @@ func (api *API) loginHandler(w http.ResponseWriter, r *http.Request) {
 			Identifier:    nullableString(identifier),
 			IP:            nullableString(requestIP),
 			UserAgent:     nullableString(requestUserAgent),
-			EventType:     "login_failed",
+			EventType:     users.AuthLogEventLoginFailed,
 			Success:       false,
 			FailureReason: new("invalid_credentials"),
 		})
@@ -91,7 +91,7 @@ func (api *API) loginHandler(w http.ResponseWriter, r *http.Request) {
 			Identifier:    nullableString(identifier),
 			IP:            nullableString(requestIP),
 			UserAgent:     nullableString(requestUserAgent),
-			EventType:     "login_failed",
+			EventType:     users.AuthLogEventLoginFailed,
 			Success:       false,
 			FailureReason: new("account_banned"),
 		})
@@ -110,7 +110,7 @@ func (api *API) loginHandler(w http.ResponseWriter, r *http.Request) {
 		Identifier: nullableString(identifier),
 		IP:         nullableString(requestIP),
 		UserAgent:  nullableString(requestUserAgent),
-		EventType:  "login_success",
+		EventType:  users.AuthLogEventLoginSuccess,
 		Success:    true,
 	})
 
@@ -191,7 +191,7 @@ func (api *API) registerHandler(w http.ResponseWriter, r *http.Request) {
 		Identifier: nullableString(user.Username),
 		IP:         nullableString(requestIP),
 		UserAgent:  nullableString(requestUserAgent),
-		EventType:  "register_success",
+		EventType:  users.AuthLogEventRegisterSuccess,
 		Success:    true,
 	})
 
@@ -204,7 +204,7 @@ func (api *API) refreshHandler(w http.ResponseWriter, r *http.Request) {
 		api.logAuthEvent(r.Context(), users.AuthLogParams{
 			IP:            nullableString(clientAddr(r.RemoteAddr)),
 			UserAgent:     nullableString(r.UserAgent()),
-			EventType:     "refresh_failed",
+			EventType:     users.AuthLogEventRefreshFailed,
 			Success:       false,
 			FailureReason: new("refresh_cookie_missing"),
 		})
@@ -216,9 +216,9 @@ func (api *API) refreshHandler(w http.ResponseWriter, r *http.Request) {
 	result, attempt, err := api.auth.RefreshSession(r.Context(), rawToken)
 	requestIP, requestUserAgent := requestMetadata(r)
 	if err != nil {
-		eventType := "refresh_failed"
+		eventType := users.AuthLogEventRefreshFailed
 		if errors.Is(err, auth.ErrTokenReuseDetected) {
-			eventType = "token_reuse_detected"
+			eventType = users.AuthLogEventTokenReuseDetected
 		}
 		api.logAuthEvent(r.Context(), users.AuthLogParams{
 			UserID:        attempt.UserID,
@@ -240,7 +240,7 @@ func (api *API) refreshHandler(w http.ResponseWriter, r *http.Request) {
 		SessionID: new(result.SessionID),
 		IP:        nullableString(requestIP),
 		UserAgent: nullableString(requestUserAgent),
-		EventType: "refresh_success",
+		EventType: users.AuthLogEventRefreshSuccess,
 		Success:   true,
 	})
 
@@ -265,7 +265,7 @@ func (api *API) logoutHandler(w http.ResponseWriter, r *http.Request) {
 					SessionID: new(sessionID),
 					IP:        nullableString(requestIP),
 					UserAgent: nullableString(requestUserAgent),
-					EventType: "logout",
+					EventType: users.AuthLogEventLogout,
 					Success:   true,
 				})
 			}

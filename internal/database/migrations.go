@@ -3,8 +3,10 @@ package database
 import (
 	"cmp"
 	"context"
+	"crypto/sha256"
 	"database/sql"
 	"embed"
+	"encoding/hex"
 	"fmt"
 	"io/fs"
 	"path"
@@ -14,36 +16,30 @@ import (
 	"time"
 )
 
-// embeddedMigrations marks the template's consolidated baseline schema files.
+// embeddedMigrations contains the template's baseline schema files.
 //
-// This repository is intentionally treated as a starter template, so it does
-// not preserve historical incremental migrations yet. New databases are
-// created directly from the embedded baseline SQL.
-//
-// Do not copy the current "rewrite baseline files freely" workflow into a
-// production project that already has real environments or persistent user
-// data. Production services should keep an append-only migration history:
-//   - freeze the initial baseline as version 1
-//   - add version 2, 3, 4... as forward-only migrations
-//   - never rewrite a migration that may already have been applied
-//
-// If this template becomes the foundation of a real product, keep the embed
-// loading mechanism but switch the workflow to append-only SQL files.
+// The template itself ships a single defined baseline schema. Downstream
+// projects that evolve from this template can append newer versioned files and
+// keep the same runner, but this repository intentionally stays on one
+// baseline file.
 //
 //go:embed migrations/*.sql
 var embeddedMigrations embed.FS
 
 type sqlMigration struct {
-	Version int64
-	Name    string
-	SQL     string
+	Version  int64
+	Name     string
+	SQL      string
+	Checksum string
 }
 
-// RunMigrations initializes the embedded template schema.
-//
-// This keeps SQL and Go separated by loading `.sql` files from the embedded
-// migrations directory. The current repository still treats those files as a
-// template baseline, not as immutable production history.
+type appliedMigration struct {
+	Name      string
+	Checksum  sql.NullString
+	AppliedAt int64
+}
+
+// RunMigrations applies embedded SQL migrations in version order.
 func RunMigrations(ctx context.Context, db *sql.DB) error {
 	ctx = normalizeContext(ctx)
 
@@ -61,11 +57,14 @@ func RunMigrations(ctx context.Context, db *sql.DB) error {
 	}
 
 	for _, migration := range migrations {
-		applied, err := hasAppliedSchema(ctx, db, migration.Version)
+		applied, err := getAppliedMigration(ctx, db, migration.Version)
 		if err != nil {
 			return err
 		}
-		if applied {
+		if applied != nil {
+			if err := reconcileAppliedMigration(ctx, db, migration, *applied); err != nil {
+				return err
+			}
 			continue
 		}
 
@@ -82,10 +81,14 @@ func ensureSchemaMigrationsTable(ctx context.Context, db *sql.DB) error {
 CREATE TABLE IF NOT EXISTS schema_migrations (
     version INTEGER PRIMARY KEY,
     name TEXT NOT NULL,
+    checksum TEXT NULL,
     applied_at INTEGER NOT NULL
 );`
 	if _, err := db.ExecContext(ctx, ddl); err != nil {
 		return fmt.Errorf("db: failed to create schema_migrations table: %w", err)
+	}
+	if err := ensureSchemaMigrationsChecksumColumn(ctx, db); err != nil {
+		return err
 	}
 	return nil
 }
@@ -124,10 +127,12 @@ func loadSQLMigrations() ([]sqlMigration, error) {
 			return nil, fmt.Errorf("db: embedded migration %s is empty", name)
 		}
 
+		checksumBytes := sha256.Sum256(content)
 		migrations = append(migrations, sqlMigration{
-			Version: version,
-			Name:    name,
-			SQL:     sqlText,
+			Version:  version,
+			Name:     name,
+			SQL:      string(content),
+			Checksum: hex.EncodeToString(checksumBytes[:]),
 		})
 		seenVersions[version] = name
 	}
@@ -162,17 +167,83 @@ func migrationVersionFromFilename(name string) (int64, error) {
 	return version, nil
 }
 
-func hasAppliedSchema(ctx context.Context, db *sql.DB, version int64) (bool, error) {
-	var appliedAt int64
-	err := db.QueryRowContext(ctx, `SELECT applied_at FROM schema_migrations WHERE version = ?`, version).Scan(&appliedAt)
-	if err == nil {
-		return true, nil
+func ensureSchemaMigrationsChecksumColumn(ctx context.Context, db *sql.DB) error {
+	rows, err := db.QueryContext(ctx, `PRAGMA table_info(schema_migrations)`)
+	if err != nil {
+		return fmt.Errorf("db: failed to inspect schema_migrations table: %w", err)
 	}
-	if err == sql.ErrNoRows {
-		return false, nil
+	defer rows.Close()
+
+	for rows.Next() {
+		var (
+			cid        int
+			name       string
+			columnType string
+			notNull    int
+			defaultVal sql.NullString
+			primaryKey int
+		)
+		if err := rows.Scan(&cid, &name, &columnType, &notNull, &defaultVal, &primaryKey); err != nil {
+			return fmt.Errorf("db: failed to scan schema_migrations metadata: %w", err)
+		}
+		if name == "checksum" {
+			return nil
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("db: failed to iterate schema_migrations metadata: %w", err)
 	}
 
-	return false, fmt.Errorf("db: failed to query schema_migrations for version %d: %w", version, err)
+	if _, err := db.ExecContext(ctx, `ALTER TABLE schema_migrations ADD COLUMN checksum TEXT NULL`); err != nil {
+		return fmt.Errorf("db: failed to add checksum column to schema_migrations: %w", err)
+	}
+	return nil
+}
+
+func getAppliedMigration(ctx context.Context, db *sql.DB, version int64) (*appliedMigration, error) {
+	var applied appliedMigration
+	err := db.QueryRowContext(ctx, `SELECT name, checksum, applied_at FROM schema_migrations WHERE version = ?`, version).Scan(&applied.Name, &applied.Checksum, &applied.AppliedAt)
+	if err == nil {
+		return &applied, nil
+	}
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+
+	return nil, fmt.Errorf("db: failed to query schema_migrations for version %d: %w", version, err)
+}
+
+func reconcileAppliedMigration(ctx context.Context, db *sql.DB, migration sqlMigration, applied appliedMigration) error {
+	if applied.Name != migration.Name {
+		return fmt.Errorf(
+			"db: migration %d was previously recorded as %q but the current file is %q; published migrations must be immutable",
+			migration.Version,
+			applied.Name,
+			migration.Name,
+		)
+	}
+
+	if strings.TrimSpace(applied.Checksum.String) == "" {
+		if _, err := db.ExecContext(
+			ctx,
+			`UPDATE schema_migrations SET checksum = ? WHERE version = ? AND (checksum IS NULL OR checksum = '')`,
+			migration.Checksum,
+			migration.Version,
+		); err != nil {
+			return fmt.Errorf("db: failed to backfill checksum for migration %d (%s): %w", migration.Version, migration.Name, err)
+		}
+		return nil
+	}
+
+	if applied.Checksum.String != migration.Checksum {
+		return fmt.Errorf(
+			"db: migration %d (%s) checksum mismatch; published migrations must be immutable",
+			migration.Version,
+			migration.Name,
+		)
+	}
+
+	return nil
 }
 
 func applySQLMigration(ctx context.Context, db *sql.DB, migration sqlMigration) error {
@@ -190,9 +261,10 @@ func applySQLMigration(ctx context.Context, db *sql.DB, migration sqlMigration) 
 
 	if _, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO schema_migrations(version, name, applied_at) VALUES (?, ?, ?)`,
+		`INSERT INTO schema_migrations(version, name, checksum, applied_at) VALUES (?, ?, ?, ?)`,
 		migration.Version,
 		migration.Name,
+		migration.Checksum,
 		time.Now().Unix(),
 	); err != nil {
 		_ = tx.Rollback()

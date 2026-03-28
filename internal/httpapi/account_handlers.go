@@ -168,7 +168,7 @@ func (api *API) updatePasswordHandler(w http.ResponseWriter, r *http.Request) {
 		SessionID: new(principal.SessionID),
 		IP:        nullableString(requestIP),
 		UserAgent: nullableString(requestUserAgent),
-		EventType: "password_changed",
+		EventType: users.AuthLogEventPasswordChanged,
 		Success:   true,
 	})
 	api.logAuthEvent(r.Context(), users.AuthLogParams{
@@ -176,7 +176,7 @@ func (api *API) updatePasswordHandler(w http.ResponseWriter, r *http.Request) {
 		SessionID:     nullableString(principal.SessionID),
 		IP:            nullableString(requestIP),
 		UserAgent:     nullableString(requestUserAgent),
-		EventType:     "password_changed_forced_logout",
+		EventType:     users.AuthLogEventPasswordChangedForcedLogout,
 		Success:       true,
 		FailureReason: new("all_sessions_revoked"),
 	})

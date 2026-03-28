@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-func TestInsertAuthLogDropsMissingSessionReferenceButKeepsUser(t *testing.T) {
+func TestInsertAuthLogPreservesMissingSessionReference(t *testing.T) {
 	t.Parallel()
 
 	store, _, _ := newBootstrapTestStore(t)
@@ -24,7 +24,7 @@ func TestInsertAuthLogDropsMissingSessionReferenceButKeepsUser(t *testing.T) {
 	if err := store.InsertAuthLog(context.Background(), AuthLogParams{
 		UserID:        new(user.ID),
 		SessionID:     new(sessionID),
-		EventType:     "refresh_failed",
+		EventType:     AuthLogEventRefreshFailed,
 		Success:       false,
 		FailureReason: new("refresh_session_not_found"),
 		CreatedAt:     createdAt,
@@ -42,15 +42,15 @@ func TestInsertAuthLogDropsMissingSessionReferenceButKeepsUser(t *testing.T) {
 	if logs[0].UserID == nil || *logs[0].UserID != user.ID {
 		t.Fatalf("expected auth log to preserve user id %d, got %+v", user.ID, logs[0].UserID)
 	}
-	if logs[0].SessionID != nil {
-		t.Fatalf("expected stale session id to be dropped, got %+v", logs[0].SessionID)
+	if logs[0].SessionID == nil || *logs[0].SessionID != sessionID {
+		t.Fatalf("expected auth log to preserve missing session id %q, got %+v", sessionID, logs[0].SessionID)
 	}
 	if logs[0].CreatedAt != createdAt {
 		t.Fatalf("expected created_at %v, got %v", createdAt, logs[0].CreatedAt)
 	}
 }
 
-func TestInsertAuthLogDropsDeletedUserAndSessionReferences(t *testing.T) {
+func TestInsertAuthLogPreservesDeletedUserAndSessionReferences(t *testing.T) {
 	t.Parallel()
 
 	store, _, _ := newBootstrapTestStore(t)
@@ -83,7 +83,7 @@ func TestInsertAuthLogDropsDeletedUserAndSessionReferences(t *testing.T) {
 	if err := store.InsertAuthLog(context.Background(), AuthLogParams{
 		UserID:        new(user.ID),
 		SessionID:     new(sessionID),
-		EventType:     "refresh_failed",
+		EventType:     AuthLogEventRefreshFailed,
 		Success:       false,
 		FailureReason: new("user_not_found"),
 	}); err != nil {
@@ -97,7 +97,10 @@ func TestInsertAuthLogDropsDeletedUserAndSessionReferences(t *testing.T) {
 	if len(logs) != 1 {
 		t.Fatalf("expected 1 auth log, got %d", len(logs))
 	}
-	if logs[0].UserID != nil || logs[0].SessionID != nil {
-		t.Fatalf("expected deleted references to be cleared, got %+v", logs[0])
+	if logs[0].UserID == nil || *logs[0].UserID != user.ID {
+		t.Fatalf("expected deleted user id %d to be preserved, got %+v", user.ID, logs[0].UserID)
+	}
+	if logs[0].SessionID == nil || *logs[0].SessionID != sessionID {
+		t.Fatalf("expected deleted session id %q to be preserved, got %+v", sessionID, logs[0].SessionID)
 	}
 }
