@@ -3,7 +3,7 @@ import type { ChartConfig } from '@/components/ui/chart'
 import { useResizeObserver } from '@vueuse/core'
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useSidebar } from '@/components/ui/sidebar'
-import { VisAxis, VisLine, VisXYContainer } from '@unovis/vue'
+import { VisArea, VisAxis, VisLine, VisXYContainer } from '@unovis/vue'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { ChartContainer, ChartCrosshair, ChartLegendContent, ChartTooltip, ChartTooltipContent, componentToString } from '@/components/ui/chart'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -105,9 +105,6 @@ const chartData = [
 
 type Data = (typeof chartData)[number]
 type TimeRange = '90d' | '30d' | '7d'
-type SeriesKey = 'mobile' | 'desktop'
-
-const chartSeriesKeys = ['mobile', 'desktop'] as const satisfies readonly SeriesKey[]
 
 const chartConfig = {
   mobile: {
@@ -116,7 +113,7 @@ const chartConfig = {
   },
   desktop: {
     label: 'Desktop',
-    color: 'var(--chart-1)',
+    color: 'var(--chart-5)',
   },
 } satisfies ChartConfig
 
@@ -140,9 +137,6 @@ const filteredChartData = computed<Data[]>(() => {
 
   return chartData.filter((item) => item.date >= startDate)
 })
-
-const chartYAccessors = computed<Array<(d: Data) => number>>(() => chartSeriesKeys.map((key) => (d: Data) => d[key]))
-const chartSeriesColors = computed<string[]>(() => chartSeriesKeys.map((key) => chartConfig[key].color ?? 'var(--chart-2)'))
 
 const chartMargin = computed(() => {
   const maxValue = filteredChartData.value.reduce((max, point) => Math.max(max, point.mobile, point.desktop), 0)
@@ -230,10 +224,6 @@ onBeforeUnmount(() => {
   clearFreezeTimer()
 })
 
-function getSeriesColor(index: number): string {
-  return chartSeriesColors.value[index] ?? chartSeriesColors.value[0] ?? 'var(--chart-2)'
-}
-
 function formatAxisDate(value: number) {
   return new Date(value).toLocaleDateString('en-US', {
     month: 'short',
@@ -306,16 +296,27 @@ function formatTooltipDate(value: number | Date) {
               :auto-margin="false"
               class="flex-1 min-h-0 h-auto!"
             >
-              <VisLine
+              <VisArea
                 :x="(d: Data) => d.date"
-                :y="chartYAccessors"
+                :y="[(d: Data) => d.mobile, (d: Data) => d.desktop]"
                 :color="
                   (datum: Data, index: number) => {
                     void datum
-                    return getSeriesColor(index)
+                    return [chartConfig.mobile.color, chartConfig.desktop.color][index] ?? 'var(--chart-1)'
                   }
                 "
-                :line-width="2"
+                :opacity="0.4"
+              />
+              <VisLine
+                :x="(d: Data) => d.date"
+                :y="[(d: Data) => d.mobile, (d: Data) => d.mobile + d.desktop]"
+                :color="
+                  (datum: Data, index: number) => {
+                    void datum
+                    return [chartConfig.mobile.color, chartConfig.desktop.color][index] ?? 'var(--chart-1)'
+                  }
+                "
+                :line-width="1"
               />
               <VisAxis
                 type="x"
@@ -342,7 +343,7 @@ function formatTooltipDate(value: number | Date) {
                 :color="
                   (datum: Data, index: number) => {
                     void datum
-                    return getSeriesColor(index)
+                    return [chartConfig.mobile.color, chartConfig.desktop.color][index % 2] ?? 'var(--chart-1)'
                   }
                 "
               />
