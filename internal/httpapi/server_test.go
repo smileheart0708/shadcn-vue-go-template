@@ -388,6 +388,49 @@ func TestLogoutInvalidatesRefreshToken(t *testing.T) {
 	}
 }
 
+func TestRefreshAfterUserDeletionDoesNotLogAuthInsertError(t *testing.T) {
+	t.Parallel()
+
+	ctx := newTestContext(t, false)
+	_, refreshCookie := loginBootstrapAdminSession(t, ctx)
+
+	admin, err := ctx.store.FindByIdentifier(context.Background(), "admin")
+	if err != nil {
+		t.Fatalf("failed to load bootstrap admin: %v", err)
+	}
+	if err := ctx.store.Delete(context.Background(), admin.ID); err != nil {
+		t.Fatalf("failed to delete bootstrap admin: %v", err)
+	}
+
+	ctx.logs.Reset()
+
+	refreshReq := httptest.NewRequest(http.MethodPost, "/api/auth/refresh", nil)
+	refreshReq.AddCookie(refreshCookie)
+	refreshRec := httptest.NewRecorder()
+	ctx.handler.ServeHTTP(refreshRec, refreshReq)
+
+	if refreshRec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected refresh token to be rejected after user deletion, got %d", refreshRec.Code)
+	}
+	if strings.Contains(ctx.logs.String(), "failed to write auth log") {
+		t.Fatalf("expected stale refresh to avoid auth log write errors, got %q", ctx.logs.String())
+	}
+
+	logs, err := ctx.store.ListAuthLogs(context.Background())
+	if err != nil {
+		t.Fatalf("failed to list auth logs: %v", err)
+	}
+	if len(logs) != 2 {
+		t.Fatalf("expected login and refresh auth logs, got %+v", logs)
+	}
+	if logs[1].EventType != "refresh_failed" || logs[1].Success {
+		t.Fatalf("expected refresh_failed auth log, got %+v", logs[1])
+	}
+	if logs[1].UserID != nil || logs[1].SessionID != nil {
+		t.Fatalf("expected deleted references to be cleared, got %+v", logs[1])
+	}
+}
+
 func TestProtectedRouteRejectsMissingToken(t *testing.T) {
 	t.Parallel()
 

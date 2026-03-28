@@ -6,9 +6,14 @@ import (
 	"errors"
 	"fmt"
 	"time"
+
+	"modernc.org/sqlite"
 )
 
 var ErrRefreshSessionNotFound = errors.New("users: refresh session not found")
+
+// modernc.org/sqlite reports SQLITE_CONSTRAINT_FOREIGNKEY using the extended code 787.
+const sqliteForeignKeyConstraintCode = 787
 
 type RefreshSession struct {
 	ID            string
@@ -225,31 +230,27 @@ func (s *Store) InsertAuthLog(ctx context.Context, params AuthLogParams) error {
 		createdAt = time.Now().UTC()
 	}
 
-	_, err := s.db.ExecContext(
-		ctx,
-		`INSERT INTO auth_login_logs (
-			user_id,
-			session_id,
-			identifier,
-			ip,
-			user_agent,
-			event_type,
-			success,
-			failure_reason,
-			created_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		params.UserID,
-		params.SessionID,
-		params.Identifier,
-		params.IP,
-		params.UserAgent,
-		params.EventType,
-		boolToSQLiteInteger(params.Success),
-		params.FailureReason,
-		createdAt.Unix(),
-	)
-	if err != nil {
-		return fmt.Errorf("users: failed to insert auth log: %w", err)
+	candidates := []AuthLogParams{params}
+	if params.SessionID != nil {
+		sanitized := params
+		sanitized.SessionID = nil
+		candidates = append(candidates, sanitized)
+	}
+	if params.UserID != nil {
+		sanitized := params
+		sanitized.UserID = nil
+		sanitized.SessionID = nil
+		candidates = append(candidates, sanitized)
+	}
+
+	for index, candidate := range candidates {
+		err := s.insertAuthLog(ctx, candidate, createdAt)
+		if err == nil {
+			return nil
+		}
+		if !isForeignKeyConstraintError(err) || index == len(candidates)-1 {
+			return fmt.Errorf("users: failed to insert auth log: %w", err)
+		}
 	}
 
 	return nil
@@ -318,6 +319,42 @@ func ensureRefreshSessionAffected(result sql.Result) error {
 		return ErrRefreshSessionNotFound
 	}
 	return nil
+}
+
+func (s *Store) insertAuthLog(ctx context.Context, params AuthLogParams, createdAt time.Time) error {
+	_, err := s.db.ExecContext(
+		ctx,
+		`INSERT INTO auth_login_logs (
+			user_id,
+			session_id,
+			identifier,
+			ip,
+			user_agent,
+			event_type,
+			success,
+			failure_reason,
+			created_at
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		params.UserID,
+		params.SessionID,
+		params.Identifier,
+		params.IP,
+		params.UserAgent,
+		params.EventType,
+		boolToSQLiteInteger(params.Success),
+		params.FailureReason,
+		createdAt.Unix(),
+	)
+	return err
+}
+
+func isForeignKeyConstraintError(err error) bool {
+	var sqliteErr *sqlite.Error
+	if !errors.As(err, &sqliteErr) {
+		return false
+	}
+
+	return sqliteErr.Code() == sqliteForeignKeyConstraintCode
 }
 
 func nullableInt64Pointer(value sql.NullInt64) *int64 {
