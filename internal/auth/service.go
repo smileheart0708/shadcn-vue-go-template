@@ -18,7 +18,6 @@ const (
 	defaultCacheTTL       = 5 * time.Minute
 	sessionCacheTTL       = 2 * time.Minute
 	defaultIssuer         = "shadcn-vue-go-template"
-	defaultSigningSecret  = "change-me-in-production"
 	defaultAccessTTL      = 10 * time.Minute
 	defaultRefreshIdleTTL = 7 * 24 * time.Hour
 	defaultRefreshAbsTTL  = 30 * 24 * time.Hour
@@ -91,9 +90,6 @@ type RefreshSessionState struct {
 func NewService(options Options, userStore *users.Store) *Service {
 	if options.Issuer == "" {
 		options.Issuer = defaultIssuer
-	}
-	if len(options.Secret) == 0 {
-		options.Secret = []byte(defaultSigningSecret)
 	}
 	if options.TTL <= 0 {
 		options.TTL = defaultAccessTTL
