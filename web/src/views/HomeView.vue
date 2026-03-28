@@ -26,7 +26,7 @@ import { Button } from '@/components/ui/button'
         <Button
           as-child
           size="lg"
-          class="h-10 rounded-xl px-5 text-sm"
+          class="h-10 px-5 text-sm"
         >
           <RouterLink to="/dashboard">Get Started</RouterLink>
         </Button>
@@ -34,7 +34,7 @@ import { Button } from '@/components/ui/button'
           as-child
           variant="ghost"
           size="lg"
-          class="h-10 rounded-xl px-4 text-sm"
+          class="h-10 px-4 text-sm"
         >
           <a href="#components">View Components</a>
         </Button>
