@@ -18,7 +18,6 @@ import {
   ChevronsLeft,
   ChevronsRight,
 } from 'lucide-vue-next'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -123,19 +122,12 @@ function toggleTaskSelection(taskId: string, nextValue: boolean) {
 </script>
 
 <template>
-  <div class="flex flex-1 flex-col gap-6 p-4 sm:p-6 lg:gap-8 lg:p-6">
+  <div class="flex flex-1 flex-col gap-6 p-4 lg:p-6">
     <div class="flex items-start justify-between gap-4">
-      <div class="space-y-2">
-        <h2 class="text-3xl font-semibold tracking-tight text-balance sm:text-4xl">Welcome back!</h2>
-        <p class="text-muted-foreground text-base sm:text-lg">Here's a list of your tasks for this month.</p>
+      <div class="space-y-1">
+        <h2 class="text-2xl font-semibold">Welcome back!</h2>
+        <p class="text-muted-foreground text-sm">Here's a list of your tasks for this month.</p>
       </div>
-      <Avatar class="size-12 border bg-background shadow-xs">
-        <AvatarImage
-          src="https://github.com/shadcn.png"
-          alt="@shadcn"
-        />
-        <AvatarFallback>SV</AvatarFallback>
-      </Avatar>
     </div>
 
     <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -143,19 +135,21 @@ function toggleTaskSelection(taskId: string, nextValue: boolean) {
         <Input
           v-model="filterText"
           placeholder="Filter tasks..."
-          class="w-full sm:w-[320px] lg:w-94"
+          class="h-9 w-full sm:w-80 lg:w-94"
         />
         <div class="flex flex-wrap gap-3">
           <Button
             variant="outline"
-            class="justify-start gap-2.5"
+            size="sm"
+            class="h-9 justify-start gap-2.5"
           >
             <CirclePlus class="size-4" />
             Status
           </Button>
           <Button
             variant="outline"
-            class="justify-start gap-2.5"
+            size="sm"
+            class="h-9 justify-start gap-2.5"
           >
             <CirclePlus class="size-4" />
             Priority
@@ -165,7 +159,8 @@ function toggleTaskSelection(taskId: string, nextValue: boolean) {
 
       <Button
         variant="outline"
-        class="w-full gap-2.5 sm:w-auto"
+        size="sm"
+        class="h-9 w-full gap-2.5 sm:w-auto"
       >
         <SlidersHorizontal class="size-4" />
         View

@@ -2,14 +2,12 @@
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
-import { RefreshCw, ShieldBan, ShieldCheck, UserPlus } from 'lucide-vue-next'
+import { ShieldBan, ShieldCheck, UserPlus } from 'lucide-vue-next'
 import AdminUserDialog from '@/components/admin-users/AdminUserDialog.vue'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty'
-import { Field, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -191,7 +189,7 @@ function changePage(nextPage: number) {
 }
 
 function getStatusBadgeVariant(status: AdminUser['status']) {
-  return status === 'banned' ? 'destructive' : 'outline'
+  return status === 'banned' ? 'destructive' : 'success'
 }
 
 function getRoleBadgeVariant(role: number) {
@@ -224,238 +222,188 @@ function formatDateTime(value: string) {
 
 <template>
   <div class="flex flex-1 flex-col gap-6 p-4 lg:p-6">
-    <section class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-      <div>
-        <div class="flex items-center gap-2">
-          <h1 class="text-2xl font-semibold">{{ t('adminUsers.title') }}</h1>
-          <Badge variant="outline">{{ t('adminUsers.badge') }}</Badge>
-        </div>
+    <div class="flex items-start justify-between gap-4">
+      <div class="space-y-1">
+        <h2 class="text-2xl font-semibold">{{ t('adminUsers.title') }}</h2>
         <p class="text-muted-foreground text-sm">{{ t('adminUsers.description') }}</p>
       </div>
+      <Button @click="openCreateDialog">
+        <UserPlus class="mr-2 size-4" />
+        {{ t('adminUsers.actions.createUser') }}
+      </Button>
+    </div>
 
-      <div class="flex flex-wrap items-center gap-2">
-        <Button
-          variant="outline"
-          :disabled="refreshing"
-          @click="loadUsers({ background: true })"
-        >
-          <RefreshCw :class="refreshing && 'animate-spin'" class="mr-2 size-4" />
-          {{ t('adminUsers.actions.refresh') }}
-        </Button>
-        <Button @click="openCreateDialog">
-          <UserPlus class="mr-2 size-4" />
-          {{ t('adminUsers.actions.createUser') }}
-        </Button>
+    <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+      <div class="flex flex-col gap-3 sm:flex-row">
+        <Input
+          v-model="searchQuery"
+          :placeholder="t('adminUsers.filters.searchPlaceholder')"
+          class="w-full sm:w-80 lg:w-94"
+          @keydown.enter="submitFilters"
+        />
+        <div class="flex flex-wrap gap-3">
+          <Select v-model="roleFilter" @update:model-value="submitFilters">
+            <SelectTrigger class="w-full sm:w-45">
+              <SelectValue :placeholder="t('adminUsers.filters.rolePlaceholder')" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">{{ t('adminUsers.filters.roleAll') }}</SelectItem>
+              <SelectItem value="0">{{ t('common.userRole.0') }}</SelectItem>
+              <SelectItem v-if="isSuperAdmin" value="1">{{ t('common.userRole.1') }}</SelectItem>
+              <SelectItem v-if="isSuperAdmin" value="2">{{ t('common.userRole.2') }}</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select v-model="statusFilter" @update:model-value="submitFilters">
+            <SelectTrigger class="w-full sm:w-45">
+              <SelectValue :placeholder="t('adminUsers.filters.statusPlaceholder')" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">{{ t('adminUsers.filters.statusAll') }}</SelectItem>
+              <SelectItem value="active">{{ t('adminUsers.status.active') }}</SelectItem>
+              <SelectItem value="banned">{{ t('adminUsers.status.banned') }}</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
-    </section>
+    </div>
 
-    <Card>
-      <CardHeader>
-        <CardTitle>{{ t('adminUsers.filters.title') }}</CardTitle>
-        <CardDescription>{{ t('adminUsers.filters.description') }}</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form
-          class="grid gap-3 lg:grid-cols-[minmax(0,1.6fr)_220px_220px_auto]"
-          @submit.prevent="submitFilters"
-        >
-          <Field>
-            <FieldLabel for="admin-users-search">{{ t('common.action.search') }}</FieldLabel>
-            <Input
-              id="admin-users-search"
-              v-model="searchQuery"
-              :placeholder="t('adminUsers.filters.searchPlaceholder')"
-            />
-          </Field>
+    <div v-if="loading" class="overflow-hidden rounded-lg border">
+      <Table>
+        <TableHeader class="bg-muted">
+          <TableRow class="hover:bg-transparent">
+            <TableHead class="text-sm font-semibold">{{ t('adminUsers.table.username') }}</TableHead>
+            <TableHead class="text-sm font-semibold">{{ t('adminUsers.table.email') }}</TableHead>
+            <TableHead class="text-sm font-semibold">{{ t('adminUsers.table.role') }}</TableHead>
+            <TableHead class="text-sm font-semibold">{{ t('adminUsers.table.status') }}</TableHead>
+            <TableHead class="text-sm font-semibold">{{ t('adminUsers.table.createdAt') }}</TableHead>
+            <TableHead class="text-right text-sm font-semibold">{{ t('adminUsers.table.actions') }}</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          <TableRow v-for="index in 8" :key="index">
+            <TableCell v-for="cell in 6" :key="cell">
+              <Skeleton class="h-5 rounded-md" />
+            </TableCell>
+          </TableRow>
+        </TableBody>
+      </Table>
+    </div>
 
-          <Field>
-            <FieldLabel for="admin-users-role">{{ t('adminUsers.table.role') }}</FieldLabel>
-            <Select v-model="roleFilter">
-              <SelectTrigger id="admin-users-role">
-                <SelectValue :placeholder="t('adminUsers.filters.rolePlaceholder')" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL">{{ t('adminUsers.filters.roleAll') }}</SelectItem>
-                <SelectItem value="0">{{ t('common.userRole.0') }}</SelectItem>
-                <SelectItem v-if="isSuperAdmin" value="1">{{ t('common.userRole.1') }}</SelectItem>
-                <SelectItem v-if="isSuperAdmin" value="2">{{ t('common.userRole.2') }}</SelectItem>
-              </SelectContent>
-            </Select>
-          </Field>
+    <div v-else-if="loadFailed" class="overflow-hidden rounded-lg border">
+      <div class="flex h-96 items-center justify-center">
+        <Empty>
+          <EmptyHeader>
+            <EmptyTitle>{{ t('adminUsers.feedback.loadFailedTitle') }}</EmptyTitle>
+            <EmptyDescription>{{ t('adminUsers.feedback.loadFailed') }}</EmptyDescription>
+          </EmptyHeader>
+          <EmptyContent>
+            <Button @click="loadUsers()">{{ t('adminUsers.actions.retry') }}</Button>
+          </EmptyContent>
+        </Empty>
+      </div>
+    </div>
 
-          <Field>
-            <FieldLabel for="admin-users-status">{{ t('adminUsers.table.status') }}</FieldLabel>
-            <Select v-model="statusFilter">
-              <SelectTrigger id="admin-users-status">
-                <SelectValue :placeholder="t('adminUsers.filters.statusPlaceholder')" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL">{{ t('adminUsers.filters.statusAll') }}</SelectItem>
-                <SelectItem value="active">{{ t('adminUsers.status.active') }}</SelectItem>
-                <SelectItem value="banned">{{ t('adminUsers.status.banned') }}</SelectItem>
-              </SelectContent>
-            </Select>
-          </Field>
-
-          <div class="flex items-end">
-            <Button type="submit" class="w-full lg:w-auto">{{ t('common.action.search') }}</Button>
-          </div>
-        </form>
-      </CardContent>
-    </Card>
-
-    <Card class="min-h-0 flex-1">
-      <CardHeader class="flex flex-row items-center justify-between gap-4">
-        <div>
-          <CardTitle>{{ t('adminUsers.table.title') }}</CardTitle>
-          <CardDescription>{{ t('adminUsers.table.summary', { count: total }) }}</CardDescription>
-        </div>
-        <div
-          v-if="refreshing"
-          class="text-muted-foreground inline-flex items-center gap-2 text-sm"
-        >
-          <Spinner />
-          {{ t('adminUsers.feedback.refreshing') }}
-        </div>
-      </CardHeader>
-      <CardContent class="space-y-4">
-        <div
-          v-if="loading"
-          class="space-y-3"
-        >
-          <Skeleton class="h-11 w-full rounded-xl" />
-          <div class="overflow-hidden rounded-xl border">
-            <div
-              v-for="index in 8"
-              :key="index"
-              class="grid grid-cols-[1.2fr_1.3fr_140px_140px_180px_180px] gap-3 border-b p-4 last:border-b-0"
-            >
-              <Skeleton
-                v-for="cell in 6"
-                :key="cell"
-                class="h-5 rounded-md"
-              />
-            </div>
-          </div>
-        </div>
-
-        <div v-else-if="loadFailed">
-          <Empty>
-            <EmptyHeader>
-              <EmptyTitle>{{ t('adminUsers.feedback.loadFailedTitle') }}</EmptyTitle>
-              <EmptyDescription>{{ t('adminUsers.feedback.loadFailed') }}</EmptyDescription>
-            </EmptyHeader>
-            <EmptyContent>
-              <Button @click="loadUsers()">{{ t('adminUsers.actions.retry') }}</Button>
-            </EmptyContent>
-          </Empty>
-        </div>
-
-        <div
-          v-else
-          class="space-y-4"
-        >
-          <div class="overflow-hidden rounded-xl border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{{ t('adminUsers.table.username') }}</TableHead>
-                  <TableHead>{{ t('adminUsers.table.email') }}</TableHead>
-                  <TableHead>{{ t('adminUsers.table.role') }}</TableHead>
-                  <TableHead>{{ t('adminUsers.table.status') }}</TableHead>
-                  <TableHead>{{ t('adminUsers.table.createdAt') }}</TableHead>
-                  <TableHead class="text-right">{{ t('adminUsers.table.actions') }}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                <template v-if="users.length > 0">
-                  <TableRow
-                    v-for="user in users"
-                    :key="user.id"
-                  >
-                    <TableCell>
-                      <div class="flex min-w-0 flex-col">
-                        <span class="font-medium">{{ user.username }}</span>
-                        <span
-                          v-if="user.mustChangePassword"
-                          class="text-muted-foreground text-xs"
-                        >
-                          {{ t('adminUsers.table.mustChangePassword') }}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell class="text-muted-foreground">
-                      {{ user.email ?? t('adminUsers.table.noEmail') }}
-                    </TableCell>
-                    <TableCell>
-                      <Badge :variant="getRoleBadgeVariant(user.role)">
-                        {{ t(getUserRoleLabelKey(user.role)) }}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge :variant="getStatusBadgeVariant(user.status)">
-                        {{ t(`adminUsers.status.${user.status}`) }}
-                      </Badge>
-                    </TableCell>
-                    <TableCell class="text-muted-foreground whitespace-nowrap">
-                      {{ formatDateTime(user.createdAt) }}
-                    </TableCell>
-                    <TableCell>
-                      <div class="flex justify-end gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          :disabled="!canManageUser(user)"
-                          @click="openEditDialog(user)"
-                        >
-                          {{ t('common.action.edit') }}
-                        </Button>
-                        <Button
-                          size="sm"
-                          :variant="user.status === 'banned' ? 'outline' : 'destructive'"
-                          :disabled="!canManageUser(user)"
-                          @click="requestToggleBan(user)"
-                        >
-                          <component :is="user.status === 'banned' ? ShieldCheck : ShieldBan" class="mr-2 size-4" />
-                          {{ user.status === 'banned' ? t('adminUsers.actions.unban') : t('adminUsers.actions.ban') }}
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                </template>
-                <TableEmpty v-else :colspan="6">
-                  {{ t('adminUsers.table.empty') }}
-                </TableEmpty>
-              </TableBody>
-            </Table>
-          </div>
-
-          <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <p class="text-muted-foreground text-sm">
-              {{ t('adminUsers.table.pageSummary', { page, totalPages, total }) }}
-            </p>
-            <div class="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                :disabled="!canGoPrevious || refreshing"
-                @click="changePage(page - 1)"
+    <div v-else class="space-y-4">
+      <div class="overflow-hidden rounded-lg border">
+        <Table>
+          <TableHeader class="bg-muted">
+            <TableRow class="hover:bg-transparent">
+              <TableHead class="text-sm font-semibold">{{ t('adminUsers.table.username') }}</TableHead>
+              <TableHead class="text-sm font-semibold">{{ t('adminUsers.table.email') }}</TableHead>
+              <TableHead class="text-sm font-semibold">{{ t('adminUsers.table.role') }}</TableHead>
+              <TableHead class="text-sm font-semibold">{{ t('adminUsers.table.status') }}</TableHead>
+              <TableHead class="text-sm font-semibold">{{ t('adminUsers.table.createdAt') }}</TableHead>
+              <TableHead class="text-right text-sm font-semibold">{{ t('adminUsers.table.actions') }}</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            <template v-if="users.length > 0">
+              <TableRow
+                v-for="user in users"
+                :key="user.id"
               >
-                {{ t('adminUsers.actions.previousPage') }}
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                :disabled="!canGoNext || refreshing"
-                @click="changePage(page + 1)"
-              >
-                {{ t('adminUsers.actions.nextPage') }}
-              </Button>
-            </div>
-          </div>
+                <TableCell>
+                  <div class="flex min-w-0 flex-col">
+                    <span class="font-medium">{{ user.username }}</span>
+                    <span
+                      v-if="user.mustChangePassword"
+                      class="text-muted-foreground text-xs"
+                    >
+                      {{ t('adminUsers.table.mustChangePassword') }}
+                    </span>
+                  </div>
+                </TableCell>
+                <TableCell class="text-muted-foreground">
+                  {{ user.email ?? t('adminUsers.table.noEmail') }}
+                </TableCell>
+                <TableCell>
+                  <Badge :variant="getRoleBadgeVariant(user.role)">
+                    {{ t(getUserRoleLabelKey(user.role)) }}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  <Badge :variant="getStatusBadgeVariant(user.status)">
+                    {{ t(`adminUsers.status.${user.status}`) }}
+                  </Badge>
+                </TableCell>
+                <TableCell class="text-muted-foreground whitespace-nowrap">
+                  {{ formatDateTime(user.createdAt) }}
+                </TableCell>
+                <TableCell>
+                  <div class="flex justify-end gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      :disabled="!canManageUser(user)"
+                      @click="openEditDialog(user)"
+                    >
+                      {{ t('common.action.edit') }}
+                    </Button>
+                    <Button
+                      size="sm"
+                      :variant="user.status === 'banned' ? 'outline' : 'destructive'"
+                      :disabled="!canManageUser(user)"
+                      @click="requestToggleBan(user)"
+                    >
+                      <component :is="user.status === 'banned' ? ShieldCheck : ShieldBan" class="mr-2 size-4" />
+                      {{ user.status === 'banned' ? t('adminUsers.actions.unban') : t('adminUsers.actions.ban') }}
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            </template>
+            <TableEmpty v-else :colspan="6">
+              {{ t('adminUsers.table.empty') }}
+            </TableEmpty>
+          </TableBody>
+        </Table>
+      </div>
+
+      <div class="flex flex-col gap-4 px-1 lg:flex-row lg:items-center lg:justify-between">
+        <div class="text-muted-foreground text-sm">
+          {{ t('adminUsers.table.pageSummary', { page, totalPages, total }) }}
         </div>
-      </CardContent>
-    </Card>
+
+        <div class="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            :disabled="!canGoPrevious || refreshing"
+            @click="changePage(page - 1)"
+          >
+            {{ t('adminUsers.actions.previousPage') }}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            :disabled="!canGoNext || refreshing"
+            @click="changePage(page + 1)"
+          >
+            {{ t('adminUsers.actions.nextPage') }}
+          </Button>
+        </div>
+      </div>
+    </div>
 
     <AdminUserDialog
       v-model:open="dialogOpen"
