@@ -1,0 +1,4 @@
+interface:
+  display_name: "Shadcn Loading States"
+  short_description: "Prefer Spinner and Skeleton for Vue loading UI"
+  default_prompt: "Use $shadcn-loading-states to add or refine loading states in this Vue frontend."
