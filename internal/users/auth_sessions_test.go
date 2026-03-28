@@ -2,6 +2,7 @@ package users
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 )
@@ -102,5 +103,62 @@ func TestInsertAuthLogPreservesDeletedUserAndSessionReferences(t *testing.T) {
 	}
 	if logs[0].SessionID == nil || *logs[0].SessionID != sessionID {
 		t.Fatalf("expected deleted session id %q to be preserved, got %+v", sessionID, logs[0].SessionID)
+	}
+}
+
+func TestRotateRefreshSessionRequiresCurrentTokenHash(t *testing.T) {
+	t.Parallel()
+
+	store, _, _ := newBootstrapTestStore(t)
+	user, err := store.Create(context.Background(), CreateParams{
+		Username:     "member",
+		PasswordHash: mustHashPassword(t, "member123"),
+		Role:         RoleUser,
+	})
+	if err != nil {
+		t.Fatalf("failed to create test user: %v", err)
+	}
+
+	now := time.Now().UTC()
+	if err := store.CreateRefreshSession(context.Background(), CreateRefreshSessionParams{
+		ID:            "session-1",
+		UserID:        user.ID,
+		TokenHash:     "old-hash",
+		IssuedAt:      now,
+		LastUsedAt:    now,
+		ExpiresAt:     now.Add(time.Hour),
+		IdleExpiresAt: now.Add(time.Hour),
+	}); err != nil {
+		t.Fatalf("failed to create refresh session: %v", err)
+	}
+
+	err = store.RotateRefreshSession(context.Background(), RotateRefreshSessionParams{
+		ID:                "session-1",
+		PreviousTokenHash: "stale-hash",
+		TokenHash:         "new-hash",
+		LastUsedAt:        now.Add(time.Minute),
+		IdleExpiresAt:     now.Add(2 * time.Hour),
+	})
+	if !errors.Is(err, ErrRefreshSessionConflict) {
+		t.Fatalf("expected ErrRefreshSessionConflict, got %v", err)
+	}
+
+	err = store.RotateRefreshSession(context.Background(), RotateRefreshSessionParams{
+		ID:                "session-1",
+		PreviousTokenHash: "old-hash",
+		TokenHash:         "new-hash",
+		LastUsedAt:        now.Add(time.Minute),
+		IdleExpiresAt:     now.Add(2 * time.Hour),
+	})
+	if err != nil {
+		t.Fatalf("expected refresh session rotation to succeed with current token hash: %v", err)
+	}
+
+	session, err := store.GetRefreshSessionByID(context.Background(), "session-1")
+	if err != nil {
+		t.Fatalf("failed to load rotated refresh session: %v", err)
+	}
+	if session.TokenHash != "new-hash" {
+		t.Fatalf("expected rotated token hash %q, got %q", "new-hash", session.TokenHash)
 	}
 }

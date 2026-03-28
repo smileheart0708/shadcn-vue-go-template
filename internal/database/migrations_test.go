@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -113,6 +114,109 @@ func TestRunMigrationsRejectsModifiedAppliedMigration(t *testing.T) {
 	if !strings.Contains(err.Error(), "checksum mismatch") {
 		t.Fatalf("expected checksum mismatch error, got %v", err)
 	}
+}
+
+func TestRunMigrationsBackfillsChecksumForLegacySchemaTable(t *testing.T) {
+	t.Parallel()
+
+	db, cleanup := openRawSQLiteDB(t)
+	defer cleanup()
+
+	if _, err := db.Exec(`
+CREATE TABLE schema_migrations (
+	version INTEGER PRIMARY KEY,
+	name TEXT NOT NULL,
+	applied_at INTEGER NOT NULL
+);`); err != nil {
+		t.Fatalf("failed to create legacy schema_migrations table: %v", err)
+	}
+	if _, err := db.Exec(`INSERT INTO schema_migrations(version, name, applied_at) VALUES (?, ?, ?)`, baselineMigrationVersion, baselineMigrationName, 1_700_000_000); err != nil {
+		t.Fatalf("failed to seed legacy schema_migrations row: %v", err)
+	}
+	if _, err := db.Exec(string(mustReadEmbeddedMigration(t, baselineMigrationName))); err != nil {
+		t.Fatalf("failed to apply baseline schema manually: %v", err)
+	}
+
+	if err := RunMigrations(context.Background(), db); err != nil {
+		t.Fatalf("expected legacy schema_migrations table to be upgraded: %v", err)
+	}
+
+	assertAppliedMigration(t, db, baselineMigrationVersion, baselineMigrationName)
+}
+
+func TestRunMigrationsAllowsConcurrentStartup(t *testing.T) {
+	t.Parallel()
+
+	path := filepath.Join(t.TempDir(), "app.db")
+	db1, cleanup1 := openRawSQLiteDBAtPath(t, path)
+	defer cleanup1()
+
+	db2, cleanup2 := openRawSQLiteDBAtPath(t, path)
+	defer cleanup2()
+
+	start := make(chan struct{})
+	errs := make(chan error, 2)
+
+	var wg sync.WaitGroup
+	run := func(db *sql.DB) {
+		defer wg.Done()
+		<-start
+		errs <- RunMigrations(context.Background(), db)
+	}
+
+	wg.Add(2)
+	go run(db1)
+	go run(db2)
+	close(start)
+	wg.Wait()
+	close(errs)
+
+	for err := range errs {
+		if err != nil {
+			t.Fatalf("expected concurrent migration startup to succeed, got %v", err)
+		}
+	}
+
+	assertAppliedMigration(t, db1, baselineMigrationVersion, baselineMigrationName)
+}
+
+func openRawSQLiteDB(t *testing.T) (*sql.DB, func()) {
+	t.Helper()
+	return openRawSQLiteDBAtPath(t, filepath.Join(t.TempDir(), "app.db"))
+}
+
+func openRawSQLiteDBAtPath(t *testing.T, path string) (*sql.DB, func()) {
+	t.Helper()
+
+	db, err := sql.Open("sqlite", sqliteDSN(Options{Path: path}))
+	if err != nil {
+		t.Fatalf("failed to open raw sqlite database: %v", err)
+	}
+	db.SetMaxOpenConns(1)
+	db.SetMaxIdleConns(1)
+	db.SetConnMaxLifetime(0)
+	db.SetConnMaxIdleTime(0)
+
+	if err := db.PingContext(context.Background()); err != nil {
+		_ = db.Close()
+		t.Fatalf("failed to ping raw sqlite database: %v", err)
+	}
+
+	return db, func() {
+		if err := db.Close(); err != nil {
+			t.Fatalf("failed to close raw sqlite database: %v", err)
+		}
+	}
+}
+
+func mustReadEmbeddedMigration(t *testing.T, name string) []byte {
+	t.Helper()
+
+	content, err := embeddedMigrations.ReadFile("migrations/" + name)
+	if err != nil {
+		t.Fatalf("failed to read embedded migration %s: %v", name, err)
+	}
+	return content
 }
 
 func assertTableColumns(t *testing.T, db *sql.DB, table string, want []string) {

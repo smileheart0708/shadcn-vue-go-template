@@ -309,11 +309,17 @@ func (s *Service) RefreshSession(ctx context.Context, rawToken string) (RefreshR
 	nextIdleExpiry := now.Add(s.refreshIdleTTL)
 
 	if err := s.users.RotateRefreshSession(ctx, users.RotateRefreshSessionParams{
-		ID:            sessionID,
-		TokenHash:     nextTokenHash,
-		LastUsedAt:    now,
-		IdleExpiresAt: nextIdleExpiry,
+		ID:                sessionID,
+		PreviousTokenHash: tokenHash,
+		TokenHash:         nextTokenHash,
+		LastUsedAt:        now,
+		IdleExpiresAt:     nextIdleExpiry,
 	}); err != nil {
+		if errors.Is(err, users.ErrRefreshSessionConflict) {
+			attempt.FailureReason = "token_reuse_detected"
+			_ = s.revokeRefreshSession(ctx, sessionID, "token_reuse_detected")
+			return RefreshResult{}, attempt, ErrTokenReuseDetected
+		}
 		return RefreshResult{}, attempt, err
 	}
 

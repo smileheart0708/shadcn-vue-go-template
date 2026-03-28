@@ -69,3 +69,40 @@ func TestOpenRejectsMultipleSQLiteConnections(t *testing.T) {
 		t.Fatal("expected sqlite multi-connection configuration to be rejected")
 	}
 }
+
+func TestOpenConfiguresSQLitePragmasForReopenedConnections(t *testing.T) {
+	t.Parallel()
+
+	container, err := Open(context.Background(), Options{
+		Path: filepath.Join(t.TempDir(), "app.db"),
+	})
+	if err != nil {
+		t.Fatalf("failed to open database: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := container.Close(); err != nil {
+			t.Fatalf("failed to close database: %v", err)
+		}
+	})
+
+	db := container.DB()
+	db.SetMaxIdleConns(0)
+
+	for i := range 3 {
+		var foreignKeys int
+		if err := db.QueryRow(`PRAGMA foreign_keys`).Scan(&foreignKeys); err != nil {
+			t.Fatalf("iteration %d: failed to query foreign_keys pragma: %v", i, err)
+		}
+		if foreignKeys != 1 {
+			t.Fatalf("iteration %d: expected foreign_keys pragma to be enabled, got %d", i, foreignKeys)
+		}
+
+		var journalMode string
+		if err := db.QueryRow(`PRAGMA journal_mode`).Scan(&journalMode); err != nil {
+			t.Fatalf("iteration %d: failed to query journal_mode pragma: %v", i, err)
+		}
+		if !strings.EqualFold(journalMode, "wal") {
+			t.Fatalf("iteration %d: expected journal_mode wal, got %q", i, journalMode)
+		}
+	}
+}

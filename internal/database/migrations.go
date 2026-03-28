@@ -168,9 +168,33 @@ func migrationVersionFromFilename(name string) (int64, error) {
 }
 
 func ensureSchemaMigrationsChecksumColumn(ctx context.Context, db *sql.DB) error {
+	hasChecksum, err := schemaMigrationsHasColumn(ctx, db, "checksum")
+	if err != nil {
+		return err
+	}
+	if hasChecksum {
+		return nil
+	}
+
+	if _, err := db.ExecContext(ctx, `ALTER TABLE schema_migrations ADD COLUMN checksum TEXT NULL`); err != nil {
+		if isSQLiteDuplicateColumnError(err) {
+			hasChecksum, checkErr := schemaMigrationsHasColumn(ctx, db, "checksum")
+			if checkErr != nil {
+				return checkErr
+			}
+			if hasChecksum {
+				return nil
+			}
+		}
+		return fmt.Errorf("db: failed to add checksum column to schema_migrations: %w", err)
+	}
+	return nil
+}
+
+func schemaMigrationsHasColumn(ctx context.Context, db *sql.DB, column string) (bool, error) {
 	rows, err := db.QueryContext(ctx, `PRAGMA table_info(schema_migrations)`)
 	if err != nil {
-		return fmt.Errorf("db: failed to inspect schema_migrations table: %w", err)
+		return false, fmt.Errorf("db: failed to inspect schema_migrations table: %w", err)
 	}
 	defer rows.Close()
 
@@ -184,20 +208,17 @@ func ensureSchemaMigrationsChecksumColumn(ctx context.Context, db *sql.DB) error
 			primaryKey int
 		)
 		if err := rows.Scan(&cid, &name, &columnType, &notNull, &defaultVal, &primaryKey); err != nil {
-			return fmt.Errorf("db: failed to scan schema_migrations metadata: %w", err)
+			return false, fmt.Errorf("db: failed to scan schema_migrations metadata: %w", err)
 		}
-		if name == "checksum" {
-			return nil
+		if name == column {
+			return true, nil
 		}
 	}
 	if err := rows.Err(); err != nil {
-		return fmt.Errorf("db: failed to iterate schema_migrations metadata: %w", err)
+		return false, fmt.Errorf("db: failed to iterate schema_migrations metadata: %w", err)
 	}
 
-	if _, err := db.ExecContext(ctx, `ALTER TABLE schema_migrations ADD COLUMN checksum TEXT NULL`); err != nil {
-		return fmt.Errorf("db: failed to add checksum column to schema_migrations: %w", err)
-	}
-	return nil
+	return false, nil
 }
 
 func getAppliedMigration(ctx context.Context, db *sql.DB, version int64) (*appliedMigration, error) {
@@ -267,7 +288,19 @@ func applySQLMigration(ctx context.Context, db *sql.DB, migration sqlMigration) 
 		migration.Checksum,
 		time.Now().Unix(),
 	); err != nil {
-		_ = tx.Rollback()
+		if rbErr := tx.Rollback(); rbErr != nil {
+			return fmt.Errorf("db: failed to record migration %d (%s): %w (rollback failed: %v)", migration.Version, migration.Name, err, rbErr)
+		}
+		if isSQLiteSchemaMigrationVersionConflict(err) {
+			applied, getErr := getAppliedMigration(ctx, db, migration.Version)
+			if getErr != nil {
+				return getErr
+			}
+			if applied == nil {
+				return fmt.Errorf("db: migration %d (%s) was concurrently recorded but cannot be reloaded", migration.Version, migration.Name)
+			}
+			return reconcileAppliedMigration(ctx, db, migration, *applied)
+		}
 		return fmt.Errorf("db: failed to record migration %d (%s): %w", migration.Version, migration.Name, err)
 	}
 
@@ -276,4 +309,22 @@ func applySQLMigration(ctx context.Context, db *sql.DB, migration sqlMigration) 
 	}
 
 	return nil
+}
+
+func isSQLiteDuplicateColumnError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	message := strings.ToLower(err.Error())
+	return strings.Contains(message, "duplicate column name")
+}
+
+func isSQLiteSchemaMigrationVersionConflict(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	message := strings.ToLower(err.Error())
+	return strings.Contains(message, "unique constraint failed: schema_migrations.version")
 }

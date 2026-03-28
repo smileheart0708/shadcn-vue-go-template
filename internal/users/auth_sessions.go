@@ -9,6 +9,7 @@ import (
 )
 
 var ErrRefreshSessionNotFound = errors.New("users: refresh session not found")
+var ErrRefreshSessionConflict = errors.New("users: refresh session conflict")
 
 type RefreshSession struct {
 	ID            string
@@ -37,10 +38,11 @@ type CreateRefreshSessionParams struct {
 }
 
 type RotateRefreshSessionParams struct {
-	ID            string
-	TokenHash     string
-	LastUsedAt    time.Time
-	IdleExpiresAt time.Time
+	ID                string
+	PreviousTokenHash string
+	TokenHash         string
+	LastUsedAt        time.Time
+	IdleExpiresAt     time.Time
 }
 
 type AuthLogParams struct {
@@ -157,21 +159,38 @@ func (s *Store) RotateRefreshSession(ctx context.Context, params RotateRefreshSe
 		ctx,
 		`UPDATE auth_refresh_sessions
 		SET token_hash = ?, last_used_at = ?, idle_expires_at = ?
-		WHERE id = ? AND revoked_at IS NULL`,
+		WHERE id = ? AND revoked_at IS NULL AND token_hash = ?`,
 		params.TokenHash,
 		params.LastUsedAt.Unix(),
 		params.IdleExpiresAt.Unix(),
 		params.ID,
+		params.PreviousTokenHash,
 	)
 	if err != nil {
 		return fmt.Errorf("users: failed to rotate refresh session: %w", err)
 	}
 
-	if err := ensureRefreshSessionAffected(result); err != nil {
-		return err
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("users: failed to determine refresh session rows affected: %w", err)
+	}
+	if rowsAffected > 0 {
+		return nil
 	}
 
-	return nil
+	session, err := s.GetRefreshSessionByID(ctx, params.ID)
+	switch {
+	case errors.Is(err, ErrRefreshSessionNotFound):
+		return ErrRefreshSessionNotFound
+	case err != nil:
+		return err
+	case session.RevokedAt != nil:
+		return ErrRefreshSessionConflict
+	case session.TokenHash != params.PreviousTokenHash:
+		return ErrRefreshSessionConflict
+	default:
+		return ErrRefreshSessionConflict
+	}
 }
 
 func (s *Store) RevokeRefreshSession(ctx context.Context, id string, reason string, revokedAt time.Time) error {

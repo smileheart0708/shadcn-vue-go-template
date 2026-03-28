@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -78,12 +79,12 @@ func Open(ctx context.Context, opts Options) (*DBContainer, error) {
 
 	// 确保数据目录存在
 	if dir := filepath.Dir(opts.Path); dir != "" && dir != "." {
-		if err := os.MkdirAll(dir, 0755); err != nil {
+		if err := os.MkdirAll(dir, 0o700); err != nil {
 			return nil, fmt.Errorf("db: failed to create data dir %s: %w", dir, err)
 		}
 	}
 
-	db, err := sql.Open("sqlite", opts.Path)
+	db, err := sql.Open("sqlite", sqliteDSN(opts))
 	if err != nil {
 		return nil, fmt.Errorf("db: failed to open sqlite %s: %w", opts.Path, err)
 	}
@@ -94,7 +95,7 @@ func Open(ctx context.Context, opts Options) (*DBContainer, error) {
 	db.SetConnMaxLifetime(0)
 	db.SetConnMaxIdleTime(0)
 
-	if err := applyPragmas(ctx, db, opts); err != nil {
+	if err := verifyPragmas(ctx, db, opts); err != nil {
 		_ = db.Close()
 		return nil, err
 	}
@@ -139,26 +140,29 @@ func (c *DBContainer) Close() error {
 	return nil
 }
 
-func applyPragmas(ctx context.Context, db *sql.DB, opts Options) error {
+func sqliteDSN(opts Options) string {
+	params := url.Values{}
+	if opts.BusyTimeout > 0 {
+		params.Add("_pragma", fmt.Sprintf("busy_timeout(%d)", opts.BusyTimeout.Milliseconds()))
+	}
+	if !opts.DisableForeignKeys {
+		params.Add("_pragma", "foreign_keys(1)")
+	}
+	params.Add("_pragma", "journal_mode(WAL)")
+	if encoded := params.Encode(); encoded != "" {
+		return opts.Path + "?" + encoded
+	}
+	return opts.Path
+}
+
+func verifyPragmas(ctx context.Context, db *sql.DB, opts Options) error {
 	conn, err := db.Conn(ctx)
 	if err != nil {
 		return fmt.Errorf("db: failed to get sqlite conn: %w", err)
 	}
 	defer conn.Close()
 
-	// 避免 "database is locked"
-	if opts.BusyTimeout > 0 {
-		ms := opts.BusyTimeout.Milliseconds()
-		// PRAGMA busy_timeout 不能可靠地使用占位符，使用常量拼接是安全且可控的。
-		if _, err := conn.ExecContext(ctx, fmt.Sprintf("PRAGMA busy_timeout = %d", ms)); err != nil { // PRAGMA 不支持占位符，内部拼接安全
-			return fmt.Errorf("db: failed to set busy_timeout: %w", err)
-		}
-	}
-
 	if !opts.DisableForeignKeys {
-		if _, err := conn.ExecContext(ctx, "PRAGMA foreign_keys = ON"); err != nil {
-			return fmt.Errorf("db: failed to enable foreign_keys: %w", err)
-		}
 		var enabled int
 		if err := conn.QueryRowContext(ctx, "PRAGMA foreign_keys").Scan(&enabled); err != nil {
 			return fmt.Errorf("db: failed to verify foreign_keys: %w", err)
@@ -170,8 +174,8 @@ func applyPragmas(ctx context.Context, db *sql.DB, opts Options) error {
 
 	// 模板默认开启 WAL 模式
 	var mode string
-	if err := conn.QueryRowContext(ctx, "PRAGMA journal_mode=WAL").Scan(&mode); err != nil {
-		return fmt.Errorf("db: failed to enable WAL: %w", err)
+	if err := conn.QueryRowContext(ctx, "PRAGMA journal_mode").Scan(&mode); err != nil {
+		return fmt.Errorf("db: failed to verify WAL: %w", err)
 	}
 	if !strings.EqualFold(mode, "wal") {
 		return fmt.Errorf("db: expected WAL journal mode, got %q", mode)
