@@ -29,6 +29,7 @@ const searchQuery = ref('')
 const roleFilter = ref<'ALL' | '0' | '1' | '2'>('ALL')
 const statusFilter = ref<'ALL' | 'active' | 'banned'>('ALL')
 const loading = ref(true)
+const initialLoadResolved = ref(false)
 const refreshing = ref(false)
 const loadFailed = ref(false)
 
@@ -58,7 +59,9 @@ onMounted(() => {
 })
 
 async function loadUsers(options: { background?: boolean } = {}) {
-  if (options.background) {
+  const useBackgroundRefresh = options.background ?? initialLoadResolved.value
+
+  if (useBackgroundRefresh) {
     refreshing.value = true
   } else {
     loading.value = true
@@ -78,11 +81,12 @@ async function loadUsers(options: { background?: boolean } = {}) {
     total.value = response.total
     loadFailed.value = false
   } catch (error) {
-    if (!options.background) {
+    if (!useBackgroundRefresh) {
       loadFailed.value = true
     }
     toast.error(getAPIErrorMessage(t, error, 'adminUsers.feedback.loadFailed'))
   } finally {
+    initialLoadResolved.value = true
     loading.value = false
     refreshing.value = false
   }
@@ -297,7 +301,13 @@ function formatDateTime(value: string) {
             <EmptyDescription>{{ t('adminUsers.feedback.loadFailed') }}</EmptyDescription>
           </EmptyHeader>
           <EmptyContent>
-            <Button @click="loadUsers()">{{ t('adminUsers.actions.retry') }}</Button>
+            <Button :disabled="refreshing" @click="loadUsers()">
+              <Spinner
+                v-if="refreshing"
+                class="mr-2"
+              />
+              {{ t('adminUsers.actions.retry') }}
+            </Button>
           </EmptyContent>
         </Empty>
       </div>
@@ -380,7 +390,11 @@ function formatDateTime(value: string) {
       </div>
 
       <div class="flex flex-col gap-4 px-1 lg:flex-row lg:items-center lg:justify-between">
-        <div class="text-muted-foreground text-sm">
+        <div class="text-muted-foreground flex items-center gap-2 text-sm" aria-live="polite">
+          <Spinner
+            v-if="refreshing"
+            class="size-4"
+          />
           {{ t('adminUsers.table.pageSummary', { page, totalPages, total }) }}
         </div>
 
