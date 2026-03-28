@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import type { HTMLAttributes } from 'vue'
-import { ref } from 'vue'
+import type { RegistrationMode } from '@/lib/api/auth'
+import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
+import { getRegistrationPolicy } from '@/lib/api/auth'
 import { getAPIErrorMessage } from '@/lib/api/error-messages'
 import { useAuthStore } from '@/stores/auth'
 
@@ -23,6 +25,20 @@ const authStore = useAuthStore()
 const identifier = ref('')
 const password = ref('')
 const isSubmitting = ref(false)
+const registrationMode = ref<RegistrationMode | null>(null)
+
+onMounted(() => {
+  void loadRegistrationPolicy()
+})
+
+async function loadRegistrationPolicy() {
+  try {
+    const policy = await getRegistrationPolicy()
+    registrationMode.value = policy.registrationMode
+  } catch {
+    registrationMode.value = null
+  }
+}
 
 async function handleSubmit() {
   if (isSubmitting.value) {
@@ -97,7 +113,7 @@ async function handleSubmit() {
             {{ isSubmitting ? t('auth.signIn.signingIn') : t('auth.signIn.submit') }}
           </Button>
         </Field>
-        <Field>
+        <Field v-if="registrationMode !== 'disabled'">
           <FieldDescription class="text-center">
             {{ t('auth.signIn.noAccount') }}
             <RouterLink
