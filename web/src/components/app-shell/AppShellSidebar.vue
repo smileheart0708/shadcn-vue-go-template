@@ -29,14 +29,17 @@ async function handleLogout() {
 <template>
   <Sidebar collapsible="offcanvas">
     <SidebarHeader>
-      <div class="flex items-center gap-2 px-2">
+      <RouterLink
+        to="/"
+        class="flex items-center gap-2 px-2 hover:opacity-80 transition-opacity"
+      >
         <img
           src="/logo.svg"
           class="size-5"
           alt="Logo"
         />
         <span class="text-base font-semibold">web</span>
-      </div>
+      </RouterLink>
     </SidebarHeader>
     <SidebarContent>
       <AppShellNavMain :items="navigation.main" />
