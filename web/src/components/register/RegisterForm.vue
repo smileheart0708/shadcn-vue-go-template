@@ -1,13 +1,20 @@
 <script setup lang="ts">
 import type { HTMLAttributes } from 'vue'
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { Github } from 'lucide-vue-next'
+import { toast } from 'vue-sonner'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { Field, FieldDescription, FieldGroup, FieldLabel, FieldSeparator } from '@/components/ui/field'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty'
+import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Spinner } from '@/components/ui/spinner'
+import { getRegistrationPolicy } from '@/lib/api/auth'
+import { getAPIErrorMessage } from '@/lib/api/error-messages'
+import { useAuthStore } from '@/stores/auth'
 
 const props = defineProps<{
   class?: HTMLAttributes['class']
@@ -15,124 +22,207 @@ const props = defineProps<{
 
 const { t } = useI18n()
 const router = useRouter()
+const authStore = useAuthStore()
 
-const name = ref('')
+const registrationMode = ref<'disabled' | 'password' | null>(null)
+const loadingPolicy = ref(true)
+const refreshingPolicy = ref(false)
+const loadFailed = ref(false)
+const username = ref('')
 const email = ref('')
 const password = ref('')
 const confirmPassword = ref('')
 const isSubmitting = ref(false)
 
-function handleSubmit() {
-  if (isSubmitting.value) {
+onMounted(() => {
+  void loadPolicy()
+})
+
+async function loadPolicy(options: { background?: boolean } = {}) {
+  if (options.background) {
+    refreshingPolicy.value = true
+  } else {
+    loadingPolicy.value = true
+  }
+
+  try {
+    const policy = await getRegistrationPolicy()
+    registrationMode.value = policy.registrationMode
+    loadFailed.value = false
+  } catch (error) {
+    loadFailed.value = true
+    toast.error(getAPIErrorMessage(t, error, 'auth.signUp.policyLoadFailed'))
+  } finally {
+    loadingPolicy.value = false
+    refreshingPolicy.value = false
+  }
+}
+
+async function handleSubmit() {
+  if (isSubmitting.value || registrationMode.value !== 'password') {
     return
   }
 
   if (password.value !== confirmPassword.value) {
+    toast.error(t('auth.signUp.passwordMismatch'))
     return
   }
 
   isSubmitting.value = true
 
-  setTimeout(() => {
+  const registerPromise = authStore.register({
+    username: username.value.trim(),
+    email: email.value.trim() ? email.value.trim() : null,
+    password: password.value,
+  })
+
+  toast.promise(registerPromise, {
+    loading: t('auth.signUp.creating'),
+    success: () => t('auth.signUp.registerSuccess'),
+    error: (error: unknown) => getAPIErrorMessage(t, error, 'auth.signUp.registerFailed'),
+  })
+
+  try {
+    await registerPromise
+    await router.push({ name: 'dashboard' })
+  } catch {
+    await loadPolicy({ background: true })
+    return
+  } finally {
     isSubmitting.value = false
-    void router.push('/login')
-  }, 1000)
+  }
 }
 </script>
 
 <template>
   <div :class="cn('flex flex-col gap-6', props.class)">
-    <form @submit.prevent="handleSubmit">
+    <div v-if="loadingPolicy" class="space-y-4 rounded-xl border p-6">
+      <div class="space-y-2 text-center">
+        <Skeleton class="mx-auto h-6 w-40 rounded-md" />
+        <Skeleton class="mx-auto h-4 w-60 rounded-md" />
+      </div>
+      <div class="space-y-3">
+        <Skeleton class="h-18 rounded-xl" />
+        <Skeleton class="h-18 rounded-xl" />
+        <Skeleton class="h-18 rounded-xl" />
+        <Skeleton class="h-18 rounded-xl" />
+        <Skeleton class="h-10 rounded-md" />
+      </div>
+    </div>
+
+    <Card v-else-if="loadFailed">
+      <CardHeader class="text-center">
+        <CardTitle>{{ t('auth.signUp.loadFailedTitle') }}</CardTitle>
+        <CardDescription>{{ t('auth.signUp.policyLoadFailed') }}</CardDescription>
+      </CardHeader>
+      <CardContent class="flex justify-center">
+        <Button @click="loadPolicy">{{ t('auth.signUp.retry') }}</Button>
+      </CardContent>
+    </Card>
+
+    <Card v-else-if="registrationMode === 'disabled'">
+      <CardHeader class="text-center">
+        <CardTitle>{{ t('auth.signUp.disabledTitle') }}</CardTitle>
+        <CardDescription>{{ t('auth.signUp.disabledDescription') }}</CardDescription>
+      </CardHeader>
+      <CardContent class="space-y-4">
+        <Empty class="border-none p-0">
+          <EmptyHeader>
+            <EmptyTitle>{{ t('auth.signUp.disabledTitle') }}</EmptyTitle>
+            <EmptyDescription>{{ t('auth.signUp.disabledHint') }}</EmptyDescription>
+          </EmptyHeader>
+          <EmptyContent class="flex flex-wrap items-center justify-center gap-2">
+            <Button
+              variant="outline"
+              :disabled="refreshingPolicy"
+              @click="loadPolicy({ background: true })"
+            >
+              <Spinner
+                v-if="refreshingPolicy"
+                class="mr-2"
+              />
+              {{ t('auth.signUp.retry') }}
+            </Button>
+            <Button
+              variant="outline"
+              as-child
+            >
+              <RouterLink :to="{ name: 'login' }">{{ t('auth.signUp.signIn') }}</RouterLink>
+            </Button>
+          </EmptyContent>
+        </Empty>
+      </CardContent>
+    </Card>
+
+    <form v-else @submit.prevent="handleSubmit">
       <FieldGroup>
         <div class="flex flex-col items-center gap-2 text-center">
           <h1 class="text-xl font-bold">{{ t('auth.signUp.title') }}</h1>
           <FieldDescription>
             {{ t('auth.signUp.description') }}
-            <router-link
-              to="/login"
-              class="font-medium hover:underline"
-            >
+            <RouterLink to="/login" class="font-medium hover:underline">
               {{ t('auth.signUp.signIn') }}
-            </router-link>
+            </RouterLink>
           </FieldDescription>
         </div>
+
         <Field>
-          <FieldLabel for="username"> {{ t('common.field.username') }} </FieldLabel>
+          <FieldLabel for="username">{{ t('common.field.username') }}</FieldLabel>
           <Input
             id="username"
-            v-model="name"
-            type="text"
-            :placeholder="t('auth.signUp.usernamePlaceholder')"
+            v-model="username"
             autocomplete="username"
+            :placeholder="t('auth.signUp.usernamePlaceholder')"
             required
+            type="text"
           />
         </Field>
+
         <Field>
-          <FieldLabel for="email"> {{ t('common.field.email') }} </FieldLabel>
+          <FieldLabel for="email">{{ t('common.field.email') }}</FieldLabel>
           <Input
             id="email"
             v-model="email"
-            type="email"
-            :placeholder="t('auth.signUp.emailPlaceholder')"
             autocomplete="email"
-            required
+            :placeholder="t('auth.signUp.emailPlaceholder')"
+            type="email"
           />
+          <FieldDescription>{{ t('auth.signUp.emailOptional') }}</FieldDescription>
         </Field>
+
         <Field>
-          <FieldLabel for="password"> {{ t('common.field.password') }} </FieldLabel>
+          <FieldLabel for="password">{{ t('common.field.password') }}</FieldLabel>
           <Input
             id="password"
             v-model="password"
-            type="password"
-            :placeholder="t('auth.signUp.passwordPlaceholder')"
             autocomplete="new-password"
+            :placeholder="t('auth.signUp.passwordPlaceholder')"
+            minlength="8"
             required
+            type="password"
           />
         </Field>
+
         <Field>
-          <FieldLabel for="confirmPassword"> {{ t('auth.signUp.confirmPassword') }} </FieldLabel>
+          <FieldLabel for="confirmPassword">{{ t('auth.signUp.confirmPassword') }}</FieldLabel>
           <Input
             id="confirmPassword"
             v-model="confirmPassword"
-            type="password"
-            :placeholder="t('auth.signUp.confirmPasswordPlaceholder')"
             autocomplete="new-password"
+            :placeholder="t('auth.signUp.confirmPasswordPlaceholder')"
+            minlength="8"
             required
+            type="password"
           />
         </Field>
+
         <Field>
-          <Button
-            type="submit"
-            :disabled="isSubmitting"
-          >
+          <Button type="submit" :disabled="isSubmitting || refreshingPolicy">
+            <Spinner v-if="isSubmitting" class="mr-2" />
             {{ isSubmitting ? t('auth.signUp.creating') : t('auth.signUp.submit') }}
-          </Button>
-        </Field>
-        <FieldSeparator>{{ t('auth.signUp.or') }}</FieldSeparator>
-        <Field>
-          <Button
-            variant="outline"
-            type="button"
-          >
-            <Github class="size-4 mr-2" />
-            {{ t('auth.signUp.continueWithGithub') }}
           </Button>
         </Field>
       </FieldGroup>
     </form>
-    <FieldDescription class="px-6 text-center">
-      {{ t('auth.signUp.termsPrefix') }}
-      <a
-        href="#"
-        class="font-medium hover:underline"
-        >{{ t('auth.signUp.terms') }}</a
-      >
-      {{ t('auth.signUp.termsAnd') }}
-      <a
-        href="#"
-        class="font-medium hover:underline"
-        >{{ t('auth.signUp.privacy') }}</a
-      >
-    </FieldDescription>
   </div>
 </template>

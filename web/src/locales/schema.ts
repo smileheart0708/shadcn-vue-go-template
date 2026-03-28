@@ -24,12 +24,15 @@ export interface MessageSchema {
   apiError: {
     unknown: string
     invalidCredentials: string
+    accountBanned: string
     unauthorized: string
     usernameRequired: string
     usernameTaken: string
     emailTaken: string
     currentPasswordInvalid: string
     passwordTooShort: string
+    registrationDisabled: string
+    invalidRegistrationMode: string
     avatarRequired: string
     avatarInvalidType: string
     avatarTooLarge: string
@@ -40,16 +43,23 @@ export interface MessageSchema {
     superAdminDeleteForbidden: string
     systemLogStreamFailed: string
   }
-  route: { systemConfig: string; dashboard: string; login: string; notFound: string; settings: string; register: string; systemLogs: string; tasks: string; feedback: { loadFailed: string } }
+  route: { systemConfig: string; adminUsers: string; dashboard: string; login: string; notFound: string; settings: string; register: string; systemLogs: string; tasks: string; feedback: { loadFailed: string } }
   systemConfig: {
     title: string
     description: string
     badge: string
-    sections: {
-      access: { title: string; description: string; points: string[] }
-      observability: { title: string; description: string; cta: string }
-      roadmap: { title: string; description: string; items: string[] }
+    registration: {
+      title: string
+      description: string
+      updatedAt: string
+      options: {
+        disabled: { title: string; description: string }
+        password: { title: string; description: string }
+      }
     }
+    observability: { title: string; description: string; cta: string }
+    actions: { retry: string }
+    feedback: { loadFailedTitle: string; loadFailed: string; saving: string; saved: string; saveFailed: string }
   }
   settings: {
     title: string
@@ -132,7 +142,9 @@ export interface MessageSchema {
       forgotPassword: string
       loginFailed: string
       loginSuccess: string
+      noAccount: string
       passwordPlaceholder: string
+      register: string
       rememberMe: string
       signingIn: string
       submit: string
@@ -141,20 +153,97 @@ export interface MessageSchema {
     signUp: {
       title: string
       description: string
+      disabledTitle: string
+      disabledDescription: string
+      disabledHint: string
+      emailOptional: string
       signIn: string
       usernamePlaceholder: string
       emailPlaceholder: string
       passwordPlaceholder: string
       confirmPassword: string
       confirmPasswordPlaceholder: string
+      passwordMismatch: string
       creating: string
+      registerSuccess: string
+      registerFailed: string
+      loadFailedTitle: string
+      policyLoadFailed: string
+      retry: string
       submit: string
-      or: string
-      continueWithGithub: string
-      termsPrefix: string
-      terms: string
-      termsAnd: string
-      privacy: string
+    }
+  }
+  adminUsers: {
+    title: string
+    description: string
+    badge: string
+    actions: {
+      createUser: string
+      refresh: string
+      retry: string
+      ban: string
+      unban: string
+      previousPage: string
+      nextPage: string
+    }
+    filters: {
+      title: string
+      description: string
+      searchPlaceholder: string
+      rolePlaceholder: string
+      statusPlaceholder: string
+      roleAll: string
+      statusAll: string
+    }
+    table: {
+      title: string
+      summary: string
+      username: string
+      email: string
+      role: string
+      status: string
+      createdAt: string
+      actions: string
+      empty: string
+      noEmail: string
+      mustChangePassword: string
+      pageSummary: string
+    }
+    status: { active: string; banned: string }
+    dialog: {
+      createTitle: string
+      createDescription: string
+      createSubmit: string
+      editTitle: string
+      editDescription: string
+      editSubmit: string
+      usernamePlaceholder: string
+      emailPlaceholder: string
+      passwordPlaceholder: string
+      passwordHint: string
+    }
+    confirm: {
+      banTitle: string
+      banDescription: string
+      unbanTitle: string
+      unbanDescription: string
+    }
+    feedback: {
+      loadFailedTitle: string
+      loadFailed: string
+      refreshing: string
+      creating: string
+      createSuccess: string
+      createFailed: string
+      updating: string
+      updateSuccess: string
+      updateFailed: string
+      banning: string
+      banSuccess: string
+      banFailed: string
+      unbanning: string
+      unbanSuccess: string
+      unbanFailed: string
     }
   }
   table: {
@@ -215,7 +304,7 @@ export interface MessageSchema {
   }
   nav: {
     main: { dashboard: string; tasks: string; lifecycle: string; analytics: string; projects: string; team: string }
-    management: { systemConfig: string; systemLogs: string; label: string }
+    management: { systemConfig: string; users: string; systemLogs: string; label: string }
     secondary: { settings: string; getHelp: string; search: string }
     user: { account: string; billing: string; notifications: string; language: string; switchLanguage: string; logout: string }
   }

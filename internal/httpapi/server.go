@@ -14,6 +14,7 @@ import (
 
 	"main/internal/auth"
 	"main/internal/logging"
+	"main/internal/systemsettings"
 	"main/internal/users"
 )
 
@@ -33,7 +34,12 @@ func NewHandlerWithOptions(options HandlerOptions) http.Handler {
 		logger = slog.Default()
 	}
 
-	apiService := NewAPI(options.UserStore, options.DataDir, options.Auth)
+	var settingsStore *systemsettings.Store
+	if options.UserStore != nil {
+		settingsStore = systemsettings.NewStore(options.UserStore.DB())
+	}
+
+	apiService := NewAPI(options.UserStore, settingsStore, options.DataDir, options.Auth)
 	apiService.logger = logger
 	apiService.logStream = options.LogStream
 	api := newAPIMux(apiService)
@@ -57,7 +63,9 @@ func NewHandlerWithOptions(options HandlerOptions) http.Handler {
 func newAPIMux(api *API) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/healthz", healthz)
+	mux.Handle("GET /api/auth/registration-policy", http.HandlerFunc(api.registrationPolicyHandler))
 	mux.Handle("POST /api/auth/login", http.HandlerFunc(api.loginHandler))
+	mux.Handle("POST /api/auth/register", http.HandlerFunc(api.registerHandler))
 	mux.Handle("POST /api/auth/refresh", http.HandlerFunc(api.refreshHandler))
 	mux.Handle("POST /api/auth/logout", http.HandlerFunc(api.logoutHandler))
 	mux.Handle("GET /api/auth/me", Chain(http.HandlerFunc(api.meHandler), RequireAuth(api.auth)))
@@ -66,6 +74,13 @@ func newAPIMux(api *API) http.Handler {
 	mux.Handle("POST /api/account/password", Chain(http.HandlerFunc(api.updatePasswordHandler), RequireAuth(api.auth)))
 	mux.Handle("DELETE /api/account", Chain(http.HandlerFunc(api.deleteAccountHandler), RequireAuth(api.auth)))
 	mux.Handle("GET /api/avatars/{filename}", http.HandlerFunc(api.avatarHandler))
+	mux.Handle("GET /api/admin/system-settings", Chain(http.HandlerFunc(api.adminGetSystemSettingsHandler), RequireAuth(api.auth), RequireRole(users.RoleAdmin)))
+	mux.Handle("PATCH /api/admin/system-settings/registration", Chain(http.HandlerFunc(api.adminUpdateRegistrationHandler), RequireAuth(api.auth), RequireRole(users.RoleAdmin)))
+	mux.Handle("GET /api/admin/users", Chain(http.HandlerFunc(api.adminListUsersHandler), RequireAuth(api.auth), RequireRole(users.RoleAdmin)))
+	mux.Handle("POST /api/admin/users", Chain(http.HandlerFunc(api.adminCreateUserHandler), RequireAuth(api.auth), RequireRole(users.RoleAdmin)))
+	mux.Handle("PATCH /api/admin/users/{id}", Chain(http.HandlerFunc(api.adminUpdateUserHandler), RequireAuth(api.auth), RequireRole(users.RoleAdmin)))
+	mux.Handle("POST /api/admin/users/{id}/ban", Chain(http.HandlerFunc(api.adminBanUserHandler), RequireAuth(api.auth), RequireRole(users.RoleAdmin)))
+	mux.Handle("POST /api/admin/users/{id}/unban", Chain(http.HandlerFunc(api.adminUnbanUserHandler), RequireAuth(api.auth), RequireRole(users.RoleAdmin)))
 	mux.Handle("GET /api/admin/system-logs/stream", Chain(http.HandlerFunc(api.adminStreamSystemLogsHandler), RequireAuth(api.auth), RequireRole(users.RoleAdmin)))
 	return mux
 }

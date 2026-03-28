@@ -9,7 +9,9 @@ CREATE TABLE IF NOT EXISTS users (
     auth_version INTEGER NOT NULL DEFAULT 1,
     password_changed_at INTEGER NULL,
     created_at INTEGER NOT NULL,
-    updated_at INTEGER NOT NULL
+    updated_at INTEGER NOT NULL,
+    is_banned INTEGER NOT NULL DEFAULT 0,
+    banned_at INTEGER NULL
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS users_email_unique_idx
@@ -57,3 +59,12 @@ ON auth_login_logs(created_at DESC);
 
 CREATE INDEX IF NOT EXISTS auth_login_logs_user_idx
 ON auth_login_logs(user_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS system_settings (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    registration_mode TEXT NOT NULL CHECK (registration_mode IN ('disabled', 'password')),
+    updated_at INTEGER NOT NULL
+);
+
+INSERT OR IGNORE INTO system_settings (id, registration_mode, updated_at)
+VALUES (1, 'password', strftime('%s', 'now'));

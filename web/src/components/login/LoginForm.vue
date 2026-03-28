@@ -9,7 +9,7 @@ import { useAuthStore } from '@/stores/auth'
 
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { Field, FieldGroup, FieldLabel } from '@/components/ui/field'
+import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 
 const { t } = useI18n()
@@ -96,6 +96,17 @@ async function handleSubmit() {
           >
             {{ isSubmitting ? t('auth.signIn.signingIn') : t('auth.signIn.submit') }}
           </Button>
+        </Field>
+        <Field>
+          <FieldDescription class="text-center">
+            {{ t('auth.signIn.noAccount') }}
+            <RouterLink
+              to="/register"
+              class="font-medium hover:underline"
+            >
+              {{ t('auth.signIn.register') }}
+            </RouterLink>
+          </FieldDescription>
         </Field>
       </FieldGroup>
     </form>

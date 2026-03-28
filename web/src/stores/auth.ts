@@ -1,9 +1,9 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import type { Router } from 'vue-router'
-import type { AuthUser, GetCurrentUserOptions, LoginCredentials, LoginResponse } from '@/lib/api/auth'
+import type { AuthUser, GetCurrentUserOptions, LoginCredentials, LoginResponse, RegisterInput } from '@/lib/api/auth'
 import type { ChangePasswordInput, UpdateProfileInput } from '@/lib/api/account'
-import { getCurrentUser, login as loginRequest, logout as logoutRequest, refreshSession } from '@/lib/api/auth'
+import { getCurrentUser, login as loginRequest, logout as logoutRequest, refreshSession, register as registerRequest } from '@/lib/api/auth'
 import { deleteAccount as deleteAccountRequest, updatePassword as updatePasswordRequest, updateProfile as updateProfileRequest, uploadAvatar as uploadAvatarRequest } from '@/lib/api/account'
 import { clearAuthClientHandlers, registerAuthClientHandlers } from '@/lib/api/client'
 import { clearAuthToken, readAuthToken, writeAuthToken } from '@/lib/auth/token'
@@ -137,6 +137,12 @@ export const useAuthStore = defineStore('auth', () => {
     return response
   }
 
+  async function register(input: RegisterInput): Promise<LoginResponse> {
+    const response = await registerRequest(input)
+    applySession(response)
+    return response
+  }
+
   async function saveProfile(profile: UpdateProfileInput) {
     const nextUser = await updateProfileRequest(profile)
     applyCurrentUser(nextUser)
@@ -195,6 +201,7 @@ export const useAuthStore = defineStore('auth', () => {
     applyCurrentUser,
     initialize,
     login,
+    register,
     saveProfile,
     uploadAvatar,
     changePassword,

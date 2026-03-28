@@ -2,12 +2,15 @@ import type { APIError } from '@/lib/api/client'
 
 const API_ERROR_MESSAGE_KEYS = {
   invalid_credentials: 'apiError.invalidCredentials',
+  account_banned: 'apiError.accountBanned',
   unauthorized: 'apiError.unauthorized',
   username_required: 'apiError.usernameRequired',
   username_taken: 'apiError.usernameTaken',
   email_taken: 'apiError.emailTaken',
   current_password_invalid: 'apiError.currentPasswordInvalid',
   password_too_short: 'apiError.passwordTooShort',
+  registration_disabled: 'apiError.registrationDisabled',
+  invalid_registration_mode: 'apiError.invalidRegistrationMode',
   avatar_required: 'apiError.avatarRequired',
   avatar_invalid_type: 'apiError.avatarInvalidType',
   avatar_too_large: 'apiError.avatarTooLarge',
@@ -37,6 +40,8 @@ function getAPIErrorMessageKey(code: string): (typeof API_ERROR_MESSAGE_KEYS)[ke
   switch (code) {
     case 'invalid_credentials':
       return API_ERROR_MESSAGE_KEYS.invalid_credentials
+    case 'account_banned':
+      return API_ERROR_MESSAGE_KEYS.account_banned
     case 'unauthorized':
       return API_ERROR_MESSAGE_KEYS.unauthorized
     case 'username_required':
@@ -49,6 +54,10 @@ function getAPIErrorMessageKey(code: string): (typeof API_ERROR_MESSAGE_KEYS)[ke
       return API_ERROR_MESSAGE_KEYS.current_password_invalid
     case 'password_too_short':
       return API_ERROR_MESSAGE_KEYS.password_too_short
+    case 'registration_disabled':
+      return API_ERROR_MESSAGE_KEYS.registration_disabled
+    case 'invalid_registration_mode':
+      return API_ERROR_MESSAGE_KEYS.invalid_registration_mode
     case 'avatar_required':
       return API_ERROR_MESSAGE_KEYS.avatar_required
     case 'avatar_invalid_type':

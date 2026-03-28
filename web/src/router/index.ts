@@ -13,6 +13,7 @@ const Login = () => import('@/views/LoginView.vue')
 const Register = () => import('@/views/RegisterView.vue')
 const Settings = () => import('@/views/SettingsView.vue')
 const AdminSettings = () => import('@/views/AdminSettingsView.vue')
+const AdminUsers = () => import('@/views/AdminUsersView.vue')
 const SystemLogs = () => import('@/views/SystemLogsView.vue')
 const Tasks = () => import('@/views/TasksView.vue')
 const NotFound = () => import('@/views/NotFoundView.vue')
@@ -39,6 +40,12 @@ const appShellRoutes = [
     name: 'system-config',
     component: AdminSettings,
     meta: { titleKey: 'route.systemConfig', requiresAuth: true, requiredRole: USER_ROLE.admin, maskUnauthorizedAsNotFound: true },
+  }),
+  defineAppShellRoute({
+    path: 'admin-users',
+    name: 'admin-users',
+    component: AdminUsers,
+    meta: { titleKey: 'route.adminUsers', requiresAuth: true, requiredRole: USER_ROLE.admin, maskUnauthorizedAsNotFound: true },
   }),
   {
     path: 'tasks',

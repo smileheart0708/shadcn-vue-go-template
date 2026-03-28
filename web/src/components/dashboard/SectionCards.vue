@@ -4,7 +4,7 @@ import { IconChartAreaLine, IconClockPause, IconTrendingDown, IconTrendingUp } f
 import { Badge } from '@/components/ui/badge'
 import { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
-import LineChart from '@/components/dashboard/LineChart.vue'
+import LineChart from '@/components/dashboard/linechart.vue'
 
 const metrics = [
   {

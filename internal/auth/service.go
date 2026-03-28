@@ -288,6 +288,11 @@ func (s *Service) RefreshSession(ctx context.Context, rawToken string) (RefreshR
 		_ = s.revokeRefreshSession(ctx, sessionID, "user_not_found")
 		return RefreshResult{}, attempt, ErrInvalidRefreshToken
 	}
+	if user.IsBanned {
+		attempt.FailureReason = "account_banned"
+		_ = s.revokeRefreshSession(ctx, sessionID, "account_banned")
+		return RefreshResult{}, attempt, ErrInvalidRefreshToken
+	}
 
 	authVersion, err := s.loadAuthVersion(ctx, user.ID)
 	if err != nil {

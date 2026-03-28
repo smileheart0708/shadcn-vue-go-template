@@ -18,6 +18,15 @@ export interface LoginCredentials {
   password: string
 }
 
+export interface RegisterInput {
+  username: string
+  email: string | null
+  password: string
+}
+
+export const registrationModeSchema = z.enum(['disabled', 'password'])
+export type RegistrationMode = z.infer<typeof registrationModeSchema>
+
 const loginPayloadSchema = z.object({
   accessToken: z.string(),
   tokenType: z.string(),
@@ -29,8 +38,13 @@ const logoutPayloadSchema = z.object({
   loggedOut: z.boolean(),
 })
 
+const registrationPolicyPayloadSchema = z.object({
+  registrationMode: registrationModeSchema,
+})
+
 export const loginResponseSchema = successEnvelopeSchema(loginPayloadSchema)
 const logoutResponseSchema = successEnvelopeSchema(logoutPayloadSchema)
+const registrationPolicyResponseSchema = successEnvelopeSchema(registrationPolicyPayloadSchema)
 
 export type LoginResponse = z.infer<typeof loginPayloadSchema>
 export interface GetCurrentUserOptions {
@@ -44,6 +58,24 @@ export async function login(credentials: LoginCredentials): Promise<LoginRespons
   try {
     const payload = await baseApi.post('/api/auth/login', { json: credentials }).json<unknown>()
     return loginResponseSchema.parse(payload).data
+  } catch (error) {
+    return normalizeAPIError(error)
+  }
+}
+
+export async function register(input: RegisterInput): Promise<LoginResponse> {
+  try {
+    const payload = await baseApi.post('/api/auth/register', { json: input }).json<unknown>()
+    return loginResponseSchema.parse(payload).data
+  } catch (error) {
+    return normalizeAPIError(error)
+  }
+}
+
+export async function getRegistrationPolicy() {
+  try {
+    const payload = await baseApi.get('/api/auth/registration-policy').json<unknown>()
+    return registrationPolicyResponseSchema.parse(payload).data
   } catch (error) {
     return normalizeAPIError(error)
   }

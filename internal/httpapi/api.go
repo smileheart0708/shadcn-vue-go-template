@@ -6,22 +6,25 @@ import (
 
 	"main/internal/auth"
 	"main/internal/logging"
+	"main/internal/systemsettings"
 	"main/internal/users"
 )
 
 type API struct {
 	users     *users.Store
+	settings  *systemsettings.Store
 	auth      *auth.Service
 	dataDir   string
 	logger    *slog.Logger
 	logStream *logging.Stream
 }
 
-func NewAPI(userStore *users.Store, dataDir string, authOptions auth.Options) *API {
+func NewAPI(userStore *users.Store, settingsStore *systemsettings.Store, dataDir string, authOptions auth.Options) *API {
 	return &API{
-		users:   userStore,
-		auth:    auth.NewService(authOptions, userStore),
-		dataDir: dataDir,
+		users:    userStore,
+		settings: settingsStore,
+		auth:     auth.NewService(authOptions, userStore),
+		dataDir:  dataDir,
 	}
 }
 

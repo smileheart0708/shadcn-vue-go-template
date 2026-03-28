@@ -7,8 +7,10 @@ import (
 	"testing"
 )
 
-const baselineMigrationVersion = 1
-const baselineMigrationName = "0001_baseline.sql"
+const (
+	baselineMigrationVersion = 1
+	baselineMigrationName    = "0001_baseline.sql"
+)
 
 func TestRunMigrationsAppliesCurrentBaselineSchema(t *testing.T) {
 	t.Parallel()
@@ -39,6 +41,8 @@ func TestRunMigrationsAppliesCurrentBaselineSchema(t *testing.T) {
 		"password_changed_at",
 		"created_at",
 		"updated_at",
+		"is_banned",
+		"banned_at",
 	})
 	assertTableColumns(t, db, "auth_refresh_sessions", []string{
 		"id",
@@ -64,6 +68,11 @@ func TestRunMigrationsAppliesCurrentBaselineSchema(t *testing.T) {
 		"success",
 		"failure_reason",
 		"created_at",
+	})
+	assertTableColumns(t, db, "system_settings", []string{
+		"id",
+		"registration_mode",
+		"updated_at",
 	})
 
 	var migrationCount int
