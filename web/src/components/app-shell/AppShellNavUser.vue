@@ -10,6 +10,8 @@ import {
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuSub,
   DropdownMenuSubContent,
@@ -132,18 +134,18 @@ function switchLanguage(newLocale: AppLocale) {
                 {{ t('nav.user.language') }}
               </DropdownMenuSubTrigger>
               <DropdownMenuSubContent>
-                <DropdownMenuItem
-                  v-for="lang in supportedLocales"
-                  :key="lang"
-                  @click="switchLanguage(lang)"
+                <DropdownMenuRadioGroup
+                  :model-value="localeStore.locale"
+                  @update:model-value="switchLanguage($event as AppLocale)"
                 >
-                  {{ localeNames[lang] }}
-                  <span
-                    v-if="localeStore.locale === lang"
-                    class="ml-auto"
-                    >✓</span
+                  <DropdownMenuRadioItem
+                    v-for="lang in supportedLocales"
+                    :key="lang"
+                    :value="lang"
                   >
-                </DropdownMenuItem>
+                    {{ localeNames[lang] }}
+                  </DropdownMenuRadioItem>
+                </DropdownMenuRadioGroup>
               </DropdownMenuSubContent>
             </DropdownMenuSub>
           </DropdownMenuGroup>
