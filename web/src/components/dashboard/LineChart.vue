@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import type { ChartConfig } from '@/components/ui/chart'
-import { computed, ref } from 'vue'
-
-// import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts"
-import { VisArea, VisAxis, VisLine, VisXYContainer } from '@unovis/vue'
+import { useResizeObserver } from '@vueuse/core'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { useSidebar } from '@/components/ui/sidebar'
+import { VisAxis, VisLine, VisXYContainer } from '@unovis/vue'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { ChartContainer, ChartCrosshair, ChartLegendContent, ChartTooltip, ChartTooltipContent, componentToString } from '@/components/ui/chart'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { cn } from '@/lib/utils'
 
 const chartData = [
   { date: new Date('2024-04-01'), desktop: 222, mobile: 150 },
@@ -100,14 +101,15 @@ const chartData = [
   { date: new Date('2024-06-28'), desktop: 149, mobile: 200 },
   { date: new Date('2024-06-29'), desktop: 103, mobile: 160 },
   { date: new Date('2024-06-30'), desktop: 446, mobile: 400 },
-]
+] as const
+
 type Data = (typeof chartData)[number]
 type TimeRange = '90d' | '30d' | '7d'
+type SeriesKey = 'mobile' | 'desktop'
+
+const chartSeriesKeys = ['mobile', 'desktop'] as const satisfies readonly SeriesKey[]
 
 const chartConfig = {
-  // visitors: {
-  //   label: 'Visitors',
-  // },
   mobile: {
     label: 'Mobile',
     color: 'var(--chart-2)',
@@ -118,78 +120,146 @@ const chartConfig = {
   },
 } satisfies ChartConfig
 
-const svgDefs = `
-  <linearGradient id="fillDesktop" x1="0" y1="0" x2="0" y2="1">
-    <stop
-      offset="5%"
-      stop-color="var(--color-desktop)"
-      stop-opacity="0.8"
-    />
-    <stop
-      offset="95%"
-      stop-color="var(--color-desktop)"
-      stop-opacity="0.1"
-    />
-  </linearGradient>
-  <linearGradient id="fillMobile" x1="0" y1="0" x2="0" y2="1">
-    <stop
-      offset="5%"
-      stop-color="var(--color-mobile)"
-      stop-opacity="0.8"
-    />
-    <stop
-      offset="95%"
-      stop-color="var(--color-mobile)"
-      stop-opacity="0.1"
-    />
-  </linearGradient>
-`
-
-const areaColors = ['url(#fillMobile)', 'url(#fillDesktop)'] as const
-const lineColors = [chartConfig.mobile.color, chartConfig.desktop.color] as const
 const timeRange = ref<TimeRange>('90d')
-const filterRange = computed(() => {
-  return chartData.filter((item) => {
-    const referenceDate = new Date('2024-06-30')
-    let daysToSubtract = 90
-    if (timeRange.value === '30d') {
-      daysToSubtract = 30
-    } else if (timeRange.value === '7d') {
-      daysToSubtract = 7
-    }
-    const startDate = new Date(referenceDate)
-    startDate.setDate(startDate.getDate() - daysToSubtract)
-    return item.date >= startDate
-  })
+const chartShell = ref<HTMLElement | null>(null)
+const chartWidth = ref(0)
+const displayedRange = computed(() => timeRange.value)
+
+const filteredChartData = computed<Data[]>(() => {
+  const referenceDate = new Date('2024-06-30')
+  let daysToSubtract = 90
+
+  if (timeRange.value === '30d') {
+    daysToSubtract = 30
+  } else if (timeRange.value === '7d') {
+    daysToSubtract = 7
+  }
+
+  const startDate = new Date(referenceDate)
+  startDate.setDate(startDate.getDate() - daysToSubtract)
+
+  return chartData.filter((item) => item.date >= startDate)
 })
 
-const getDate = (data: Data) => data.date
-const getMobile = (data: Data) => data.mobile
-const getStackedDesktop = (data: Data) => data.mobile + data.desktop
-const getAreaColor = (_data: Data, index: number) => areaColors[index]
-const getLineColor = (_data: Data, index: number) => lineColors[index]
-const formatAxisDate = (value: number) =>
-  new Date(value).toLocaleDateString('en-US', {
+const chartYAccessors = computed<Array<(d: Data) => number>>(() => chartSeriesKeys.map((key) => (d: Data) => d[key]))
+const chartSeriesColors = computed<string[]>(() => chartSeriesKeys.map((key) => chartConfig[key].color ?? 'var(--chart-2)'))
+
+const chartMargin = computed(() => {
+  const maxValue = filteredChartData.value.reduce((max, point) => Math.max(max, point.mobile, point.desktop), 0)
+  const yLabelWidth = maxValue.toLocaleString().length
+
+  return {
+    left: Math.min(Math.max(40, yLabelWidth * 8 + 12), 80),
+    right: 8,
+    top: 12,
+    bottom: 28,
+  }
+})
+
+const { open } = useSidebar()
+const sidebarAnimationMs = 220
+let freezeTimer: number | null = null
+const isChartFrozen = ref(false)
+const pendingChartWidth = ref<number | null>(null)
+
+useResizeObserver(chartShell, (entries) => {
+  const nextWidth = Math.round(entries[0]?.contentRect.width ?? 0)
+  if (nextWidth <= 0) {
+    return
+  }
+
+  if (isChartFrozen.value) {
+    pendingChartWidth.value = nextWidth
+    return
+  }
+
+  chartWidth.value = nextWidth
+  pendingChartWidth.value = null
+})
+
+const clearFreezeTimer = () => {
+  if (freezeTimer !== null) {
+    window.clearTimeout(freezeTimer)
+    freezeTimer = null
+  }
+}
+
+const freezeChartDuringSidebarAnimation = () => {
+  const shell = chartShell.value
+  if (!shell) {
+    return
+  }
+
+  const visContainer = shell.querySelector<HTMLElement>('[data-vis-xy-container]')
+  if (!visContainer) {
+    return
+  }
+
+  const { width, height } = visContainer.getBoundingClientRect()
+  if (!width || !height) {
+    return
+  }
+
+  visContainer.style.width = `${width}px`
+  visContainer.style.height = `${height}px`
+  shell.style.overflow = 'hidden'
+  isChartFrozen.value = true
+
+  clearFreezeTimer()
+  freezeTimer = window.setTimeout(() => {
+    visContainer.style.removeProperty('width')
+    visContainer.style.removeProperty('height')
+    shell.style.removeProperty('overflow')
+    isChartFrozen.value = false
+    if (pendingChartWidth.value !== null) {
+      chartWidth.value = pendingChartWidth.value
+      pendingChartWidth.value = null
+    }
+  }, sidebarAnimationMs)
+}
+
+watch(
+  open,
+  () => {
+    freezeChartDuringSidebarAnimation()
+  },
+  { flush: 'sync' },
+)
+
+onBeforeUnmount(() => {
+  clearFreezeTimer()
+})
+
+function getSeriesColor(index: number): string {
+  return chartSeriesColors.value[index] ?? chartSeriesColors.value[0] ?? 'var(--chart-2)'
+}
+
+function formatAxisDate(value: number) {
+  return new Date(value).toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
   })
-const formatTooltipDate = (value: number | Date) =>
-  new Date(value).toLocaleDateString('en-US', {
+}
+
+function formatTooltipDate(value: number | Date) {
+  return new Date(value).toLocaleDateString('en-US', {
+    year: 'numeric',
     month: 'short',
     day: 'numeric',
   })
+}
 </script>
 
 <template>
-  <Card class="pt-0">
+  <Card class="h-full min-h-0 flex-col gap-0 overflow-hidden py-0">
     <CardHeader class="flex items-center gap-2 space-y-0 border-b py-5 sm:flex-row">
       <div class="grid flex-1 gap-1">
         <CardTitle>Area Chart - Interactive</CardTitle>
-        <CardDescription> Showing total visitors for the last 3 months </CardDescription>
+        <CardDescription>Showing total visitors for the last 3 months</CardDescription>
       </div>
       <Select v-model="timeRange">
         <SelectTrigger
-          class="hidden rounded-lg sm:ml-auto sm:flex"
+          class="hidden w-40 rounded-lg sm:ml-auto sm:flex"
           aria-label="Select a value"
         >
           <SelectValue placeholder="Last 3 months" />
@@ -216,58 +286,72 @@ const formatTooltipDate = (value: number | Date) =>
         </SelectContent>
       </Select>
     </CardHeader>
-    <CardContent class="px-2 pt-4 sm:px-6 sm:pt-6 pb-4">
-      <ChartContainer
-        :config="chartConfig"
-        class="aspect-auto w-full"
-        :cursor="false"
+    <CardContent class="min-h-0 flex-1 px-2 pb-4 pt-4 sm:px-6 sm:pt-6">
+      <div
+        ref="chartShell"
+        class="relative flex h-full min-h-0 flex-col"
       >
-        <VisXYContainer
-          :data="filterRange"
-          :svg-defs="svgDefs"
-          :margin="{ left: -40 }"
-          :y-domain="[0, 1200]"
-        >
-          <VisArea
-            :x="getDate"
-            :y="[getMobile, getStackedDesktop]"
-            :color="getAreaColor"
-            :opacity="0.6"
-          />
-          <VisLine
-            :x="getDate"
-            :y="[getMobile, getStackedDesktop]"
-            :color="getLineColor"
-            :line-width="1"
-          />
-          <VisAxis
-            type="x"
-            :x="getDate"
-            :tick-line="false"
-            :domain-line="false"
-            :grid-line="false"
-            :num-ticks="6"
-            :tick-format="formatAxisDate"
-          />
-          <VisAxis
-            type="y"
-            :num-ticks="3"
-            :tick-line="false"
-            :domain-line="false"
-          />
-          <ChartTooltip />
-          <ChartCrosshair
-            :template="
-              componentToString(chartConfig, ChartTooltipContent, {
-                labelFormatter: formatTooltipDate,
-              })
-            "
-            :color="getLineColor"
-          />
-        </VisXYContainer>
+        <div class="relative flex h-full min-h-0 flex-1">
+          <ChartContainer
+            v-if="filteredChartData.length > 0 && chartWidth > 0"
+            :config="chartConfig"
+            class="h-full min-h-0 w-full transition-[opacity,filter] duration-200"
+            :class="cn('opacity-100')"
+            :cursor="false"
+          >
+            <VisXYContainer
+              :data="filteredChartData"
+              :width="chartWidth > 0 ? chartWidth : undefined"
+              :margin="chartMargin"
+              :auto-margin="false"
+              class="flex-1 min-h-0 h-auto!"
+            >
+              <VisLine
+                :x="(d: Data) => d.date"
+                :y="chartYAccessors"
+                :color="
+                  (datum: Data, index: number) => {
+                    void datum
+                    return getSeriesColor(index)
+                  }
+                "
+                :line-width="2"
+              />
+              <VisAxis
+                type="x"
+                :x="(d: Data) => d.date"
+                :tick-line="false"
+                :domain-line="false"
+                :grid-line="false"
+                :num-ticks="displayedRange === '7d' ? 7 : 6"
+                :tick-format="formatAxisDate"
+              />
+              <VisAxis
+                type="y"
+                :num-ticks="4"
+                :tick-line="false"
+                :domain-line="false"
+              />
+              <ChartTooltip />
+              <ChartCrosshair
+                :template="
+                  componentToString(chartConfig, ChartTooltipContent, {
+                    labelFormatter: formatTooltipDate,
+                  })
+                "
+                :color="
+                  (datum: Data, index: number) => {
+                    void datum
+                    return getSeriesColor(index)
+                  }
+                "
+              />
+            </VisXYContainer>
 
-        <ChartLegendContent />
-      </ChartContainer>
+            <ChartLegendContent />
+          </ChartContainer>
+        </div>
+      </div>
     </CardContent>
   </Card>
 </template>
