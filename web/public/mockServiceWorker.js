@@ -7,7 +7,7 @@
  * - Please do NOT modify this file.
  */
 
-const PACKAGE_VERSION = '2.12.10'
+const PACKAGE_VERSION = '2.12.14'
 const INTEGRITY_CHECKSUM = '4db4a41e972cec1b64cc569c66952d82'
 const IS_MOCKED_RESPONSE = Symbol('isMockedResponse')
 const activeClientIds = new Set()
@@ -33,18 +33,25 @@ addEventListener('message', async function (event) {
     return
   }
 
-  const allClients = await self.clients.matchAll({ type: 'window' })
+  const allClients = await self.clients.matchAll({
+    type: 'window',
+  })
 
   switch (event.data) {
     case 'KEEPALIVE_REQUEST': {
-      sendToClient(client, { type: 'KEEPALIVE_RESPONSE' })
+      sendToClient(client, {
+        type: 'KEEPALIVE_RESPONSE',
+      })
       break
     }
 
     case 'INTEGRITY_CHECK_REQUEST': {
       sendToClient(client, {
         type: 'INTEGRITY_CHECK_RESPONSE',
-        payload: { packageVersion: PACKAGE_VERSION, checksum: INTEGRITY_CHECKSUM },
+        payload: {
+          packageVersion: PACKAGE_VERSION,
+          checksum: INTEGRITY_CHECKSUM,
+        },
       })
       break
     }
@@ -54,7 +61,12 @@ addEventListener('message', async function (event) {
 
       sendToClient(client, {
         type: 'MOCKING_ENABLED',
-        payload: { client: { id: client.id, frameType: client.frameType } },
+        payload: {
+          client: {
+            id: client.id,
+            frameType: client.frameType,
+          },
+        },
       })
       break
     }
@@ -126,7 +138,10 @@ async function handleRequest(event, requestId, requestInterceptedAt) {
         type: 'RESPONSE',
         payload: {
           isMockedResponse: IS_MOCKED_RESPONSE in response,
-          request: { id: requestId, ...serializedRequest },
+          request: {
+            id: requestId,
+            ...serializedRequest,
+          },
           response: {
             type: responseClone.type,
             status: responseClone.status,
@@ -162,7 +177,9 @@ async function resolveMainClient(event) {
     return client
   }
 
-  const allClients = await self.clients.matchAll({ type: 'window' })
+  const allClients = await self.clients.matchAll({
+    type: 'window',
+  })
 
   return allClients
     .filter((client) => {
@@ -230,7 +247,11 @@ async function getResponse(event, client, requestId, requestInterceptedAt) {
     client,
     {
       type: 'REQUEST',
-      payload: { id: requestId, interceptedAt: requestInterceptedAt, ...serializedRequest },
+      payload: {
+        id: requestId,
+        interceptedAt: requestInterceptedAt,
+        ...serializedRequest,
+      },
     },
     [serializedRequest.body],
   )
@@ -285,7 +306,10 @@ function respondWithMock(response) {
 
   const mockedResponse = new Response(response.body, response)
 
-  Reflect.defineProperty(mockedResponse, IS_MOCKED_RESPONSE, { value: true, enumerable: true })
+  Reflect.defineProperty(mockedResponse, IS_MOCKED_RESPONSE, {
+    value: true,
+    enumerable: true,
+  })
 
   return mockedResponse
 }
