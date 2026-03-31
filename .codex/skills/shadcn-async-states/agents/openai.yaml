@@ -1,0 +1,4 @@
+interface:
+  display_name: "Shadcn Async States"
+  short_description: "Reuse shared Vue UI for async states"
+  default_prompt: "Use $shadcn-async-states to add or refactor async UI states with existing shared components in this Vue frontend."
