@@ -8,16 +8,18 @@ import (
 	"log/slog"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestStreamPublishAndSnapshot(t *testing.T) {
 	t.Parallel()
 
 	stream := NewStream(StreamOptions{Capacity: 3})
+	base := time.Now().UTC()
 
 	for index := range 5 {
 		stream.Publish(StreamEntry{
-			Timestamp: int64(index + 1),
+			Timestamp: base.Add(time.Duration(index) * time.Second).Unix(),
 			Level:     "INFO",
 			Message:   "entry",
 			Text:      "entry",
@@ -29,11 +31,45 @@ func TestStreamPublishAndSnapshot(t *testing.T) {
 	if len(snapshot) != 3 {
 		t.Fatalf("expected 3 entries, got %d", len(snapshot))
 	}
-	if snapshot[0].Timestamp != 3 || snapshot[2].Timestamp != 5 {
-		t.Fatalf("unexpected snapshot order: %+v", snapshot)
+	if !(snapshot[0].Timestamp < snapshot[1].Timestamp && snapshot[1].Timestamp < snapshot[2].Timestamp) {
+		t.Fatalf("expected timestamps to increase, got %+v", snapshot)
 	}
 	if snapshot[0].ID <= 0 || snapshot[2].ID <= snapshot[0].ID {
 		t.Fatalf("expected ascending ids, got %+v", snapshot)
+	}
+}
+
+func TestStreamPrunesExpiredEntriesByRetention(t *testing.T) {
+	t.Parallel()
+
+	stream := NewStream(StreamOptions{Capacity: 4, Retention: time.Hour})
+	now := time.Now().UTC()
+	recentTimestamp := now.Add(-30 * time.Minute).Unix()
+	stream.entries = []StreamEntry{
+		{
+			ID:        1,
+			Timestamp: now.Add(-2 * time.Hour).Unix(),
+			Level:     "INFO",
+			Message:   "expired",
+			Text:      "expired",
+			Source:    "app",
+		},
+		{
+			ID:        2,
+			Timestamp: recentTimestamp,
+			Level:     "INFO",
+			Message:   "recent",
+			Text:      "recent",
+			Source:    "app",
+		},
+	}
+
+	snapshot := stream.Snapshot(10)
+	if len(snapshot) != 1 {
+		t.Fatalf("expected 1 retained entry, got %d", len(snapshot))
+	}
+	if snapshot[0].Timestamp != recentTimestamp {
+		t.Fatalf("expected retained entry to be the recent log, got %+v", snapshot[0])
 	}
 }
 

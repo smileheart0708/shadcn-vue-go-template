@@ -79,4 +79,4 @@ CREATE TABLE IF NOT EXISTS system_settings (
 );
 
 INSERT OR IGNORE INTO system_settings (id, registration_mode, updated_at)
-VALUES (1, 'password', strftime('%s', 'now'));
+VALUES (1, 'disabled', strftime('%s', 'now'));

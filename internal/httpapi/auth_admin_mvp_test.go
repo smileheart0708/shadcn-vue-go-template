@@ -39,8 +39,8 @@ func TestRegistrationPolicyDefaultsAndCanBeUpdated(t *testing.T) {
 
 	var policyResponse testSuccessEnvelope[testRegistrationPolicy]
 	decodeJSONResponse(t, rec.Body.Bytes(), &policyResponse)
-	if policyResponse.Data.RegistrationMode != string(systemsettings.RegistrationModePassword) {
-		t.Fatalf("expected default registration mode %q, got %q", systemsettings.RegistrationModePassword, policyResponse.Data.RegistrationMode)
+	if policyResponse.Data.RegistrationMode != string(systemsettings.RegistrationModeDisabled) {
+		t.Fatalf("expected default registration mode %q, got %q", systemsettings.RegistrationModeDisabled, policyResponse.Data.RegistrationMode)
 	}
 
 	updateReq := httptest.NewRequest(http.MethodPatch, "/api/admin/system-settings/registration", strings.NewReader(`{"registrationMode":"disabled"}`))
@@ -69,6 +69,10 @@ func TestRegisterCreatesUserAndAuthenticatesSession(t *testing.T) {
 	t.Parallel()
 
 	ctx := newTestContext(t, false)
+	settingsStore := systemsettings.NewStore(ctx.store.DB())
+	if _, err := settingsStore.UpdateRegistrationMode(context.Background(), systemsettings.RegistrationModePassword); err != nil {
+		t.Fatalf("failed to enable registration: %v", err)
+	}
 
 	req := httptest.NewRequest(http.MethodPost, "/api/auth/register", strings.NewReader(`{"username":"member","email":"member@example.com","password":"member123"}`))
 	req.Header.Set("Content-Type", "application/json")
@@ -140,6 +144,10 @@ func TestRegisterRejectsDuplicateUsername(t *testing.T) {
 	t.Parallel()
 
 	ctx := newTestContext(t, false)
+	settingsStore := systemsettings.NewStore(ctx.store.DB())
+	if _, err := settingsStore.UpdateRegistrationMode(context.Background(), systemsettings.RegistrationModePassword); err != nil {
+		t.Fatalf("failed to enable registration: %v", err)
+	}
 	createTestUser(t, ctx.store, users.CreateParams{
 		Username:     "member",
 		PasswordHash: mustHashPassword(t, "member123"),

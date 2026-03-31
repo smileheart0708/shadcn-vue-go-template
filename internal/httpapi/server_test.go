@@ -860,7 +860,8 @@ func newTestContextWithAuthOptions(t *testing.T, logAPIRequests bool, authOption
 	logs.Reset()
 
 	logStream := logging.NewStream(logging.StreamOptions{
-		Capacity: logging.DefaultStreamCapacity,
+		Capacity:  logging.DefaultStreamCapacity,
+		Retention: 3650 * 24 * time.Hour,
 	})
 
 	handler := NewHandlerWithOptions(HandlerOptions{

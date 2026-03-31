@@ -13,6 +13,7 @@ import (
 const (
 	DefaultReplayLimit    = 200
 	DefaultStreamCapacity = 1000
+	DefaultRetention      = 7 * 24 * time.Hour
 	defaultSubscriberSize = 128
 )
 
@@ -26,7 +27,8 @@ type StreamEntry struct {
 }
 
 type StreamOptions struct {
-	Capacity int
+	Capacity  int
+	Retention time.Duration
 }
 
 type Stream struct {
@@ -34,6 +36,7 @@ type Stream struct {
 	nextEntryID int64
 	nextSubID   int64
 	capacity    int
+	retention   time.Duration
 	entries     []StreamEntry
 	subscribers map[int64]*StreamSubscription
 }
@@ -53,9 +56,14 @@ func NewStream(options StreamOptions) *Stream {
 	if capacity <= 0 {
 		capacity = DefaultStreamCapacity
 	}
+	retention := options.Retention
+	if retention <= 0 {
+		retention = DefaultRetention
+	}
 
 	return &Stream{
 		capacity:    capacity,
+		retention:   retention,
 		entries:     make([]StreamEntry, 0, capacity),
 		subscribers: make(map[int64]*StreamSubscription),
 	}
@@ -69,10 +77,11 @@ func (s *Stream) Publish(entry StreamEntry) StreamEntry {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	now := time.Now().UTC()
 	s.nextEntryID++
 	entry.ID = s.nextEntryID
 	if entry.Timestamp <= 0 {
-		entry.Timestamp = time.Now().Unix()
+		entry.Timestamp = now.Unix()
 	}
 	if entry.Level == "" {
 		entry.Level = strings.ToUpper(slog.LevelInfo.String())
@@ -82,6 +91,7 @@ func (s *Stream) Publish(entry StreamEntry) StreamEntry {
 	}
 
 	s.entries = append(s.entries, entry)
+	s.pruneLocked(now)
 	if len(s.entries) > s.capacity {
 		s.entries = append([]StreamEntry(nil), s.entries[len(s.entries)-s.capacity:]...)
 	}
@@ -103,9 +113,10 @@ func (s *Stream) Snapshot(tail int) []StreamEntry {
 		return nil
 	}
 
-	s.mu.RLock()
-	defer s.mu.RUnlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
+	s.pruneLocked(time.Now().UTC())
 	if tail <= 0 || tail > len(s.entries) {
 		tail = len(s.entries)
 	}
@@ -114,6 +125,23 @@ func (s *Stream) Snapshot(tail int) []StreamEntry {
 	snapshot := make([]StreamEntry, tail)
 	copy(snapshot, s.entries[start:])
 	return snapshot
+}
+
+func (s *Stream) pruneLocked(now time.Time) {
+	if s == nil || s.retention <= 0 || len(s.entries) == 0 {
+		return
+	}
+
+	// Retain the recent window on both read and write paths so quiet periods
+	// still drop stale log entries instead of waiting for the next burst.
+	cutoff := now.Add(-s.retention).Unix()
+	kept := s.entries[:0]
+	for _, entry := range s.entries {
+		if entry.Timestamp >= cutoff {
+			kept = append(kept, entry)
+		}
+	}
+	s.entries = kept
 }
 
 func (s *Stream) Subscribe() *StreamSubscription {
