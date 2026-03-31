@@ -7,18 +7,43 @@ export interface MessageSchema {
       cancel: string
       close: string
       confirm: string
+      copy: string
       create: string
       delete: string
+      download: string
       edit: string
+      export: string
+      filter: string
+      import: string
       menu: string
+      refresh: string
+      reset: string
+      retry: string
       save: string
       search: string
+      sort: string
       submit: string
       update: string
+      upload: string
+      view: string
     }
     field: { email: string; password: string; username: string; usernameOrEmail: string; name: string; confirmPassword: string }
     feedback: { loadFailed: string; networkError: string; required: string; unknownError: string }
-    state: { empty: string; loading: string; noData: string; neverUsed: string }
+    state: {
+      completed: string
+      disabled: string
+      empty: string
+      enabled: string
+      failed: string
+      loading: string
+      neverUsed: string
+      noData: string
+      noResult: string
+      pending: string
+      processing: string
+      success: string
+    }
+    text: { yes: string; no: string; none: string; all: string; optional: string; required: string }
     userRole: { 0: string; 1: string; 2: string }
   }
   apiError: {
