@@ -119,7 +119,6 @@ const chartConfig = {
 } satisfies ChartConfig
 
 const timeRange = ref<TimeRange>('90d')
-const chartShell = ref<HTMLElement | null>(null)
 const chartWidth = ref(0)
 const displayedRange = computed(() => timeRange.value)
 

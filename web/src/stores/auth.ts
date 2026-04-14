@@ -15,7 +15,7 @@ export const useAuthStore = defineStore('auth', () => {
   const token = ref<string | null>(readAuthToken())
   const user = ref<AuthUser | null>(null)
 
-  const isAuthenticated = computed(() => Boolean(token.value && user.value))
+  const isAuthenticated = computed(() => token.value !== null && user.value !== null)
 
   let initializePromise: Promise<void> | null = null
   let boundRouter: Router | null = null
@@ -63,7 +63,7 @@ export const useAuthStore = defineStore('auth', () => {
   function setToken(nextToken: string | null) {
     token.value = nextToken
 
-    if (nextToken) {
+    if (nextToken !== null) {
       writeAuthToken(nextToken)
       return
     }
@@ -96,7 +96,7 @@ export const useAuthStore = defineStore('auth', () => {
       return
     }
 
-    if (initializePromise) {
+    if (initializePromise !== null) {
       return initializePromise
     }
 
@@ -105,7 +105,7 @@ export const useAuthStore = defineStore('auth', () => {
 
       try {
         const currentToken = token.value
-        if (currentToken) {
+        if (currentToken !== null) {
           try {
             const nextUser = await fetchCurrentUser()
             applyCurrentUser(nextUser)
@@ -184,7 +184,7 @@ export const useAuthStore = defineStore('auth', () => {
     await boundRouter
       .push({
         name: 'login',
-        query: redirect ? { redirect } : undefined,
+        query: redirect !== undefined ? { redirect } : undefined,
       })
       .catch(() => undefined)
   }
@@ -216,7 +216,7 @@ function sameAuthUser(currentUser: AuthUser | null, nextUser: AuthUser | null) {
     return true
   }
 
-  if (!currentUser || !nextUser) {
+  if (currentUser === null || nextUser === null) {
     return currentUser === nextUser
   }
 

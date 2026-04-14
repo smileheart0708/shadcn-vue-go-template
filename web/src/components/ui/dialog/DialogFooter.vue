@@ -10,7 +10,7 @@ const props = defineProps<{
   showCloseButton?: boolean
 }>()
 
-const showCloseButton = computed(() => props.showCloseButton === true)
+const showCloseButton = computed(() => props.showCloseButton)
 </script>
 
 <template>

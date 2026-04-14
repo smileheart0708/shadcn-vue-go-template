@@ -2,25 +2,32 @@
 import type { HTMLAttributes } from 'vue'
 import { defaultDocument, useEventListener, useMediaQuery } from '@vueuse/core'
 import { TooltipProvider } from 'reka-ui'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { cn } from '@/lib/utils'
 import { provideSidebarContext, SIDEBAR_COOKIE_MAX_AGE, SIDEBAR_COOKIE_NAME, SIDEBAR_KEYBOARD_SHORTCUT, SIDEBAR_WIDTH, SIDEBAR_WIDTH_ICON } from './utils'
 
-const {
-  defaultOpen = !defaultDocument?.cookie.includes(`${SIDEBAR_COOKIE_NAME}=false`),
-  open: controlledOpen,
-  class: className,
-} = defineProps<{ defaultOpen?: boolean; open?: boolean; class?: HTMLAttributes['class'] }>()
+const props = defineProps<{ defaultOpen?: boolean | null; open?: boolean | null; class?: HTMLAttributes['class'] }>()
 
 const emits = defineEmits<{ 'update:open': [open: boolean] }>()
 
 const isMobile = useMediaQuery('(max-width: 768px)')
 const openMobile = ref(false)
-const uncontrolledOpen = ref(defaultOpen)
+const uncontrolledOpen = ref(readStoredSidebarOpen())
+
+watch(
+  () => props.defaultOpen,
+  (defaultOpen) => {
+    if (defaultOpen !== null && defaultOpen !== undefined) {
+      uncontrolledOpen.value = defaultOpen
+    }
+  },
+  { immediate: true, once: true },
+)
+
 const open = computed({
-  get: () => controlledOpen ?? uncontrolledOpen.value,
+  get: () => props.open ?? uncontrolledOpen.value,
   set: (value: boolean) => {
-    if (controlledOpen === undefined) {
+    if (props.open === null || props.open === undefined) {
       uncontrolledOpen.value = value
     }
 
@@ -62,6 +69,14 @@ useEventListener('keydown', (event: KeyboardEvent) => {
 const state = computed(() => (open.value ? 'expanded' : 'collapsed'))
 
 provideSidebarContext({ state, open, setOpen, isMobile, openMobile, setOpenMobile, toggleSidebar })
+
+function readStoredSidebarOpen(): boolean {
+  if (defaultDocument === undefined) {
+    return true
+  }
+
+  return !defaultDocument.cookie.includes(`${SIDEBAR_COOKIE_NAME}=false`)
+}
 </script>
 
 <template>
@@ -69,7 +84,7 @@ provideSidebarContext({ state, open, setOpen, isMobile, openMobile, setOpenMobil
     <div
       data-slot="sidebar-wrapper"
       :style="{ '--sidebar-width': SIDEBAR_WIDTH, '--sidebar-width-icon': SIDEBAR_WIDTH_ICON }"
-      :class="cn('group/sidebar-wrapper flex h-svh w-full has-data-[variant=inset]:bg-sidebar', className)"
+      :class="cn('group/sidebar-wrapper flex h-svh w-full has-data-[variant=inset]:bg-sidebar', props.class)"
       v-bind="$attrs"
     >
       <slot />

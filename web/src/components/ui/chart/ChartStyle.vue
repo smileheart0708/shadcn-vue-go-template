@@ -13,7 +13,17 @@ const themeEntries = [
 ] as const
 
 const colorConfig = computed(() => {
-  return Object.entries(config.value).filter(([, itemConfig]) => itemConfig.theme !== undefined || itemConfig.color !== undefined)
+  return Object.entries(config.value).flatMap(([key, itemConfig]) => {
+    if (itemConfig === undefined) {
+      return []
+    }
+
+    if (itemConfig.theme === undefined && itemConfig.color === undefined) {
+      return []
+    }
+
+    return [[key, itemConfig] as const]
+  })
 })
 </script>
 

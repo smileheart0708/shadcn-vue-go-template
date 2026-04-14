@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import type { ListboxItemEmits, ListboxItemProps } from 'reka-ui'
 import type { HTMLAttributes } from 'vue'
-import { reactiveOmit, useCurrentElement } from '@vueuse/core'
+import { reactiveOmit } from '@vueuse/core'
 import { ListboxItem, useForwardPropsEmits, useId } from 'reka-ui'
-import { computed, onMounted, onUnmounted, useTemplateRef } from 'vue'
+import { computed, onMounted, onUnmounted } from 'vue'
 import { cn } from '@/lib/utils'
 import { useCommand, useCommandGroup } from '.'
 
@@ -43,20 +43,24 @@ const isRender = computed(() => {
   return filteredCurrentItem > 0
 })
 
-const itemRef = useTemplateRef<HTMLElement>('itemRef')
-const currentElement = useCurrentElement(itemRef)
 onMounted(() => {
-  if (!(currentElement.value instanceof HTMLElement)) return
+  const currentElement = document.getElementById(id)
+  if (!(currentElement instanceof HTMLElement)) {
+    return
+  }
 
   // textValue to perform filter
-  allItems.value.set(id, currentElement.value.textContent ?? getItemTextValue(props.value))
+  allItems.value.set(id, currentElement.textContent || getItemTextValue(props.value))
 
-  const groupId = groupContext?.id
+  const groupId = groupContext.id
   if (groupId !== undefined) {
     if (!allGroups.value.has(groupId)) {
       allGroups.value.set(groupId, new Set([id]))
     } else {
-      allGroups.value.get(groupId)?.add(id)
+      const groupItems = allGroups.value.get(groupId)
+      if (groupItems !== undefined) {
+        groupItems.add(id)
+      }
     }
   }
 })
@@ -70,7 +74,6 @@ onUnmounted(() => {
     v-if="isRender"
     v-bind="forwarded"
     :id="id"
-    ref="itemRef"
     data-slot="command-item"
     :class="
       cn(

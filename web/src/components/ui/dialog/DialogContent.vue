@@ -1,18 +1,15 @@
 <script setup lang="ts">
 import type { DialogContentEmits, DialogContentProps } from 'reka-ui'
 import type { HTMLAttributes } from 'vue'
-import { computed } from 'vue'
 import { reactiveOmit } from '@vueuse/core'
 import { X } from 'lucide-vue-next'
 import { DialogClose, DialogContent, DialogPortal, useForwardPropsEmits } from 'reka-ui'
 import { cn } from '@/lib/utils'
 import DialogOverlay from './DialogOverlay.vue'
 
-const props = defineProps<DialogContentProps & { class?: HTMLAttributes['class']; showCloseButton?: boolean }>()
+const props = defineProps<DialogContentProps & { class?: HTMLAttributes['class'] }>()
 
 const emits = defineEmits<DialogContentEmits>()
-
-const showCloseButton = computed(() => props.showCloseButton !== false)
 
 defineOptions({
   inheritAttrs: false,
@@ -39,7 +36,6 @@ const forwarded = useForwardPropsEmits(delegatedProps, emits)
       <slot />
 
       <DialogClose
-        v-if="showCloseButton"
         data-slot="dialog-close"
         class="absolute inset-e-4 inset-bs-4 rounded-xs opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
       >

@@ -25,7 +25,7 @@ const updatedAt = ref<string | null>(null)
 
 const isDirty = computed(() => registrationMode.value !== savedRegistrationMode.value)
 const updatedAtLabel = computed(() => {
-  if (!updatedAt.value) {
+  if (updatedAt.value === null) {
     return null
   }
 

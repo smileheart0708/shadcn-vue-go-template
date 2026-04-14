@@ -5,7 +5,7 @@ import { successEnvelopeSchema } from '@/lib/api/envelope'
 export const authUserSchema = z.object({
   id: z.number().int().positive(),
   username: z.string(),
-  email: z.string().email().nullable(),
+  email: z.email().nullable(),
   avatarUrl: z.string().nullable(),
   role: z.number().int(),
   mustChangePassword: z.boolean(),

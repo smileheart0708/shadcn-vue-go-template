@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { HTMLAttributes } from 'vue'
-import { toRefs } from 'vue'
-import { useVModel } from '@vueuse/core'
+import { computed } from 'vue'
 import { cn } from '@/lib/utils'
 
 const props = defineProps<{
@@ -12,11 +11,15 @@ const props = defineProps<{
 
 const emit = defineEmits<{ 'update:modelValue': [payload: string | number] }>()
 
-const { defaultValue } = toRefs(props)
+const modelValue = computed({
+  get: () => props.modelValue ?? props.defaultValue,
+  set: (value: string | number | undefined) => {
+    if (value === undefined) {
+      return
+    }
 
-const modelValue = useVModel(props, 'modelValue', emit, {
-  passive: true,
-  defaultValue,
+    emit('update:modelValue', value)
+  },
 })
 </script>
 

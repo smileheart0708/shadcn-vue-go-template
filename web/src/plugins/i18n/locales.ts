@@ -17,7 +17,7 @@ export const fallbackLocale: AppLocale = 'en-US'
 const STORAGE_KEY = 'app.locale'
 const defaultLocale: AppLocale = 'zh-CN'
 const supportedLocaleSet = new Set<string>(supportedLocales)
-const localeAliases: Readonly<Record<string, AppLocale>> = {
+const localeAliases: Readonly<Partial<Record<string, AppLocale>>> = {
   en: 'en-US',
   'en-us': 'en-US',
   zh: 'zh-CN',
@@ -31,19 +31,20 @@ export function isSupportedLocale(locale: string): locale is AppLocale {
 export function normalizeLocale(locale: string): AppLocale | null {
   const normalizedLocale = locale.toLowerCase()
   const exactMatch = supportedLocales.find((candidate) => candidate.toLowerCase() === normalizedLocale)
+  const primaryLocale = normalizedLocale.split('-')[0]
 
   if (exactMatch) {
     return exactMatch
   }
 
-  return localeAliases[normalizedLocale] ?? localeAliases[normalizedLocale.split('-')[0] ?? ''] ?? null
+  return localeAliases[normalizedLocale] ?? localeAliases[primaryLocale] ?? null
 }
 
 export function resolveInitialLocale(): AppLocale {
   if (typeof window !== 'undefined') {
     const persistedLocale = window.localStorage.getItem(STORAGE_KEY)
 
-    if (persistedLocale && isSupportedLocale(persistedLocale)) {
+    if (persistedLocale !== null && isSupportedLocale(persistedLocale)) {
       return persistedLocale
     }
   }
@@ -54,7 +55,7 @@ export function resolveInitialLocale(): AppLocale {
     for (const candidate of browserLocales) {
       const normalizedLocale = normalizeLocale(candidate)
 
-      if (normalizedLocale) {
+      if (normalizedLocale !== null) {
         return normalizedLocale
       }
     }

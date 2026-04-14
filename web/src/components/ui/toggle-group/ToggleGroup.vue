@@ -1,14 +1,19 @@
 <script setup lang="ts">
 import type { VariantProps } from 'class-variance-authority'
 import type { ToggleGroupRootEmits, ToggleGroupRootProps } from 'reka-ui'
-import type { HTMLAttributes } from 'vue'
+import type { ComputedRef, HTMLAttributes } from 'vue'
 import type { toggleVariants } from '@/components/ui/toggle'
 import { reactiveOmit } from '@vueuse/core'
 import { ToggleGroupRoot, useForwardPropsEmits } from 'reka-ui'
-import { provide, toRefs } from 'vue'
+import { computed, provide } from 'vue'
 import { cn } from '@/lib/utils'
 
 type ToggleGroupVariants = VariantProps<typeof toggleVariants>
+interface ToggleGroupContext {
+  variant: Readonly<ComputedRef<ToggleGroupVariants['variant'] | undefined>>
+  size: Readonly<ComputedRef<ToggleGroupVariants['size'] | undefined>>
+  spacing: Readonly<ComputedRef<number>>
+}
 
 const props = withDefaults(
   defineProps<
@@ -26,11 +31,13 @@ const props = withDefaults(
 
 const emits = defineEmits<ToggleGroupRootEmits>()
 
-const { class: className, variant, size, spacing } = toRefs(props)
+const variant = computed(() => props.variant)
+const size = computed(() => props.size)
+const spacing = computed(() => props.spacing)
 
-provide('toggleGroup', { variant: variant.value, size: size.value, spacing: spacing.value })
+provide<ToggleGroupContext>('toggleGroup', { variant, size, spacing })
 
-const delegatedProps = reactiveOmit(props, 'class', 'size', 'variant')
+const delegatedProps = reactiveOmit(props, 'class', 'size', 'spacing', 'variant')
 const forwarded = useForwardPropsEmits(delegatedProps, emits)
 </script>
 
@@ -45,7 +52,7 @@ const forwarded = useForwardPropsEmits(delegatedProps, emits)
       '--gap': spacing,
     }"
     v-bind="forwarded"
-    :class="cn('group/toggle-group flex w-fit items-center gap-[--spacing(var(--gap))] rounded-md data-[spacing=default]:data-[variant=outline]:shadow-xs', className)"
+    :class="cn('group/toggle-group flex w-fit items-center gap-[--spacing(var(--gap))] rounded-md data-[spacing=default]:data-[variant=outline]:shadow-xs', props.class)"
   >
     <slot v-bind="slotProps" />
   </ToggleGroupRoot>

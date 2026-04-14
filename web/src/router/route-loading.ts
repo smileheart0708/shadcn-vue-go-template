@@ -121,9 +121,10 @@ function signalRouteLoadingError() {
 
 function shouldTrackRequest(input: RequestInfo | URL) {
   try {
-    const locationOrigin = globalThis.location?.origin ?? 'http://localhost'
+    const locationOrigin = typeof globalThis.location === 'undefined' ? 'http://localhost' : globalThis.location.origin
+    const locationHref = typeof globalThis.location === 'undefined' ? `${locationOrigin}/` : globalThis.location.href
     const requestInput = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
-    const requestUrl = typeof Request !== 'undefined' && input instanceof Request ? new URL(input.url) : new URL(requestInput, globalThis.location?.href ?? `${locationOrigin}/`)
+    const requestUrl = typeof Request !== 'undefined' && input instanceof Request ? new URL(input.url) : new URL(requestInput, locationHref)
     return requestUrl.origin === locationOrigin && requestUrl.pathname.startsWith('/api/')
   } catch {
     return false

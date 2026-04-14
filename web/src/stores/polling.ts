@@ -38,9 +38,10 @@ function persistCurrentUserIntervalSeconds(value: number) {
 }
 
 export const usePollingStore = defineStore('polling', () => {
-  const currentUserIntervalSeconds = ref(readStoredCurrentUserIntervalSeconds())
+  const initialCurrentUserIntervalSeconds = readStoredCurrentUserIntervalSeconds()
+  const currentUserIntervalSeconds = ref(initialCurrentUserIntervalSeconds)
 
-  persistCurrentUserIntervalSeconds(currentUserIntervalSeconds.value)
+  persistCurrentUserIntervalSeconds(initialCurrentUserIntervalSeconds)
 
   const currentUserIntervalMs = computed(() => currentUserIntervalSeconds.value * 1000)
 

@@ -25,7 +25,7 @@ const { t } = useI18n()
         style="animation: route-loading-sweep 1.05s linear infinite"
       />
       <span
-        class="absolute inset-y-[-6px] inset-s-0 w-[34%] rounded-full bg-[linear-gradient(90deg,transparent_0%,var(--primary)_45%,var(--primary)_55%,transparent_100%)] opacity-[0.35] blur-[10px] motion-reduce:hidden"
+        class="absolute -inset-y-1.5 inset-s-0 w-[34%] rounded-full bg-[linear-gradient(90deg,transparent_0%,var(--primary)_45%,var(--primary)_55%,transparent_100%)] opacity-[0.35] blur-[10px] motion-reduce:hidden"
         style="animation: route-loading-sweep 1.05s linear infinite"
       />
     </div>

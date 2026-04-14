@@ -50,7 +50,7 @@ export async function openSystemLogsStream(options: OpenSystemLogsStreamOptions)
     const reader = response.body.getReader()
     const decoder = new TextDecoder()
 
-    while (true) {
+    for (;;) {
       const { done, value } = await reader.read()
       if (done) {
         break

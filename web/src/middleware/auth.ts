@@ -17,9 +17,9 @@ function resolveNotFoundLocation(route: Pick<RouteLocationNormalized, 'path' | '
 export function installAuthGuard(router: Router) {
   router.beforeEach(async (to) => {
     const authStore = useAuthStore(pinia)
-    const requiresAuth = to.matched.some((record) => record.meta.requiresAuth)
-    const guestOnly = to.matched.some((record) => record.meta.guestOnly)
-    const maskUnauthorizedAsNotFound = to.matched.some((record) => record.meta.maskUnauthorizedAsNotFound)
+    const requiresAuth = to.matched.some((record) => record.meta.requiresAuth === true)
+    const guestOnly = to.matched.some((record) => record.meta.guestOnly === true)
+    const maskUnauthorizedAsNotFound = to.matched.some((record) => record.meta.maskUnauthorizedAsNotFound === true)
     const requiredRole = to.matched.reduce<number | null>((highestRequiredRole, record) => {
       if (typeof record.meta.requiredRole !== 'number') {
         return highestRequiredRole

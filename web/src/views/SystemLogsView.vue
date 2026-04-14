@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useDocumentVisibility } from '@vueuse/core'
-import { computed, nextTick, onWatcherCleanup, ref, watch } from 'vue'
+import { computed, nextTick, onWatcherCleanup, ref, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
 import { Download, RefreshCw } from 'lucide-vue-next'
@@ -36,9 +36,9 @@ const searchQuery = ref('')
 const levelFilter = ref<SystemLogLevelFilter>('ALL')
 const streamError = ref('')
 const exportDialogOpen = ref(false)
-const viewport = ref<HTMLDivElement | null>(null)
+const viewport = useTemplateRef<HTMLDivElement>('viewport')
 const reconnectKey = ref(0)
-const pageVisible = computed(() => documentVisibility.value === undefined || documentVisibility.value === 'visible')
+const pageVisible = computed(() => documentVisibility.value === 'visible')
 
 let abortController: AbortController | null = null
 
@@ -113,7 +113,7 @@ async function maintainStreamConnection(sessionSignal: AbortSignal) {
         tail: INITIAL_TAIL,
         signal: controller.signal,
         onOpen() {
-          if (abortController !== controller || controller.signal.aborted) {
+          if (!isCurrentStream(controller)) {
             return
           }
 
@@ -124,7 +124,7 @@ async function maintainStreamConnection(sessionSignal: AbortSignal) {
           streamError.value = ''
         },
         onEntry(entry) {
-          if (abortController !== controller || controller.signal.aborted) {
+          if (!isCurrentStream(controller)) {
             return
           }
 
@@ -132,7 +132,7 @@ async function maintainStreamConnection(sessionSignal: AbortSignal) {
         },
       })
     } catch (error) {
-      if (controller.signal.aborted || abortController !== controller || sessionSignal.aborted) {
+      if (shouldStopStream(controller, sessionSignal)) {
         return
       }
 
@@ -159,7 +159,7 @@ async function maintainStreamConnection(sessionSignal: AbortSignal) {
       }
     }
 
-    if (sessionSignal.aborted || controller.signal.aborted) {
+    if (shouldStopStream(controller, sessionSignal)) {
       return
     }
 
@@ -251,6 +251,14 @@ function shouldRetryStreamError(error: unknown) {
 function getReconnectDelayMs(attempt: number) {
   const exponent = Math.max(0, attempt - 1)
   return Math.min(RECONNECT_MAX_DELAY_MS, RECONNECT_BASE_DELAY_MS * 2 ** exponent)
+}
+
+function isCurrentStream(controller: AbortController) {
+  return abortController === controller && !controller.signal.aborted
+}
+
+function shouldStopStream(controller: AbortController, sessionSignal: AbortSignal) {
+  return sessionSignal.aborted || !isCurrentStream(controller)
 }
 
 async function waitForReconnect(delayMs: number, signal: AbortSignal): Promise<boolean> {

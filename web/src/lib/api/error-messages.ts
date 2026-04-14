@@ -26,7 +26,7 @@ const API_ERROR_MESSAGE_KEYS = {
 type Translate = (key: string) => string
 
 export function getAPIErrorMessage(t: Translate, error: unknown, fallbackKey = 'apiError.unknown'): string {
-  if (isAPIError(error) && error.code) {
+  if (isAPIError(error) && error.code !== undefined && error.code !== '') {
     const key = getAPIErrorMessageKey(error.code)
     if (key) {
       return t(key)

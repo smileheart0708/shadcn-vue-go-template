@@ -33,7 +33,17 @@ export const authHandlers = [
       http.post('/api/auth/login', async ({ request }) => {
         const payload = await request.json().catch((): null => null)
 
-        if (!isLoginRequestBody(payload) || payload?.identifier !== MOCK_LOGIN_CREDENTIALS.identifier || payload?.password !== MOCK_LOGIN_CREDENTIALS.password) {
+        if (!isLoginRequestBody(payload)) {
+          return HttpResponse.json(
+            {
+              success: false,
+              error: { code: 'invalid_credentials', message: 'Invalid credentials.' },
+            },
+            { status: 401 },
+          )
+        }
+
+        if (payload.identifier !== MOCK_LOGIN_CREDENTIALS.identifier || payload.password !== MOCK_LOGIN_CREDENTIALS.password) {
           return HttpResponse.json(
             {
               success: false,

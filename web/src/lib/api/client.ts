@@ -59,7 +59,7 @@ const sharedHooks = {
         request.headers.set('Content-Type', 'application/json')
       }
 
-      if (context.backgroundRequest) {
+      if (context.backgroundRequest === true) {
         request.headers.set(BACKGROUND_REQUEST_HEADER, '1')
       }
     },
@@ -81,7 +81,7 @@ export const authApi = ky.create({
       ...sharedHooks.beforeRequest,
       (request) => {
         const token = readAuthToken()
-        if (token && !request.headers.has('Authorization')) {
+        if (token !== null && !request.headers.has('Authorization')) {
           request.headers.set('Authorization', `Bearer ${token}`)
         }
       },
@@ -89,7 +89,7 @@ export const authApi = ky.create({
     afterResponse: [
       async (request, options, response) => {
         const context = readAPIClientContext(options)
-        if (response.status !== 401 || context.skipAuthRefresh || context.authRetryAttempted || isAuthLifecycleRequest(request)) {
+        if (response.status !== 401 || context.skipAuthRefresh === true || context.authRetryAttempted === true || isAuthLifecycleRequest(request)) {
           return response
         }
 
@@ -106,7 +106,7 @@ export const authApi = ky.create({
 
         const headers = new Headers(options.headers ?? request.headers)
         const nextToken = readAuthToken()
-        if (nextToken) {
+        if (nextToken !== null) {
           headers.set('Authorization', `Bearer ${nextToken}`)
         }
 
@@ -143,7 +143,7 @@ export async function normalizeAPIError(error: unknown): Promise<never> {
 }
 
 async function refreshAccessTokenSingleFlight(): Promise<string> {
-  if (refreshPromise) {
+  if (refreshPromise !== null) {
     return refreshPromise
   }
 

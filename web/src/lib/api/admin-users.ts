@@ -5,7 +5,7 @@ import { successEnvelopeSchema } from '@/lib/api/envelope'
 export const adminUserSchema = z.object({
   id: z.number().int().positive(),
   username: z.string(),
-  email: z.string().email().nullable(),
+  email: z.email().nullable(),
   avatarUrl: z.string().nullable(),
   role: z.number().int(),
   status: z.enum(['active', 'banned']),
@@ -49,9 +49,10 @@ const adminUserEnvelopeSchema = successEnvelopeSchema(adminUserSchema)
 export async function listAdminUsers(params: ListAdminUsersParams = {}) {
   try {
     const searchParams = new URLSearchParams()
+    const query = params.q?.trim()
 
-    if (params.q?.trim()) {
-      searchParams.set('q', params.q.trim())
+    if (query !== undefined && query.length > 0) {
+      searchParams.set('q', query)
     }
     if (typeof params.role === 'number') {
       searchParams.set('role', String(params.role))

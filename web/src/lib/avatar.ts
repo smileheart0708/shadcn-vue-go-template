@@ -1,7 +1,7 @@
 export function getAvatarFallbackText(name: string | null | undefined): string {
   const normalizedName = name?.trim()
 
-  if (!normalizedName) {
+  if (normalizedName === undefined || normalizedName === '') {
     return '??'
   }
 

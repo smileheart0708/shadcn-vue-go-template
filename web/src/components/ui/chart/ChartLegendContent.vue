@@ -21,10 +21,18 @@ const { id, config } = useChart()
 interface ChartLegendItem { key: string; itemConfig: NonNullable<ChartConfig[string]> }
 
 const payload = computed<ChartLegendItem[]>(() => {
-  return Object.entries(config.value).map(([key, itemConfig]) => ({
-    key: props.nameKey ?? key,
-    itemConfig,
-  }))
+  return Object.entries(config.value).flatMap(([key, itemConfig]) => {
+    if (itemConfig === undefined) {
+      return []
+    }
+
+    return [
+      {
+        key: props.nameKey ?? key,
+        itemConfig,
+      },
+    ]
+  })
 })
 
 const containerSelector = ref('')

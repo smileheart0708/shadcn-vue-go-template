@@ -131,9 +131,7 @@ class InternalPollingTask {
       return
     }
 
-    if (this.pendingImmediateReason === null) {
-      this.pendingImmediateReason = 'resume'
-    }
+    this.pendingImmediateReason ??= 'resume'
 
     this.flushImmediateRun()
   }
@@ -260,14 +258,14 @@ class InternalPollingTask {
     try {
       await options.execute({ reason, signal: controller.signal })
 
-      if (!controller.signal.aborted && runId === this.runId && this.running.value) {
+      if (!controller.signal.aborted && runId === this.runId && this.isRunning()) {
         this.failureCount = 0
         this.lastUpdatedAt.value = Date.now()
         this.error.value = null
         nextDelayMs = this.getSuccessDelayMs(options)
       }
     } catch (error) {
-      if (!isAbortError(error) && !controller.signal.aborted && runId === this.runId && this.running.value) {
+      if (!isAbortError(error) && !controller.signal.aborted && runId === this.runId && this.isRunning()) {
         this.failureCount += 1
         this.error.value = error
         nextDelayMs = this.getFailureDelayMs(options)
@@ -283,7 +281,7 @@ class InternalPollingTask {
       this.syncPausedState()
     }
 
-    if (!this.running.value || this.disposed) {
+    if (this.hasStopped()) {
       return
     }
 
@@ -292,11 +290,23 @@ class InternalPollingTask {
       return
     }
 
-    if (nextDelayMs === null || this.paused.value) {
+    if (nextDelayMs === null || this.isPaused()) {
       return
     }
 
     this.scheduleNext(nextDelayMs)
+  }
+
+  private hasStopped() {
+    return !this.isRunning() || this.disposed
+  }
+
+  private isPaused() {
+    return this.paused.value
+  }
+
+  private isRunning() {
+    return this.running.value
   }
 
   private scheduleNext(delayMs: number) {

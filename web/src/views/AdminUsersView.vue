@@ -115,11 +115,11 @@ function requestToggleBan(user: AdminUser) {
 }
 
 async function handleDialogSubmit(payload: { username: string; email: string | null; password?: string; role?: number | null }) {
-  if (!payload.username) {
+  if (payload.username.length === 0) {
     toast.error(t('settings.account.usernameRequired'))
     return
   }
-  if (dialogMode.value === 'create' && (!payload.password || payload.password.length < 8)) {
+  if (dialogMode.value === 'create' && (payload.password === undefined || payload.password.length < 8)) {
     toast.error(t('apiError.passwordTooShort'))
     return
   }

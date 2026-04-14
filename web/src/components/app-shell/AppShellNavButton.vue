@@ -8,9 +8,10 @@ const props = defineProps<{ item: AppShellNavItem; tooltip?: string }>()
 
 const route = useRoute()
 const router = useRouter()
+const navigationTarget = computed(() => props.item.to ?? '')
 
 const isActive = computed(() => {
-  if (props.item.to === undefined || props.item.to === null || props.item.disabled === true) {
+  if (props.item.to === undefined || props.item.disabled === true) {
     return false
   }
 
@@ -19,7 +20,7 @@ const isActive = computed(() => {
   return route.path === target.path || (target.path !== '/' && route.path.startsWith(`${target.path}/`))
 })
 
-const hasTarget = computed(() => props.item.to !== undefined && props.item.to !== null)
+const hasTarget = computed(() => props.item.to !== undefined)
 const isDisabled = computed(() => props.item.disabled === true || !hasTarget.value)
 </script>
 
@@ -30,7 +31,7 @@ const isDisabled = computed(() => props.item.disabled === true || !hasTarget.val
     :tooltip="tooltip"
     :is-active="isActive"
   >
-    <RouterLink :to="item.to">
+    <RouterLink :to="navigationTarget">
       <component
         :is="item.icon"
         v-if="item.icon"

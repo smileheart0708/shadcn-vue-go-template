@@ -97,6 +97,7 @@ export default defineConfig(
       '@typescript-eslint/no-meaningless-void-operator': 'error',
       '@typescript-eslint/promise-function-async': 'error',
       '@typescript-eslint/no-unsafe-argument': 'off',
+      '@typescript-eslint/no-deprecated': 'error',
       'vue/multi-word-component-names': ['error', { ignores: ['App'] }],
       'vue/require-default-prop': 'off',
 

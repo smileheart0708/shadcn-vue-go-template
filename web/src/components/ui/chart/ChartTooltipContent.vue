@@ -24,7 +24,7 @@ const props = withDefaults(
 // TODO: currently we use `createElement` and `render` to render the
 // const chartContext = useChart(null)
 
-type TooltipPayloadItem = {
+interface TooltipPayloadItem {
   key: string
   value: unknown
   itemConfig: NonNullable<ChartConfig[string]>
@@ -54,7 +54,7 @@ const payload = computed<TooltipPayloadItem[]>(() => {
 
 const nestLabel = computed(() => Object.keys(props.payload).length === 1 && props.indicator !== 'dot')
 const tooltipLabel = computed(() => {
-  if (props.hideLabel === true) {
+  if (props.hideLabel) {
     return null
   }
 
@@ -66,11 +66,7 @@ const tooltipLabel = computed(() => {
     const labelConfig = props.config[props.labelKey]
     const label = labelConfig?.label
 
-    if (label !== undefined) {
-      return label
-    }
-
-    return props.payload[props.labelKey] ?? null
+    return label ?? props.payload[props.labelKey] ?? null
   }
 
   return props.x ?? null
@@ -100,7 +96,7 @@ function formatTooltipValue(value: unknown): string {
 
   if (typeof value === 'object') {
     const json = JSON.stringify(value)
-    return json === undefined ? '' : json
+    return json
   }
 
   return ''
