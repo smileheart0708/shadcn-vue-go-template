@@ -8,7 +8,6 @@ import { SidebarGroup, SidebarGroupLabel, SidebarMenu, SidebarMenuItem } from '@
 defineProps<{ items: AppShellNavItem[] }>()
 
 const { t } = useI18n()
-
 </script>
 
 <template>

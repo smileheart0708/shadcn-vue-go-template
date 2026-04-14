@@ -81,9 +81,11 @@ onUnmounted(() => {
         props.class,
       )
     "
-    @select="() => {
-      filterState.search = ''
-    }"
+    @select="
+      () => {
+        filterState.search = ''
+      }
+    "
   >
     <slot />
   </ListboxItem>

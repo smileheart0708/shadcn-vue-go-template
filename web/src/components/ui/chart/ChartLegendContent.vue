@@ -18,7 +18,10 @@ const props = withDefaults(
 
 const { id, config } = useChart()
 
-interface ChartLegendItem { key: string; itemConfig: NonNullable<ChartConfig[string]> }
+interface ChartLegendItem {
+  key: string
+  itemConfig: NonNullable<ChartConfig[string]>
+}
 
 const payload = computed<ChartLegendItem[]>(() => {
   return Object.entries(config.value).flatMap(([key, itemConfig]) => {

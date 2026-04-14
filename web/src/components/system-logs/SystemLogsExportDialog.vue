@@ -35,7 +35,9 @@ const exportFormat = defineModel<SystemLogExportFormat>('format', { default: 'cs
 
 const openModel = computed({
   get: () => props.open,
-  set: (value: boolean) => { emit('update:open', value); },
+  set: (value: boolean) => {
+    emit('update:open', value)
+  },
 })
 
 const exportableCount = computed(
