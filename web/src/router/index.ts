@@ -5,18 +5,18 @@ import { installAuthGuard } from '@/middleware/auth'
 import { installRequestLoadingTracking, installRouteLoading } from '@/router/route-loading'
 import type { RouteTitleKey } from '@/router/route-title'
 
-const AppShellLayout = () => import('@/layouts/AppShellLayout.vue')
-const BlankLayout = () => import('@/layouts/BlankLayout.vue')
-const Dashboard = () => import('@/views/DashboardView.vue')
-const Home = () => import('@/views/HomeView.vue')
-const Login = () => import('@/views/LoginView.vue')
-const Register = () => import('@/views/RegisterView.vue')
-const Settings = () => import('@/views/SettingsView.vue')
-const AdminSettings = () => import('@/views/AdminSettingsView.vue')
-const AdminUsers = () => import('@/views/AdminUsersView.vue')
-const SystemLogs = () => import('@/views/SystemLogsView.vue')
-const Tasks = () => import('@/views/TasksView.vue')
-const NotFound = () => import('@/views/NotFoundView.vue')
+const AppShellLayout = async () => import('@/layouts/AppShellLayout.vue')
+const BlankLayout = async () => import('@/layouts/BlankLayout.vue')
+const Dashboard = async () => import('@/views/DashboardView.vue')
+const Home = async () => import('@/views/HomeView.vue')
+const Login = async () => import('@/views/LoginView.vue')
+const Register = async () => import('@/views/RegisterView.vue')
+const Settings = async () => import('@/views/SettingsView.vue')
+const AdminSettings = async () => import('@/views/AdminSettingsView.vue')
+const AdminUsers = async () => import('@/views/AdminUsersView.vue')
+const SystemLogs = async () => import('@/views/SystemLogsView.vue')
+const Tasks = async () => import('@/views/TasksView.vue')
+const NotFound = async () => import('@/views/NotFoundView.vue')
 
 function defineAppShellRoute<T extends RouteRecordRaw & { meta: { titleKey: RouteTitleKey } }>(route: T) {
   return route

@@ -8,7 +8,7 @@ const props = defineProps<{ class?: HTMLAttributes['class'] }>()
 <template>
   <caption
     data-slot="table-caption"
-    :class="cn('text-muted-foreground mt-4 text-sm', props.class)"
+    :class="cn('mbs-4 text-sm text-muted-foreground', props.class)"
   >
     <slot />
   </caption>

@@ -30,18 +30,18 @@ const forwardedProps = useForwardProps(delegatedProps)
   <ToggleGroupItem
     v-slot="slotProps"
     data-slot="toggle-group-item"
-    :data-variant="context?.variant || variant"
-    :data-size="context?.size || size"
+    :data-variant="context?.variant ?? variant"
+    :data-size="context?.size ?? size"
     :data-spacing="context?.spacing"
     v-bind="forwardedProps"
     :class="
       cn(
         toggleVariants({
-          variant: context?.variant || variant,
-          size: context?.size || size,
+          variant: context?.variant ?? variant,
+          size: context?.size ?? size,
         }),
         'w-auto min-w-0 shrink-0 px-3 focus:z-10 focus-visible:z-10',
-        'data-[spacing=0]:rounded-none data-[spacing=0]:shadow-none data-[spacing=0]:first:rounded-l-md data-[spacing=0]:last:rounded-r-md data-[spacing=0]:data-[variant=outline]:border-l-0 data-[spacing=0]:data-[variant=outline]:first:border-l',
+        'data-[spacing=0]:rounded-none data-[spacing=0]:shadow-none data-[spacing=0]:first:rounded-s-md data-[spacing=0]:last:rounded-e-md data-[spacing=0]:data-[variant=outline]:border-s-0 data-[spacing=0]:data-[variant=outline]:first:border-s',
         props.class,
       )
     "

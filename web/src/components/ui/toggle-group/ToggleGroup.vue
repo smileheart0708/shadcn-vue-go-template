@@ -5,7 +5,7 @@ import type { HTMLAttributes } from 'vue'
 import type { toggleVariants } from '@/components/ui/toggle'
 import { reactiveOmit } from '@vueuse/core'
 import { ToggleGroupRoot, useForwardPropsEmits } from 'reka-ui'
-import { provide } from 'vue'
+import { provide, toRefs } from 'vue'
 import { cn } from '@/lib/utils'
 
 type ToggleGroupVariants = VariantProps<typeof toggleVariants>
@@ -26,11 +26,9 @@ const props = withDefaults(
 
 const emits = defineEmits<ToggleGroupRootEmits>()
 
-provide('toggleGroup', {
-  variant: props.variant,
-  size: props.size,
-  spacing: props.spacing,
-})
+const { class: className, variant, size, spacing } = toRefs(props)
+
+provide('toggleGroup', { variant: variant.value, size: size.value, spacing: spacing.value })
 
 const delegatedProps = reactiveOmit(props, 'class', 'size', 'variant')
 const forwarded = useForwardPropsEmits(delegatedProps, emits)
@@ -47,7 +45,7 @@ const forwarded = useForwardPropsEmits(delegatedProps, emits)
       '--gap': spacing,
     }"
     v-bind="forwarded"
-    :class="cn('group/toggle-group flex w-fit items-center gap-[--spacing(var(--gap))] rounded-md data-[spacing=default]:data-[variant=outline]:shadow-xs', props.class)"
+    :class="cn('group/toggle-group flex w-fit items-center gap-[--spacing(var(--gap))] rounded-md data-[spacing=default]:data-[variant=outline]:shadow-xs', className)"
   >
     <slot v-bind="slotProps" />
   </ToggleGroupRoot>

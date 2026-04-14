@@ -24,33 +24,65 @@ const props = withDefaults(
 // TODO: currently we use `createElement` and `render` to render the
 // const chartContext = useChart(null)
 
-const payload = computed(() => {
-  return Object.entries(props.payload)
-    .map(([key, value]) => {
-      // const key = `${props.nameKey || item.name || item.dataKey || "value"}`
-      const itemConfig = props.config[key]
-      const indicatorColor = props.config[key]?.color ?? readPayloadColor(props.payload)
+type TooltipPayloadItem = {
+  key: string
+  value: unknown
+  itemConfig: NonNullable<ChartConfig[string]>
+  indicatorColor?: string
+}
 
-      return { key, value, itemConfig, indicatorColor }
+const payload = computed<TooltipPayloadItem[]>(() => {
+  const items: TooltipPayloadItem[] = []
+
+  for (const [key, value] of Object.entries(props.payload)) {
+    const itemConfig = props.config[key]
+
+    if (itemConfig === undefined) {
+      continue
+    }
+
+    items.push({
+      key,
+      value,
+      itemConfig,
+      indicatorColor: itemConfig.color ?? readPayloadColor(props.payload),
     })
-    .filter((i) => i.itemConfig)
+  }
+
+  return items
 })
 
 const nestLabel = computed(() => Object.keys(props.payload).length === 1 && props.indicator !== 'dot')
 const tooltipLabel = computed(() => {
-  if (props.hideLabel) return null
-  if (props.labelFormatter && props.x !== undefined) {
+  if (props.hideLabel === true) {
+    return null
+  }
+
+  if (props.labelFormatter !== undefined && props.x !== undefined) {
     return props.labelFormatter(props.x)
   }
-  return props.labelKey ? props.config[props.labelKey]?.label || props.payload[props.labelKey] : props.x
+
+  if (props.labelKey !== undefined) {
+    const labelConfig = props.config[props.labelKey]
+    const label = labelConfig?.label
+
+    if (label !== undefined) {
+      return label
+    }
+
+    return props.payload[props.labelKey] ?? null
+  }
+
+  return props.x ?? null
 })
 
 function readPayloadColor(payload: Record<string, unknown>): string | undefined {
-  return typeof payload.fill === 'string' ? payload.fill : undefined
+  const fill = payload.fill
+  return typeof fill === 'string' ? fill : undefined
 }
 
 function formatTooltipValue(value: unknown): string {
-  if (value == null) {
+  if (value === null || value === undefined) {
     return ''
   }
 
@@ -67,7 +99,8 @@ function formatTooltipValue(value: unknown): string {
   }
 
   if (typeof value === 'object') {
-    return JSON.stringify(value) ?? ''
+    const json = JSON.stringify(value)
+    return json === undefined ? '' : json
   }
 
   return ''
@@ -75,10 +108,10 @@ function formatTooltipValue(value: unknown): string {
 </script>
 
 <template>
-  <div :class="cn('border-border/50 bg-background grid min-w-32 items-start gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs shadow-xl', props.class)">
+  <div :class="cn('grid min-w-32 items-start gap-1.5 rounded-lg border border-border/50 bg-background px-2.5 py-1.5 text-xs shadow-xl', props.class)">
     <slot>
       <div
-        v-if="!nestLabel && tooltipLabel"
+        v-if="!nestLabel && tooltipLabel !== null"
         class="font-medium"
       >
         {{ tooltipLabel }}
@@ -87,17 +120,17 @@ function formatTooltipValue(value: unknown): string {
         <div
           v-for="{ value, itemConfig, indicatorColor, key } in payload"
           :key="key"
-          :class="cn('[&>svg]:text-muted-foreground flex w-full flex-wrap items-stretch gap-2 [&>svg]:h-2.5 [&>svg]:w-2.5', indicator === 'dot' && 'items-center')"
+          :class="cn('flex w-full flex-wrap items-stretch gap-2 [&>svg]:size-2.5 [&>svg]:text-muted-foreground', indicator === 'dot' ? 'items-center' : undefined)"
         >
           <component
             :is="itemConfig.icon"
-            v-if="itemConfig?.icon"
+            v-if="itemConfig.icon !== undefined"
           />
           <template v-else-if="!hideIndicator">
             <div
               :class="
-                cn('shrink-0 rounded-[2px] border-(--color-border) bg-(--color-bg)', {
-                  'h-2.5 w-2.5': indicator === 'dot',
+                cn('shrink-0 rounded-[2px] border-border bg-(--color-bg)', {
+                  'size-2.5': indicator === 'dot',
                   'w-1': indicator === 'line',
                   'w-0 border-[1.5px] border-dashed bg-transparent': indicator === 'dashed',
                   'my-0.5': nestLabel && indicator === 'dashed',
@@ -116,12 +149,12 @@ function formatTooltipValue(value: unknown): string {
                 {{ tooltipLabel }}
               </div>
               <span class="text-muted-foreground">
-                {{ itemConfig?.label || value }}
+                {{ itemConfig.label ?? value }}
               </span>
             </div>
             <span
-              v-if="value"
-              class="text-foreground font-mono font-medium tabular-nums"
+              v-if="value !== undefined && value !== null"
+              class="font-mono font-medium text-foreground tabular-nums"
             >
               {{ formatTooltipValue(value) }}
             </span>

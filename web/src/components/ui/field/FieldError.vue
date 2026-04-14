@@ -5,35 +5,46 @@ import { cn } from '@/lib/utils'
 
 const props = defineProps<{
   class?: HTMLAttributes['class']
-  errors?: Array<string | { message: string | undefined } | undefined>
+  errors?: (string | { message: string | undefined } | undefined)[]
 }>()
 
 const content = computed(() => {
-  if (!props.errors || props.errors.length === 0) return null
-
-  const uniqueErrors = [
-    ...new Map(
-      props.errors.filter(Boolean).map((error) => {
-        const message = typeof error === 'string' ? error : error?.message
-        return [message, error]
-      }),
-    ).values(),
-  ]
-
-  if (uniqueErrors.length === 1 && uniqueErrors[0]) {
-    return typeof uniqueErrors[0] === 'string' ? uniqueErrors[0] : uniqueErrors[0].message
+  if (props.errors === undefined || props.errors.length === 0) {
+    return null
   }
 
-  return uniqueErrors.map((error) => (typeof error === 'string' ? error : error?.message))
+  const uniqueMessages = new Map<string, true>()
+
+  for (const error of props.errors) {
+    if (error === undefined) {
+      continue
+    }
+
+    const message = typeof error === 'string' ? error : error.message
+
+    if (message === undefined) {
+      continue
+    }
+
+    uniqueMessages.set(message, true)
+  }
+
+  const messages = [...uniqueMessages.keys()]
+
+  if (messages.length === 0) {
+    return null
+  }
+
+  return messages.length === 1 ? messages[0] : messages
 })
 </script>
 
 <template>
   <div
-    v-if="$slots.default || content"
+    v-if="$slots.default !== undefined || content !== null"
     role="alert"
     data-slot="field-error"
-    :class="cn('text-destructive text-sm font-normal', props.class)"
+    :class="cn('text-sm font-normal text-destructive', props.class)"
   >
     <slot v-if="$slots.default" />
 
@@ -43,7 +54,7 @@ const content = computed(() => {
 
     <ul
       v-else-if="Array.isArray(content)"
-      class="ml-4 flex list-disc flex-col gap-1"
+      class="ms-4 flex list-disc flex-col gap-1"
     >
       <li
         v-for="(error, index) in content"

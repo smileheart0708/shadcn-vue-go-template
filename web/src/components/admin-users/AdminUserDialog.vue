@@ -18,8 +18,8 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  (event: 'update:open', value: boolean): void
-  (event: 'submit', payload: { username: string; email: string | null; password?: string; role?: number | null }): void
+  'update:open': [value: boolean]
+  submit: [payload: { username: string; email: string | null; password?: string; role?: number | null }]
 }>()
 
 const { t } = useI18n()
@@ -52,9 +52,11 @@ watch(
 )
 
 function handleSubmit() {
+  const email = form.email.trim()
+
   emit('submit', {
     username: form.username.trim(),
-    email: form.email.trim() ? form.email.trim() : null,
+    email: email === '' ? null : email,
     password: props.mode === 'create' ? form.password : undefined,
     role: props.canAssignAdminRole ? Number(form.role) : null,
   })
@@ -142,7 +144,7 @@ function handleSubmit() {
           >
             <Spinner
               v-if="props.pending"
-              class="mr-2"
+              class="me-2"
             />
             {{ submitLabel }}
           </Button>

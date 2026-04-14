@@ -64,7 +64,7 @@ const columnOptions = [
   { id: 'title', label: 'Title' },
   { id: 'status', label: 'Status' },
   { id: 'priority', label: 'Priority' },
-] as const satisfies ReadonlyArray<{ id: TaskColumnId; label: string }>
+] as const satisfies readonly { id: TaskColumnId; label: string }[]
 
 const statusMeta = {
   Backlog: { icon: CircleHelp, iconClass: 'text-muted-foreground', labelClass: 'text-foreground' },
@@ -153,7 +153,7 @@ function toggleColumnVisibility(columnId: TaskColumnId, nextValue: boolean) {
     <div class="flex items-start justify-between gap-4">
       <div class="space-y-1">
         <h2 class="text-2xl font-semibold">Welcome back!</h2>
-        <p class="text-muted-foreground text-sm">Here's a list of your tasks for this month.</p>
+        <p class="text-sm text-muted-foreground">Here's a list of your tasks for this month.</p>
       </div>
     </div>
 
@@ -343,7 +343,7 @@ function toggleColumnVisibility(columnId: TaskColumnId, nextValue: boolean) {
     </div>
 
     <div class="flex flex-col gap-4 px-1 lg:flex-row lg:items-center lg:justify-between">
-      <div class="text-muted-foreground text-sm">{{ selectedCount }} of {{ filteredTasks.length }} row(s) selected.</div>
+      <div class="text-sm text-muted-foreground">{{ selectedCount }} of {{ filteredTasks.length }} row(s) selected.</div>
 
       <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-end sm:gap-6">
         <div class="flex items-center gap-3">

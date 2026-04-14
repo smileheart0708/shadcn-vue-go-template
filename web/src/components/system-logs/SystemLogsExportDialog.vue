@@ -35,7 +35,7 @@ const exportFormat = defineModel<SystemLogExportFormat>('format', { default: 'cs
 
 const openModel = computed({
   get: () => props.open,
-  set: (value: boolean) => emit('update:open', value),
+  set: (value: boolean) => { emit('update:open', value); },
 })
 
 const exportableCount = computed(
@@ -135,7 +135,7 @@ function handleExport() {
           </Select>
         </div>
 
-        <p class="text-muted-foreground text-sm">
+        <p class="text-sm text-muted-foreground">
           {{ t('systemLogs.export.preview', { count: exportableCount }) }}
         </p>
       </div>

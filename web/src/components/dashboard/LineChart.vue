@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import type { ChartConfig } from '@/components/ui/chart'
 import { useResizeObserver } from '@vueuse/core'
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, useTemplateRef, watch } from 'vue'
 import { useSidebar } from '@/components/ui/sidebar'
 import { VisArea, VisAxis, VisLine, VisXYContainer } from '@unovis/vue'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { ChartContainer, ChartCrosshair, ChartLegendContent, ChartTooltip, ChartTooltipContent, componentToString } from '@/components/ui/chart'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { cn } from '@/lib/utils'
+
+defineOptions({ name: 'DashboardLineChart' })
 
 const chartData = [
   { date: new Date('2024-04-01'), desktop: 222, mobile: 150 },
@@ -155,6 +156,7 @@ const sidebarAnimationMs = 220
 let freezeTimer: number | null = null
 const isChartFrozen = ref(false)
 const pendingChartWidth = ref<number | null>(null)
+const chartShell = useTemplateRef<HTMLElement>('chartShell')
 
 useResizeObserver(chartShell, (entries) => {
   const nextWidth = Math.round(entries[0]?.contentRect.width ?? 0)
@@ -194,8 +196,8 @@ const freezeChartDuringSidebarAnimation = () => {
     return
   }
 
-  visContainer.style.width = `${width}px`
-  visContainer.style.height = `${height}px`
+  visContainer.style.width = String(width) + 'px'
+  visContainer.style.height = String(height) + 'px'
   shell.style.overflow = 'hidden'
   isChartFrozen.value = true
 
@@ -242,14 +244,14 @@ function formatTooltipDate(value: number | Date) {
 
 <template>
   <Card class="h-full min-h-0 flex-col gap-0 overflow-hidden py-0">
-    <CardHeader class="flex items-center gap-2 space-y-0 border-b py-5 sm:flex-row">
+    <CardHeader class="flex items-center gap-2 space-y-0 border-be py-5 sm:flex-row">
       <div class="grid flex-1 gap-1">
         <CardTitle>Area Chart - Interactive</CardTitle>
         <CardDescription>Showing total visitors for the last 3 months</CardDescription>
       </div>
       <Select v-model="timeRange">
         <SelectTrigger
-          class="hidden w-40 rounded-lg sm:ml-auto sm:flex"
+          class="hidden w-40 rounded-lg sm:ms-auto sm:flex"
           aria-label="Select a value"
         >
           <SelectValue placeholder="Last 3 months" />
@@ -276,7 +278,7 @@ function formatTooltipDate(value: number | Date) {
         </SelectContent>
       </Select>
     </CardHeader>
-    <CardContent class="min-h-0 flex-1 px-2 pb-4 pt-4 sm:px-6 sm:pt-6">
+    <CardContent class="min-h-0 flex-1 px-2 py-4 sm:px-6 sm:pbs-6">
       <div
         ref="chartShell"
         class="relative flex h-full min-h-0 flex-col"
@@ -285,8 +287,7 @@ function formatTooltipDate(value: number | Date) {
           <ChartContainer
             v-if="filteredChartData.length > 0 && chartWidth > 0"
             :config="chartConfig"
-            class="h-full min-h-0 w-full transition-[opacity,filter] duration-200"
-            :class="cn('opacity-100')"
+            class="size-full min-h-0 opacity-100 transition-[opacity,filter] duration-200"
             :cursor="false"
           >
             <VisXYContainer
@@ -294,7 +295,7 @@ function formatTooltipDate(value: number | Date) {
               :width="chartWidth > 0 ? chartWidth : undefined"
               :margin="chartMargin"
               :auto-margin="false"
-              class="flex-1 min-h-0 h-auto!"
+              class="h-auto! min-h-0 flex-1"
             >
               <VisArea
                 :x="(d: Data) => d.date"

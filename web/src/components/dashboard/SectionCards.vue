@@ -50,7 +50,7 @@ const metrics = [
         :key="metric.title"
         class="@container/card gap-4 py-5"
       >
-        <CardHeader class="pb-0">
+        <CardHeader class="pbe-0">
           <CardDescription>{{ metric.title }}</CardDescription>
           <CardTitle class="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
             {{ metric.value }}
@@ -65,7 +65,7 @@ const metrics = [
             </Badge>
           </CardAction>
         </CardHeader>
-        <CardFooter class="flex-col items-start gap-1.5 pt-0 text-sm">
+        <CardFooter class="flex-col items-start gap-1.5 pbs-0 text-sm">
           <div class="line-clamp-1 flex gap-2 font-medium">
             {{ metric.summary }}
             <component
@@ -83,8 +83,8 @@ const metrics = [
     <div class="flex min-h-0 flex-1 flex-col gap-4 lg:grid lg:grid-cols-2">
       <LineChart />
 
-      <Card class="min-h-0 min-w-0 gap-0 py-5 overflow-hidden">
-        <CardHeader class="shrink-0 pb-2">
+      <Card class="min-h-0 min-w-0 gap-0 overflow-hidden py-5">
+        <CardHeader class="shrink-0 pbe-2">
           <CardDescription>Reserved Panel</CardDescription>
           <CardTitle class="text-xl font-semibold">Next Widget Slot</CardTitle>
           <CardAction>
@@ -95,7 +95,7 @@ const metrics = [
           </CardAction>
         </CardHeader>
         <CardContent class="flex min-h-0 min-w-0 flex-1">
-          <Empty class="bg-muted/30 h-full min-w-0 border-border/70">
+          <Empty class="h-full min-w-0 border-border/70 bg-muted/30">
             <EmptyHeader>
               <EmptyMedia variant="icon">
                 <IconChartAreaLine class="size-5" />
@@ -105,17 +105,17 @@ const metrics = [
             </EmptyHeader>
             <EmptyContent class="max-w-none min-w-0">
               <div class="grid w-full gap-3">
-                <div class="bg-background/80 flex min-w-0 items-center justify-between gap-3 rounded-lg border px-4 py-3">
+                <div class="flex min-w-0 items-center justify-between gap-3 rounded-lg border bg-background/80 px-4 py-3">
                   <span class="text-muted-foreground">Suggested width</span>
-                  <span class="truncate text-right font-medium">Right-side companion card</span>
+                  <span class="truncate text-end font-medium">Right-side companion card</span>
                 </div>
-                <div class="bg-background/80 flex min-w-0 items-center justify-between gap-3 rounded-lg border px-4 py-3">
+                <div class="flex min-w-0 items-center justify-between gap-3 rounded-lg border bg-background/80 px-4 py-3">
                   <span class="text-muted-foreground">Suggested content</span>
-                  <span class="truncate text-right font-medium">Tasks, notices, or small table</span>
+                  <span class="truncate text-end font-medium">Tasks, notices, or small table</span>
                 </div>
-                <div class="bg-background/80 flex min-w-0 items-center justify-between gap-3 rounded-lg border px-4 py-3">
+                <div class="flex min-w-0 items-center justify-between gap-3 rounded-lg border bg-background/80 px-4 py-3">
                   <span class="text-muted-foreground">Viewport rule</span>
-                  <span class="truncate text-right font-medium">No vertical scroll on desktop</span>
+                  <span class="truncate text-end font-medium">No vertical scroll on desktop</span>
                 </div>
               </div>
             </EmptyContent>

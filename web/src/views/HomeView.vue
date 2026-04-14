@@ -16,13 +16,13 @@ import { Button } from '@/components/ui/button'
         <ArrowRightIcon class="size-4" />
       </a>
 
-      <h1 class="mt-4 max-w-4xl text-balance text-[2rem] font-semibold tracking-[-0.04em] text-foreground sm:text-[2.5rem] lg:text-[3rem]">The Foundation for your Design System</h1>
+      <h1 class="mbs-4 max-w-4xl text-[2rem] font-semibold tracking-[-0.04em] text-balance text-foreground sm:text-[2.5rem] lg:text-[3rem]">The Foundation for your Design System</h1>
 
-      <p class="mt-3 max-w-3xl text-balance text-sm leading-relaxed text-muted-foreground sm:text-base sm:leading-relaxed">
+      <p class="mbs-3 max-w-3xl text-sm/relaxed text-balance text-muted-foreground sm:text-base/relaxed">
         A set of beautifully designed components that you can customize, extend, and build on. Start here then make it your own. Open Source. Open Code.
       </p>
 
-      <div class="mt-5 flex flex-wrap items-center justify-center gap-4">
+      <div class="mbs-5 flex flex-wrap items-center justify-center gap-4">
         <Button
           as-child
           size="lg"

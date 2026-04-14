@@ -4,7 +4,7 @@ import type { MessageSchema } from '@/locales/schema'
 import zhCN from '@/locales/zh-CN'
 import { applyDocumentLanguage, fallbackLocale, localeNames, persistLocale, resolveInitialLocale, supportedLocales, type AppLocale } from '@/plugins/i18n/locales'
 
-const messages: { [locale in AppLocale]: MessageSchema } = { 'zh-CN': zhCN, 'en-US': enUS }
+const messages: Record<AppLocale, MessageSchema> = { 'zh-CN': zhCN, 'en-US': enUS }
 
 const locale = resolveInitialLocale()
 

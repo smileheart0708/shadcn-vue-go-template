@@ -15,7 +15,7 @@ const delegatedProps = reactiveOmit(props, 'class')
   <PaginationEllipsis
     data-slot="pagination-ellipsis"
     v-bind="delegatedProps"
-    :class="cn('cn-pagination-ellipsis flex items-center justify-center', props.class)"
+    :class="cn('flex items-center justify-center', props.class)"
   >
     <slot>
       <MoreHorizontalIcon class="size-4" />

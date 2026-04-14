@@ -23,7 +23,7 @@ export function componentToString(config: ChartConfig, component: Component, pro
     const data = getChartPayload(rawData)
     const serializedKey = `${id}-${serializeKey(data)}`
     const cachedContent = cache.get(serializedKey)
-    if (cachedContent) return cachedContent
+    if (cachedContent !== undefined) return cachedContent
 
     const vnode = h<unknown>(component, { ...props, payload: data, config, x })
     const div = document.createElement('div')

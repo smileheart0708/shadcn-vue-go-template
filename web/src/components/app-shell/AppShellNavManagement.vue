@@ -4,9 +4,10 @@ import type { AppShellNavItem } from '@/components/app-shell/navigation'
 import AppShellNavButton from '@/components/app-shell/AppShellNavButton.vue'
 import { SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuItem } from '@/components/ui/sidebar'
 
+defineProps<{ items: AppShellNavItem[] }>()
+
 const { t } = useI18n()
 
-defineProps<{ items: AppShellNavItem[] }>()
 </script>
 
 <template>

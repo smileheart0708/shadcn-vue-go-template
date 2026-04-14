@@ -120,39 +120,6 @@
   }
 }
 
-@layer components {
-  .route-loading-bar {
-    @apply pointer-events-none fixed inset-x-0 top-0 h-0.5 overflow-hidden;
-    z-index: 70;
-  }
-
-  .route-loading-bar__track {
-    @apply absolute inset-y-0 left-0 w-[34%] rounded-full;
-    background: linear-gradient(90deg, transparent 0%, var(--primary) 45%, var(--primary) 55%, transparent 100%);
-    animation: route-loading-sweep 1.05s linear infinite;
-  }
-
-  .route-loading-bar__track::before {
-    content: '';
-    position: absolute;
-    inset: -6px 0;
-    border-radius: inherit;
-    background: inherit;
-    filter: blur(10px);
-    opacity: 0.35;
-  }
-
-  .route-loading-enter-active,
-  .route-loading-leave-active {
-    transition: opacity 160ms ease;
-  }
-
-  .route-loading-enter-from,
-  .route-loading-leave-to {
-    opacity: 0;
-  }
-}
-
 @keyframes route-loading-sweep {
   0% {
     transform: translateX(-125%);
@@ -160,18 +127,5 @@
 
   100% {
     transform: translateX(425%);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .route-loading-bar__track {
-    animation: none;
-    width: 100%;
-    transform: none;
-  }
-
-  .route-loading-bar__track::before {
-    opacity: 0;
-    filter: none;
   }
 }

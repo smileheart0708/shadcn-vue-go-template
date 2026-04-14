@@ -34,7 +34,7 @@ const props = defineProps<{
   }
 }>()
 
-const emit = defineEmits<{ (e: 'logout'): void }>()
+const emit = defineEmits<{ logout: [] }>()
 
 const { isMobile } = useSidebar()
 const { t } = useI18n()
@@ -57,7 +57,7 @@ function switchLanguage(newLocale: AppLocale) {
             size="lg"
             class="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
           >
-            <Avatar class="h-8 w-8 rounded-lg">
+            <Avatar class="size-8 rounded-lg">
               <AvatarImage
                 v-if="user.avatarUrl"
                 :src="user.avatarUrl"
@@ -65,7 +65,7 @@ function switchLanguage(newLocale: AppLocale) {
               />
               <AvatarFallback class="rounded-lg">{{ avatarFallbackText }}</AvatarFallback>
             </Avatar>
-            <div class="grid flex-1 text-left text-sm leading-tight">
+            <div class="grid flex-1 text-start text-sm/tight">
               <div class="flex items-center gap-2">
                 <span class="truncate font-medium">{{ user.username }}</span>
                 <Badge
@@ -75,11 +75,11 @@ function switchLanguage(newLocale: AppLocale) {
                   {{ roleLabel }}
                 </Badge>
               </div>
-              <span class="text-muted-foreground truncate text-xs">
+              <span class="truncate text-xs text-muted-foreground">
                 {{ user.email ?? ' ' }}
               </span>
             </div>
-            <IconDotsVertical class="ml-auto size-4" />
+            <IconDotsVertical class="ms-auto size-4" />
           </SidebarMenuButton>
         </DropdownMenuTrigger>
         <DropdownMenuContent
@@ -89,8 +89,8 @@ function switchLanguage(newLocale: AppLocale) {
           align="end"
         >
           <DropdownMenuLabel class="p-0 font-normal">
-            <div class="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-              <Avatar class="h-8 w-8 rounded-lg">
+            <div class="flex items-center gap-2 px-1 py-1.5 text-start text-sm">
+              <Avatar class="size-8 rounded-lg">
                 <AvatarImage
                   v-if="user.avatarUrl"
                   :src="user.avatarUrl"
@@ -98,7 +98,7 @@ function switchLanguage(newLocale: AppLocale) {
                 />
                 <AvatarFallback class="rounded-lg">{{ avatarFallbackText }}</AvatarFallback>
               </Avatar>
-              <div class="grid flex-1 text-left text-sm leading-tight">
+              <div class="grid flex-1 text-start text-sm/tight">
                 <div class="flex items-center gap-2">
                   <span class="truncate font-medium">{{ user.username }}</span>
                   <Badge
@@ -108,7 +108,7 @@ function switchLanguage(newLocale: AppLocale) {
                     {{ roleLabel }}
                   </Badge>
                 </div>
-                <span class="text-muted-foreground truncate text-xs">
+                <span class="truncate text-xs text-muted-foreground">
                   {{ user.email ?? ' ' }}
                 </span>
               </div>

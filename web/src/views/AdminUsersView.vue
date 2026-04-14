@@ -229,10 +229,10 @@ function formatDateTime(value: string) {
     <div class="flex items-start justify-between gap-4">
       <div class="space-y-1">
         <h2 class="text-2xl font-semibold">{{ t('adminUsers.title') }}</h2>
-        <p class="text-muted-foreground text-sm">{{ t('adminUsers.description') }}</p>
+        <p class="text-sm text-muted-foreground">{{ t('adminUsers.description') }}</p>
       </div>
       <Button @click="openCreateDialog">
-        <UserPlus class="mr-2 size-4" />
+        <UserPlus class="me-2 size-4" />
         {{ t('adminUsers.actions.createUser') }}
       </Button>
     </div>
@@ -297,7 +297,7 @@ function formatDateTime(value: string) {
             <TableHead class="text-sm font-semibold">{{ t('adminUsers.table.role') }}</TableHead>
             <TableHead class="text-sm font-semibold">{{ t('adminUsers.table.status') }}</TableHead>
             <TableHead class="text-sm font-semibold">{{ t('adminUsers.table.createdAt') }}</TableHead>
-            <TableHead class="text-right text-sm font-semibold">{{ t('adminUsers.table.actions') }}</TableHead>
+            <TableHead class="text-end text-sm font-semibold">{{ t('adminUsers.table.actions') }}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -333,7 +333,7 @@ function formatDateTime(value: string) {
             >
               <Spinner
                 v-if="refreshing"
-                class="mr-2"
+                class="me-2"
               />
               {{ t('adminUsers.actions.retry') }}
             </Button>
@@ -355,7 +355,7 @@ function formatDateTime(value: string) {
               <TableHead class="text-sm font-semibold">{{ t('adminUsers.table.role') }}</TableHead>
               <TableHead class="text-sm font-semibold">{{ t('adminUsers.table.status') }}</TableHead>
               <TableHead class="text-sm font-semibold">{{ t('adminUsers.table.createdAt') }}</TableHead>
-              <TableHead class="text-right text-sm font-semibold">{{ t('adminUsers.table.actions') }}</TableHead>
+              <TableHead class="text-end text-sm font-semibold">{{ t('adminUsers.table.actions') }}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -369,7 +369,7 @@ function formatDateTime(value: string) {
                     <span class="font-medium">{{ user.username }}</span>
                     <span
                       v-if="user.mustChangePassword"
-                      class="text-muted-foreground text-xs"
+                      class="text-xs text-muted-foreground"
                     >
                       {{ t('adminUsers.table.mustChangePassword') }}
                     </span>
@@ -388,7 +388,7 @@ function formatDateTime(value: string) {
                     {{ t(`adminUsers.status.${user.status}`) }}
                   </Badge>
                 </TableCell>
-                <TableCell class="text-muted-foreground whitespace-nowrap">
+                <TableCell class="whitespace-nowrap text-muted-foreground">
                   {{ formatDateTime(user.createdAt) }}
                 </TableCell>
                 <TableCell>
@@ -409,7 +409,7 @@ function formatDateTime(value: string) {
                     >
                       <component
                         :is="user.status === 'banned' ? ShieldCheck : ShieldBan"
-                        class="mr-2 size-4"
+                        class="me-2 size-4"
                       />
                       {{ user.status === 'banned' ? t('adminUsers.actions.unban') : t('adminUsers.actions.ban') }}
                     </Button>
@@ -429,7 +429,7 @@ function formatDateTime(value: string) {
 
       <div class="flex flex-col gap-4 px-1 lg:flex-row lg:items-center lg:justify-between">
         <div
-          class="text-muted-foreground flex items-center gap-2 text-sm"
+          class="flex items-center gap-2 text-sm text-muted-foreground"
           aria-live="polite"
         >
           <Spinner
@@ -491,7 +491,7 @@ function formatDateTime(value: string) {
           >
             <Spinner
               v-if="confirmPending"
-              class="mr-2"
+              class="me-2"
             />
             {{ confirmTarget?.status === 'banned' ? t('adminUsers.actions.unban') : t('adminUsers.actions.ban') }}
           </AlertDialogAction>

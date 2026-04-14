@@ -91,10 +91,10 @@ async function saveRegistrationMode() {
           <h1 class="text-2xl font-semibold">{{ t('systemConfig.title') }}</h1>
           <Badge variant="outline">{{ t('systemConfig.badge') }}</Badge>
         </div>
-        <p class="text-muted-foreground text-sm">{{ t('systemConfig.description') }}</p>
+        <p class="text-sm text-muted-foreground">{{ t('systemConfig.description') }}</p>
       </div>
-      <div class="flex h-11 w-11 items-center justify-center rounded-xl border bg-muted/40">
-        <ShieldCheck class="h-5 w-5" />
+      <div class="flex size-11 items-center justify-center rounded-xl border bg-muted/40">
+        <ShieldCheck class="size-5" />
       </div>
     </section>
 
@@ -156,22 +156,22 @@ async function saveRegistrationMode() {
             <label class="flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition-colors hover:bg-muted/40">
               <RadioGroupItem
                 value="disabled"
-                class="mt-1"
+                class="mbs-1"
               />
               <div class="space-y-1">
                 <div class="font-medium">{{ t('systemConfig.registration.options.disabled.title') }}</div>
-                <p class="text-muted-foreground text-sm">{{ t('systemConfig.registration.options.disabled.description') }}</p>
+                <p class="text-sm text-muted-foreground">{{ t('systemConfig.registration.options.disabled.description') }}</p>
               </div>
             </label>
 
             <label class="flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition-colors hover:bg-muted/40">
               <RadioGroupItem
                 value="password"
-                class="mt-1"
+                class="mbs-1"
               />
               <div class="space-y-1">
                 <div class="font-medium">{{ t('systemConfig.registration.options.password.title') }}</div>
-                <p class="text-muted-foreground text-sm">{{ t('systemConfig.registration.options.password.description') }}</p>
+                <p class="text-sm text-muted-foreground">{{ t('systemConfig.registration.options.password.description') }}</p>
               </div>
             </label>
           </RadioGroup>
@@ -179,7 +179,7 @@ async function saveRegistrationMode() {
           <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <p
               v-if="updatedAtLabel"
-              class="text-muted-foreground text-sm"
+              class="text-sm text-muted-foreground"
             >
               {{ t('systemConfig.registration.updatedAt', { value: updatedAtLabel }) }}
             </p>
@@ -197,7 +197,7 @@ async function saveRegistrationMode() {
               >
                 <Spinner
                   v-if="saving"
-                  class="mr-2"
+                  class="me-2"
                 />
                 {{ t('common.action.save') }}
               </Button>

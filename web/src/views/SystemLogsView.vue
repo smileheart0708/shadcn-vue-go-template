@@ -253,7 +253,7 @@ function getReconnectDelayMs(attempt: number) {
   return Math.min(RECONNECT_MAX_DELAY_MS, RECONNECT_BASE_DELAY_MS * 2 ** exponent)
 }
 
-function waitForReconnect(delayMs: number, signal: AbortSignal): Promise<boolean> {
+async function waitForReconnect(delayMs: number, signal: AbortSignal): Promise<boolean> {
   return new Promise((resolve) => {
     if (signal.aborted) {
       resolve(false)
@@ -280,7 +280,7 @@ function waitForReconnect(delayMs: number, signal: AbortSignal): Promise<boolean
     <section class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
       <div>
         <h1 class="text-2xl font-semibold">{{ t('systemLogs.title') }}</h1>
-        <p class="text-muted-foreground text-sm">{{ t('systemLogs.description') }}</p>
+        <p class="text-sm text-muted-foreground">{{ t('systemLogs.description') }}</p>
       </div>
 
       <div class="flex flex-wrap items-center gap-2">
@@ -399,12 +399,12 @@ function waitForReconnect(delayMs: number, signal: AbortSignal): Promise<boolean
 
             <div
               v-else
-              class="min-w-max space-y-1 p-3 font-mono text-xs leading-5 whitespace-nowrap"
+              class="min-w-max space-y-1 p-3 font-mono text-xs/5 whitespace-nowrap"
             >
               <div
                 v-for="entry in visibleEntries"
                 :key="entry.id"
-                class="hover:bg-muted/60 grid grid-cols-[auto_auto_auto_1fr] items-start gap-2 rounded-lg border border-transparent px-3 py-2 transition-colors"
+                class="grid grid-cols-[auto_auto_auto_1fr] items-start gap-2 rounded-lg border border-transparent px-3 py-2 transition-colors hover:bg-muted/60"
               >
                 <span class="text-muted-foreground tabular-nums">
                   {{ formatSystemLogTimestamp(entry.timestamp) }}

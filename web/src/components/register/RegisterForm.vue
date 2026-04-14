@@ -40,7 +40,7 @@ onMounted(() => {
 })
 
 async function loadPolicy(options: { background?: boolean } = {}) {
-  if (options.background) {
+  if (options.background === true) {
     refreshingPolicy.value = true
   } else {
     loadingPolicy.value = true
@@ -73,7 +73,10 @@ async function handleSubmit() {
 
   const registerPromise = authStore.register({
     username: username.value.trim(),
-    email: email.value.trim() ? email.value.trim() : null,
+    email: (() => {
+      const trimmedEmail = email.value.trim()
+      return trimmedEmail === '' ? null : trimmedEmail
+    })(),
     password: password.value,
   })
 
@@ -133,12 +136,12 @@ async function handleSubmit() {
           <EmptyHeader>
             <EmptyMedia
               variant="icon"
-              class="bg-muted/50 text-muted-foreground border-border size-14 rounded-full border"
+              class="size-14 rounded-full border border-border bg-muted/50 text-muted-foreground"
             >
               <CircleOff class="size-7" />
             </EmptyMedia>
             <EmptyTitle>{{ t('auth.signUp.disabledTitle') }}</EmptyTitle>
-            <EmptyDescription class="text-muted-foreground max-w-xs text-sm leading-6">
+            <EmptyDescription class="max-w-xs text-sm/6 text-muted-foreground">
               {{ t('auth.signUp.disabledDescription') }}
             </EmptyDescription>
           </EmptyHeader>
@@ -229,7 +232,7 @@ async function handleSubmit() {
           >
             <Spinner
               v-if="isSubmitting"
-              class="mr-2"
+              class="me-2"
             />
             {{ isSubmitting ? t('auth.signUp.creating') : t('auth.signUp.submit') }}
           </Button>

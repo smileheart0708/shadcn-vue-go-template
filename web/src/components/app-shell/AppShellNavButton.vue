@@ -10,7 +10,7 @@ const route = useRoute()
 const router = useRouter()
 
 const isActive = computed(() => {
-  if (!props.item.to || props.item.disabled) {
+  if (props.item.to === undefined || props.item.to === null || props.item.disabled === true) {
     return false
   }
 
@@ -19,12 +19,13 @@ const isActive = computed(() => {
   return route.path === target.path || (target.path !== '/' && route.path.startsWith(`${target.path}/`))
 })
 
-const isDisabled = computed(() => props.item.disabled ?? !props.item.to)
+const hasTarget = computed(() => props.item.to !== undefined && props.item.to !== null)
+const isDisabled = computed(() => props.item.disabled === true || !hasTarget.value)
 </script>
 
 <template>
   <SidebarMenuButton
-    v-if="item.to && !isDisabled"
+    v-if="hasTarget && !isDisabled"
     as-child
     :tooltip="tooltip"
     :is-active="isActive"

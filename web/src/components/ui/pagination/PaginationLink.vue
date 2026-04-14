@@ -13,7 +13,6 @@ const props = withDefaults(
   }>(),
   {
     size: 'icon',
-    isActive: false,
   },
 )
 </script>
@@ -22,15 +21,14 @@ const props = withDefaults(
   <a
     :href="href"
     data-slot="pagination-link"
-    :data-active="isActive"
-    :aria-current="isActive ? 'page' : undefined"
+    :data-active="isActive === true ? 'true' : undefined"
+    :aria-current="isActive === true ? 'page' : undefined"
     :class="
       cn(
         buttonVariants({
-          variant: isActive ? 'outline' : 'ghost',
+          variant: isActive === true ? 'outline' : 'ghost',
           size,
         }),
-        'cn-pagination-link',
         props.class,
       )
     "

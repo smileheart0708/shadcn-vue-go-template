@@ -7,7 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 const props = defineProps<{ showIcon?: boolean; class?: HTMLAttributes['class'] }>()
 
 const width = computed(() => {
-  return `${Math.floor(Math.random() * 40) + 50}%`
+  return String(Math.floor(Math.random() * 40) + 50) + '%'
 })
 </script>
 
@@ -18,10 +18,10 @@ const width = computed(() => {
     :class="cn('flex h-8 items-center gap-2 rounded-md px-2', props.class)"
   >
     <Skeleton
-      v-if="showIcon"
-      class="size-4 rounded-md"
-      data-sidebar="menu-skeleton-icon"
-    />
+    v-if="showIcon === true"
+    class="size-4 rounded-md"
+    data-sidebar="menu-skeleton-icon"
+  />
 
     <Skeleton
       class="h-4 max-w-(--skeleton-width) flex-1"

@@ -8,7 +8,7 @@ const props = defineProps<{ class?: HTMLAttributes['class'] }>()
 <template>
   <tr
     data-slot="table-row"
-    :class="cn('hover:bg-muted/50 data-[state=selected]:bg-muted border-b transition-colors', props.class)"
+    :class="cn('border-be transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted', props.class)"
   >
     <slot />
   </tr>

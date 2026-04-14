@@ -31,7 +31,7 @@ async function handleLogout() {
     <SidebarHeader>
       <RouterLink
         to="/"
-        class="flex items-center gap-2 px-2 hover:opacity-80 transition-opacity"
+        class="flex items-center gap-2 px-2 transition-opacity hover:opacity-80"
       >
         <img
           src="/logo.svg"
@@ -46,7 +46,7 @@ async function handleLogout() {
       <AppShellNavManagement :items="navigation.management" />
       <AppShellNavSecondary
         :items="navigation.secondary"
-        class="mt-auto"
+        class="mbs-auto"
       />
     </SidebarContent>
     <SidebarFooter>

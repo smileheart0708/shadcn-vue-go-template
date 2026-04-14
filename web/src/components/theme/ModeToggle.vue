@@ -21,7 +21,7 @@ const themes = ['light', 'dark', 'system'] as const
       >
         <component
           :is="icon[themeStore.theme]"
-          class="h-[1.2rem] w-[1.2rem]"
+          class="size-[1.2rem]"
         />
         <span class="sr-only">Toggle theme</span>
       </Button>
@@ -34,7 +34,7 @@ const themes = ['light', 'dark', 'system'] as const
       >
         <component
           :is="icon[theme]"
-          class="mr-2 h-4 w-4"
+          class="me-2 size-4"
         />
         {{ t(`theme.${theme}`) }}
       </DropdownMenuItem>

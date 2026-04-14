@@ -13,7 +13,7 @@ export { default as ItemSeparator } from './ItemSeparator.vue'
 export { default as ItemTitle } from './ItemTitle.vue'
 
 export const itemVariants = cva(
-  'w-full group/item focus-visible:border-ring focus-visible:ring-ring/50 flex items-center flex-wrap outline-none transition-colors duration-100 focus-visible:ring-[3px] [a]:transition-colors',
+  'group/item flex w-full flex-wrap items-center transition-colors duration-100 outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 [a]:transition-colors',
   {
     variants: {
       variant: {
@@ -23,8 +23,8 @@ export const itemVariants = cva(
       },
       size: {
         default: 'gap-4 px-6 py-5',
-        sm: 'gap-3 px-4 py-4',
-        xs: 'gap-2 px-3 py-3',
+        sm: 'gap-3 p-4',
+        xs: 'gap-2 p-3',
       },
     },
     defaultVariants: {
@@ -35,13 +35,13 @@ export const itemVariants = cva(
 )
 
 export const itemMediaVariants = cva(
-  'flex shrink-0 items-center justify-center gap-2 group-has-[[data-slot=item-description]]/item:self-start [&_svg]:pointer-events-none group-has-[[data-slot=item-description]]/item:translate-y-0.5',
+  'flex shrink-0 items-center justify-center gap-2 group-has-data-[slot=item-description]/item:translate-y-0.5 group-has-data-[slot=item-description]/item:self-start [&_svg]:pointer-events-none',
   {
     variants: {
       variant: {
         default: 'bg-transparent',
-        icon: "size-8 border rounded-sm bg-muted [&_svg:not([class*='size-'])]:size-4",
-        image: 'size-10 rounded-sm overflow-hidden [&_img]:size-full [&_img]:object-cover',
+        icon: "size-8 rounded-sm border bg-muted [&_svg:not([class*='size-'])]:size-4",
+        image: 'size-10 overflow-hidden rounded-sm [&_img]:size-full [&_img]:object-cover',
       },
     },
     defaultVariants: {

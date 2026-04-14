@@ -7,7 +7,7 @@ import { reactive, ref, watch } from 'vue'
 import { cn } from '@/lib/utils'
 import { provideCommandContext } from '.'
 
-type FilterState = {
+interface FilterState {
   search: string
   filtered: {
     count: number
@@ -43,13 +43,15 @@ const filterState = reactive<FilterState>({
 })
 
 function filterItems() {
-  if (!filterState.search) {
+  if (filterState.search === '') {
     filterState.filtered.count = allItems.value.size
+    filterState.filtered.items.clear()
     // Do nothing, each item will know to show itself because search is empty
     return
   }
 
   // Reset the groups
+  filterState.filtered.items.clear()
   filterState.filtered.groups = new Set()
   let itemCount = 0
 
@@ -63,7 +65,8 @@ function filterItems() {
   // Check which groups have at least 1 item shown
   for (const [groupId, group] of allGroups.value) {
     for (const itemId of group) {
-      if (filterState.filtered.items.get(itemId)! > 0) {
+      const itemScore = filterState.filtered.items.get(itemId)
+      if (itemScore !== undefined && itemScore > 0) {
         filterState.filtered.groups.add(groupId)
         break
       }
@@ -91,7 +94,7 @@ provideCommandContext({
   <ListboxRoot
     data-slot="command"
     v-bind="forwarded"
-    :class="cn('bg-popover text-popover-foreground flex h-full w-full flex-col overflow-hidden rounded-md', props.class)"
+    :class="cn('flex size-full flex-col overflow-hidden rounded-md bg-popover text-popover-foreground', props.class)"
   >
     <slot />
   </ListboxRoot>

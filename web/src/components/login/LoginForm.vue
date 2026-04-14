@@ -14,9 +14,9 @@ import { Button } from '@/components/ui/button'
 import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 
-const { t } = useI18n()
-
 const props = defineProps<{ class?: HTMLAttributes['class'] }>()
+
+const { t } = useI18n()
 
 const router = useRouter()
 const route = useRoute()
@@ -79,7 +79,7 @@ async function handleSubmit() {
             class="size-8"
           />
           <h1 class="text-xl font-bold">{{ t('auth.signIn.title') }}</h1>
-          <p class="text-muted-foreground text-sm">
+          <p class="text-sm text-muted-foreground">
             {{ t('auth.signIn.description') }}
           </p>
         </div>

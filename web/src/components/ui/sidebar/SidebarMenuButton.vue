@@ -6,9 +6,9 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import SidebarMenuButtonChild from './SidebarMenuButtonChild.vue'
 import { useSidebar } from './utils'
 
-defineOptions({ inheritAttrs: false })
-
 const props = withDefaults(defineProps<SidebarMenuButtonProps & { tooltip?: string | Component }>(), { as: 'button', variant: 'default', size: 'default' })
+
+defineOptions({ inheritAttrs: false })
 
 const { isMobile, state } = useSidebar()
 

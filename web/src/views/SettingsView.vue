@@ -34,7 +34,8 @@ import {
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { getAPIErrorMessage } from '@/lib/api/error-messages'
 import { canDeleteOwnAccount, getUserRoleBadgeVariant, getUserRoleLabelKey } from '@/lib/auth/roles'
-import { MAX_AVATAR_FILE_SIZE_BYTES, SUPPORTED_AVATAR_FILE_TYPES, getAvatarFallbackText } from '@/lib/avatar'
+import type { SUPPORTED_AVATAR_FILE_TYPES} from '@/lib/avatar';
+import { MAX_AVATAR_FILE_SIZE_BYTES, getAvatarFallbackText } from '@/lib/avatar'
 import { localeNames, type AppLocale } from '@/plugins/i18n/locales'
 
 const router = useRouter()
@@ -152,7 +153,7 @@ const currentUserPolling = usePollingTask({
   key: 'auth.current-user',
   intervalMs: () => pollingStore.currentUserIntervalMs,
   enabled: () => authStore.isAuthenticated,
-  fetch: ({ signal }) => authStore.fetchCurrentUser({ signal, backgroundRequest: true }),
+  fetch: async ({ signal }) => authStore.fetchCurrentUser({ signal, backgroundRequest: true }),
   apply: (user) => {
     authStore.applyCurrentUser(user)
   },
@@ -373,7 +374,7 @@ async function confirmDelete() {
     <div class="flex items-center justify-between">
       <div>
         <h1 class="text-2xl font-semibold">{{ t('settings.title') }}</h1>
-        <p class="text-muted-foreground text-sm">{{ t('settings.description') }}</p>
+        <p class="text-sm text-muted-foreground">{{ t('settings.description') }}</p>
       </div>
     </div>
 
@@ -480,7 +481,7 @@ async function confirmDelete() {
           <CardContent class="space-y-4">
             <div class="flex items-center justify-between rounded-lg border p-4">
               <div class="flex items-center gap-4">
-                <Avatar class="h-12 w-12 rounded-full">
+                <Avatar class="size-12 rounded-full">
                   <AvatarImage
                     v-if="avatarImageSrc"
                     :src="avatarImageSrc"
@@ -514,7 +515,7 @@ async function confirmDelete() {
                   </DialogHeader>
                   <div class="grid gap-4 py-4">
                     <div class="flex flex-col items-center gap-2">
-                      <Avatar class="h-20 w-20 rounded-full">
+                      <Avatar class="size-20 rounded-full">
                         <AvatarImage
                           v-if="editAvatarImageSrc"
                           :src="editAvatarImageSrc"
@@ -537,10 +538,10 @@ async function confirmDelete() {
                       >
                         {{ t('settings.account.changeAvatar') }}
                       </Button>
-                      <p class="text-muted-foreground text-xs">{{ t('settings.account.avatarHint') }}</p>
+                      <p class="text-xs text-muted-foreground">{{ t('settings.account.avatarHint') }}</p>
                       <p
                         v-if="profileError"
-                        class="text-destructive text-xs"
+                        class="text-xs text-destructive"
                       >
                         {{ profileError }}
                       </p>
@@ -619,7 +620,7 @@ async function confirmDelete() {
             </div>
             <p
               v-if="passwordError"
-              class="text-destructive text-sm"
+              class="text-sm text-destructive"
             >
               {{ passwordError }}
             </p>
@@ -704,7 +705,7 @@ async function confirmDelete() {
             <div class="flex items-center justify-between">
               <div class="space-y-0.5">
                 <Label>{{ t('settings.notifications.email') }}</Label>
-                <p class="text-muted-foreground text-sm">{{ t('settings.notifications.emailDesc') }}</p>
+                <p class="text-sm text-muted-foreground">{{ t('settings.notifications.emailDesc') }}</p>
               </div>
               <Switch v-model="notifications.emailNotifications" />
             </div>
@@ -712,7 +713,7 @@ async function confirmDelete() {
             <div class="flex items-center justify-between">
               <div class="space-y-0.5">
                 <Label>{{ t('settings.notifications.push') }}</Label>
-                <p class="text-muted-foreground text-sm">{{ t('settings.notifications.pushDesc') }}</p>
+                <p class="text-sm text-muted-foreground">{{ t('settings.notifications.pushDesc') }}</p>
               </div>
               <Switch v-model="notifications.pushNotifications" />
             </div>
@@ -720,7 +721,7 @@ async function confirmDelete() {
             <div class="flex items-center justify-between">
               <div class="space-y-0.5">
                 <Label>{{ t('settings.notifications.digest') }}</Label>
-                <p class="text-muted-foreground text-sm">{{ t('settings.notifications.digestDesc') }}</p>
+                <p class="text-sm text-muted-foreground">{{ t('settings.notifications.digestDesc') }}</p>
               </div>
               <Switch v-model="notifications.weeklyDigest" />
             </div>
@@ -728,7 +729,7 @@ async function confirmDelete() {
             <div class="flex items-center justify-between">
               <div class="space-y-0.5">
                 <Label>{{ t('settings.notifications.security') }}</Label>
-                <p class="text-muted-foreground text-sm">{{ t('settings.notifications.securityDesc') }}</p>
+                <p class="text-sm text-muted-foreground">{{ t('settings.notifications.securityDesc') }}</p>
               </div>
               <Switch v-model="notifications.securityAlerts" />
             </div>

@@ -6,12 +6,13 @@ import { X } from 'lucide-vue-next'
 import { DialogClose, DialogContent, DialogOverlay, DialogPortal, useForwardPropsEmits } from 'reka-ui'
 import { cn } from '@/lib/utils'
 
+const props = defineProps<DialogContentProps & { class?: HTMLAttributes['class'] }>()
+
+const emits = defineEmits<DialogContentEmits>()
+
 defineOptions({
   inheritAttrs: false,
 })
-
-const props = defineProps<DialogContentProps & { class?: HTMLAttributes['class'] }>()
-const emits = defineEmits<DialogContentEmits>()
 
 const delegatedProps = reactiveOmit(props, 'class')
 
@@ -21,10 +22,10 @@ const forwarded = useForwardPropsEmits(delegatedProps, emits)
 <template>
   <DialogPortal>
     <DialogOverlay
-      class="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0"
+      class="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-black/80 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0"
     >
       <DialogContent
-        :class="cn('relative z-50 grid w-[calc(100%-2rem)] max-w-lg my-8 gap-4 border border-border bg-background p-6 shadow-lg duration-200 rounded-lg', props.class)"
+        :class="cn('relative z-50 my-8 grid w-[calc(100%-2rem)] max-w-lg gap-4 rounded-lg border border-border bg-background p-6 shadow-lg duration-200', props.class)"
         v-bind="{ ...$attrs, ...forwarded }"
         @pointer-down-outside="
           (event) => {
@@ -38,8 +39,8 @@ const forwarded = useForwardPropsEmits(delegatedProps, emits)
       >
         <slot />
 
-        <DialogClose class="absolute top-4 right-4 p-0.5 transition-colors rounded-md hover:bg-secondary">
-          <X class="w-4 h-4" />
+        <DialogClose class="absolute inset-e-4 inset-bs-4 rounded-md p-0.5 transition-colors hover:bg-secondary">
+          <X class="size-4" />
           <span class="sr-only">Close</span>
         </DialogClose>
       </DialogContent>

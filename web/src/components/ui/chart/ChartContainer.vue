@@ -20,7 +20,7 @@ defineSlots<{ default: { id: string; config: ChartConfig } }>()
 
 const { config } = toRefs(props)
 const uniqueId = useId()
-const chartId = computed(() => `chart-${props.id || uniqueId.replace(/:/g, '')}`)
+const chartId = computed(() => `chart-${props.id ?? uniqueId.replace(/:/g, '')}`)
 
 provideChartContext({ id: uniqueId, config })
 </script>
@@ -31,7 +31,7 @@ provideChartContext({ id: uniqueId, config })
     :data-chart="chartId"
     :class="
       cn(
-        `[&_.tick_text]:!fill-muted-foreground [&_.tick_line]:!stroke-border/50 [&_.recharts-curve.recharts-tooltip-cursor]:stroke-border [&_.recharts-polar-grid_[stroke='#ccc']]:stroke-border [&_.recharts-radial-bar-background-sector]:fill-muted [&_.recharts-rectangle.recharts-tooltip-cursor]:fill-muted [&_.recharts-reference-line_[stroke='#ccc']]:stroke-border flex flex-col aspect-video justify-center text-xs [&_.recharts-dot[stroke='#fff']]:stroke-transparent [&_.recharts-layer]:outline-hidden [&_.recharts-sector]:outline-hidden [&_.recharts-sector[stroke='#fff']]:stroke-transparent [&_.recharts-surface]:outline-hidden [&_[data-vis-xy-container]]:h-full [&_[data-vis-single-container]]:h-full h-full [&_[data-vis-xy-container]]:w-full [&_[data-vis-single-container]]:w-full w-full `,
+        `flex aspect-video size-full flex-col justify-center text-xs **:data-vis-single-container:size-full **:data-vis-xy-container:size-full [&_.recharts-curve.recharts-tooltip-cursor]:stroke-border [&_.recharts-dot[stroke='#fff']]:stroke-transparent [&_.recharts-layer]:outline-hidden [&_.recharts-polar-grid_[stroke='#ccc']]:stroke-border [&_.recharts-radial-bar-background-sector]:fill-muted [&_.recharts-rectangle.recharts-tooltip-cursor]:fill-muted [&_.recharts-reference-line_[stroke='#ccc']]:stroke-border [&_.recharts-sector]:outline-hidden [&_.recharts-sector[stroke='#fff']]:stroke-transparent [&_.recharts-surface]:outline-hidden [&_.tick_line]:stroke-border/50! [&_.tick_text]:fill-muted-foreground!`,
         props.class,
       )
     "
@@ -43,7 +43,7 @@ provideChartContext({ id: uniqueId, config })
       '--vis-tooltip-shadow-color': 'none',
       '--vis-tooltip-backdrop-filter': 'none',
       '--vis-crosshair-circle-stroke-color': '#0000',
-      '--vis-crosshair-line-stroke-width': cursor ? '1px' : '0px',
+      '--vis-crosshair-line-stroke-width': cursor === true ? '1px' : '0px',
       '--vis-font-family': 'var(--font-sans)',
     }"
   >

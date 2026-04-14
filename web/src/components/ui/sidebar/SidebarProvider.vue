@@ -6,20 +6,21 @@ import { computed, ref } from 'vue'
 import { cn } from '@/lib/utils'
 import { provideSidebarContext, SIDEBAR_COOKIE_MAX_AGE, SIDEBAR_COOKIE_NAME, SIDEBAR_KEYBOARD_SHORTCUT, SIDEBAR_WIDTH, SIDEBAR_WIDTH_ICON } from './utils'
 
-const props = withDefaults(defineProps<{ defaultOpen?: boolean; open?: boolean; class?: HTMLAttributes['class'] }>(), {
-  defaultOpen: !defaultDocument?.cookie.includes(`${SIDEBAR_COOKIE_NAME}=false`),
-  open: undefined,
-})
+const {
+  defaultOpen = !defaultDocument?.cookie.includes(`${SIDEBAR_COOKIE_NAME}=false`),
+  open: controlledOpen,
+  class: className,
+} = defineProps<{ defaultOpen?: boolean; open?: boolean; class?: HTMLAttributes['class'] }>()
 
 const emits = defineEmits<{ 'update:open': [open: boolean] }>()
 
 const isMobile = useMediaQuery('(max-width: 768px)')
 const openMobile = ref(false)
-const uncontrolledOpen = ref(props.defaultOpen)
+const uncontrolledOpen = ref(defaultOpen)
 const open = computed({
-  get: () => props.open ?? uncontrolledOpen.value,
+  get: () => controlledOpen ?? uncontrolledOpen.value,
   set: (value: boolean) => {
-    if (props.open === undefined) {
+    if (controlledOpen === undefined) {
       uncontrolledOpen.value = value
     }
 
@@ -68,7 +69,7 @@ provideSidebarContext({ state, open, setOpen, isMobile, openMobile, setOpenMobil
     <div
       data-slot="sidebar-wrapper"
       :style="{ '--sidebar-width': SIDEBAR_WIDTH, '--sidebar-width-icon': SIDEBAR_WIDTH_ICON }"
-      :class="cn('group/sidebar-wrapper has-data-[variant=inset]:bg-sidebar flex h-svh w-full', props.class)"
+      :class="cn('group/sidebar-wrapper flex h-svh w-full has-data-[variant=inset]:bg-sidebar', className)"
       v-bind="$attrs"
     >
       <slot />
