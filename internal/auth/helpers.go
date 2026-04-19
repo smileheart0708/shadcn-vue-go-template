@@ -16,11 +16,25 @@ func ResolveRefreshCookieName(options Options) string {
 		return cookieName
 	}
 
-	// Browsers scope cookies by host and path, not port. Namespacing the default
-	// refresh cookie by the JWT secret keeps localhost apps from overwriting each
-	// other's sessions when they all run on localhost:8080.
 	sum := sha256.Sum256(options.Secret)
 	return "refresh_token_" + hex.EncodeToString(sum[:6])
+}
+
+func BearerTokenFromHeader(header string) (string, error) {
+	if header == "" {
+		return "", ErrMissingBearerToken
+	}
+
+	prefix, token, ok := strings.Cut(header, " ")
+	if !ok || !strings.EqualFold(prefix, "Bearer") {
+		return "", ErrMissingBearerToken
+	}
+
+	token = strings.TrimSpace(token)
+	if token == "" {
+		return "", ErrMissingBearerToken
+	}
+	return token, nil
 }
 
 func (s *Service) ReadRefreshCookie(r *http.Request) (string, error) {
@@ -31,7 +45,6 @@ func (s *Service) ReadRefreshCookie(r *http.Request) (string, error) {
 	if strings.TrimSpace(cookie.Value) == "" {
 		return "", http.ErrNoCookie
 	}
-
 	return cookie.Value, nil
 }
 
@@ -62,9 +75,8 @@ func (s *Service) ClearRefreshCookie(w http.ResponseWriter, r *http.Request) {
 func randomTokenComponent(bytes int) (string, error) {
 	buffer := make([]byte, bytes)
 	if _, err := rand.Read(buffer); err != nil {
-		return "", fmt.Errorf("failed to generate secure token: %w", err)
+		return "", fmt.Errorf("auth: generate secure token: %w", err)
 	}
-
 	return hex.EncodeToString(buffer), nil
 }
 
@@ -77,7 +89,6 @@ func ParseRefreshToken(rawToken string) (string, string, error) {
 	if !ok || sessionID == "" || secret == "" {
 		return "", "", ErrInvalidRefreshToken
 	}
-
 	return sessionID, secret, nil
 }
 
@@ -93,32 +104,5 @@ func requestUsesHTTPS(r *http.Request) bool {
 	if r.TLS != nil {
 		return true
 	}
-
 	return strings.EqualFold(strings.TrimSpace(r.Header.Get("X-Forwarded-Proto")), "https")
-}
-
-func userAuthVersionCacheKey(userID int64) string {
-	return fmt.Sprintf("user_auth_version:%d", userID)
-}
-
-func refreshSessionCacheKey(sessionID string) string {
-	return "refresh_session:" + sessionID
-}
-
-//go:fix inline
-func stringPtr(value string) *string {
-	return new(value)
-}
-
-//go:fix inline
-func int64Ptr(value int64) *int64 {
-	return new(value)
-}
-
-func stringPtrOrNil(value string) *string {
-	value = strings.TrimSpace(value)
-	if value == "" {
-		return nil
-	}
-	return new(value)
 }

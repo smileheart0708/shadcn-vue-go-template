@@ -1,10 +1,19 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import type { Router } from 'vue-router'
-import type { AuthUser, GetCurrentUserOptions, LoginCredentials, LoginResponse, RegisterInput } from '@/lib/api/auth'
 import type { ChangePasswordInput, UpdateProfileInput } from '@/lib/api/account'
-import { getCurrentUser, login as loginRequest, logout as logoutRequest, refreshSession, register as registerRequest } from '@/lib/api/auth'
 import { deleteAccount as deleteAccountRequest, updatePassword as updatePasswordRequest, updateProfile as updateProfileRequest, uploadAvatar as uploadAvatarRequest } from '@/lib/api/account'
+import type { Capability, InstallState, LoginCredentials, PublicAuthConfig, RegisterInput, RoleKey, SessionResponse, SetupInput, Viewer } from '@/lib/api/auth'
+import {
+  completeSetup as completeSetupRequest,
+  getInstallState,
+  getPublicAuthConfig,
+  getViewer,
+  login as loginRequest,
+  logout as logoutRequest,
+  refreshSession,
+  register as registerRequest,
+} from '@/lib/api/auth'
 import { clearAuthClientHandlers, registerAuthClientHandlers } from '@/lib/api/client'
 import { clearAuthToken, readAuthToken, writeAuthToken } from '@/lib/auth/token'
 
@@ -13,9 +22,14 @@ export const useAuthStore = defineStore('auth', () => {
   const initializing = ref(false)
   const refreshing = ref(false)
   const token = ref<string | null>(readAuthToken())
-  const user = ref<AuthUser | null>(null)
+  const viewer = ref<Viewer | null>(null)
+  const installState = ref<InstallState | null>(null)
+  const publicAuthConfig = ref<PublicAuthConfig | null>(null)
 
-  const isAuthenticated = computed(() => token.value !== null && user.value !== null)
+  const isSetupComplete = computed(() => installState.value?.setupCompleted === true)
+  const isAuthenticated = computed(() => token.value !== null && viewer.value !== null)
+  const capabilities = computed(() => viewer.value?.authorization.capabilities ?? [])
+  const roleKeys = computed(() => viewer.value?.authorization.roleKeys ?? [])
 
   let initializePromise: Promise<void> | null = null
   let boundRouter: Router | null = null
@@ -37,62 +51,73 @@ export const useAuthStore = defineStore('auth', () => {
           applySession(response)
           return response.accessToken
         } catch (error) {
-          resetSession()
+          resetSession(false)
+          await refreshPublicState()
           throw error
         } finally {
           refreshing.value = false
         }
       },
       onUnauthorized: async () => {
-        resetSession()
-        await redirectToLogin()
+        resetSession(false)
+        await refreshPublicState()
+        await redirectAfterSessionLoss()
       },
     })
 
     clientHandlersRegistered = true
   }
 
-  function setUser(nextUser: AuthUser | null) {
-    if (sameAuthUser(user.value, nextUser)) {
-      return
-    }
-
-    user.value = nextUser
-  }
-
   function setToken(nextToken: string | null) {
     token.value = nextToken
-
     if (nextToken !== null) {
       writeAuthToken(nextToken)
       return
     }
-
     clearAuthToken()
   }
 
-  function applySession(response: LoginResponse) {
+  function applyViewer(nextViewer: Viewer | null) {
+    viewer.value = nextViewer
+  }
+
+  function applySession(response: SessionResponse) {
     setToken(response.accessToken)
-    applyCurrentUser(response.user)
+    applyViewer(response.viewer)
     initialized.value = true
   }
 
-  function resetSession() {
+  function resetSession(markInitialized = true) {
     setToken(null)
-    setUser(null)
+    applyViewer(null)
+    if (markInitialized) {
+      initialized.value = true
+    }
+  }
+
+  async function refreshPublicState() {
+    const [nextInstallState, nextPublicAuthConfig] = await Promise.all([getInstallState(), getPublicAuthConfig()])
+    installState.value = nextInstallState
+    publicAuthConfig.value = nextPublicAuthConfig
+  }
+
+  async function refreshViewer(options: { signal?: AbortSignal; backgroundRequest?: boolean } = {}) {
+    if (token.value === null || !isSetupComplete.value) {
+      return null
+    }
+
+    const nextViewer = await fetchViewer(options)
+    applyViewer(nextViewer)
     initialized.value = true
+    return nextViewer
   }
 
-  async function fetchCurrentUser(options: GetCurrentUserOptions = {}) {
-    return getCurrentUser(options)
-  }
-
-  function applyCurrentUser(nextUser: AuthUser) {
-    setUser(nextUser)
+  async function fetchViewer(options: { signal?: AbortSignal; backgroundRequest?: boolean } = {}) {
+    return getViewer(options)
   }
 
   async function initialize() {
-    if (initialized.value && user.value !== null) {
+    if (initialized.value && (!isSetupComplete.value || viewer.value !== null)) {
       return
     }
 
@@ -104,23 +129,28 @@ export const useAuthStore = defineStore('auth', () => {
       initializing.value = true
 
       try {
-        const currentToken = token.value
-        if (currentToken !== null) {
+        await refreshPublicState()
+
+        if (!isSetupComplete.value) {
+          resetSession(false)
+          initialized.value = true
+          return
+        }
+
+        if (token.value !== null) {
           try {
-            const nextUser = await fetchCurrentUser()
-            applyCurrentUser(nextUser)
+            applyViewer(await fetchViewer())
             initialized.value = true
             return
           } catch {
-            resetSession()
+            resetSession(false)
           }
         }
 
         try {
-          const response = await refreshSession()
-          applySession(response)
+          applySession(await refreshSession())
         } catch {
-          resetSession()
+          resetSession(true)
         }
       } finally {
         initializing.value = false
@@ -131,56 +161,73 @@ export const useAuthStore = defineStore('auth', () => {
     return initializePromise
   }
 
-  async function login(credentials: LoginCredentials): Promise<LoginResponse> {
+  async function completeSetup(input: SetupInput) {
+    const response = await completeSetupRequest(input)
+    applySession(response)
+    installState.value = {
+      setupState: 'completed',
+      setupCompleted: true,
+      ownerUserId: response.viewer.identity.id,
+      completedAt: new Date().toISOString(),
+    }
+    await refreshPublicState()
+    return response
+  }
+
+  async function login(credentials: LoginCredentials) {
     const response = await loginRequest(credentials)
     applySession(response)
     return response
   }
 
-  async function register(input: RegisterInput): Promise<LoginResponse> {
+  async function register(input: RegisterInput) {
     const response = await registerRequest(input)
     applySession(response)
     return response
   }
 
   async function saveProfile(profile: UpdateProfileInput) {
-    const nextUser = await updateProfileRequest(profile)
-    applyCurrentUser(nextUser)
-    return user.value ?? nextUser
+    const nextViewer = await updateProfileRequest(profile)
+    applyViewer(nextViewer)
+    return nextViewer
   }
 
   async function uploadAvatar(file: File) {
-    const nextUser = await uploadAvatarRequest(file)
-    applyCurrentUser(nextUser)
-    return user.value ?? nextUser
+    const nextViewer = await uploadAvatarRequest(file)
+    applyViewer(nextViewer)
+    return nextViewer
   }
 
   async function changePassword(input: ChangePasswordInput) {
     await updatePasswordRequest(input)
-    resetSession()
+    resetSession(true)
   }
 
   async function deleteAccount() {
     await deleteAccountRequest()
-    resetSession()
+    resetSession(true)
   }
 
   async function logout() {
     try {
       await logoutRequest()
     } finally {
-      resetSession()
+      resetSession(true)
     }
   }
 
-  async function redirectToLogin() {
+  async function redirectAfterSessionLoss() {
     if (!boundRouter) {
       return
     }
 
     const currentRoute = boundRouter.currentRoute.value
-    const redirect = currentRoute.fullPath !== '/login' ? currentRoute.fullPath : undefined
+    if (!isSetupComplete.value) {
+      await boundRouter.push({ name: 'setup' }).catch(() => undefined)
+      return
+    }
 
+    const redirect = currentRoute.fullPath !== '/login' ? currentRoute.fullPath : undefined
     await boundRouter
       .push({
         name: 'login',
@@ -189,17 +236,35 @@ export const useAuthStore = defineStore('auth', () => {
       .catch(() => undefined)
   }
 
+  function can(capability: Capability) {
+    return capabilities.value.includes(capability)
+  }
+
+  function hasRole(roleKey: RoleKey) {
+    return roleKeys.value.includes(roleKey)
+  }
+
   return {
     initialized,
     initializing,
     refreshing,
     token,
-    user,
+    viewer,
+    installState,
+    publicAuthConfig,
+    capabilities,
+    roleKeys,
+    isSetupComplete,
     isAuthenticated,
     bindRouter,
-    fetchCurrentUser,
-    applyCurrentUser,
+    fetchViewer,
+    fetchCurrentUser: fetchViewer,
+    applyViewer,
+    applyCurrentUser: applyViewer,
+    refreshPublicState,
+    refreshViewer,
     initialize,
+    completeSetup,
     login,
     register,
     saveProfile,
@@ -208,27 +273,10 @@ export const useAuthStore = defineStore('auth', () => {
     deleteAccount,
     logout,
     resetSession,
+    can,
+    hasRole,
   }
 })
-
-function sameAuthUser(currentUser: AuthUser | null, nextUser: AuthUser | null) {
-  if (currentUser === nextUser) {
-    return true
-  }
-
-  if (currentUser === null || nextUser === null) {
-    return currentUser === nextUser
-  }
-
-  return (
-    currentUser.id === nextUser.id &&
-    currentUser.username === nextUser.username &&
-    currentUser.email === nextUser.email &&
-    currentUser.avatarUrl === nextUser.avatarUrl &&
-    currentUser.role === nextUser.role &&
-    currentUser.mustChangePassword === nextUser.mustChangePassword
-  )
-}
 
 if (import.meta.hot) {
   import.meta.hot.dispose(() => {

@@ -1,30 +1,41 @@
 import { z } from 'zod'
 import { authApi, normalizeAPIError } from '@/lib/api/client'
-import { registrationModeSchema } from '@/lib/api/auth'
 import { successEnvelopeSchema } from '@/lib/api/envelope'
+import { authModeSchema, registrationModeSchema } from '@/lib/api/auth'
 
-export const adminSystemSettingsSchema = z.object({
+export const systemSettingsSchema = z.object({
+  authMode: authModeSchema,
   registrationMode: registrationModeSchema,
+  passwordLoginEnabled: z.boolean(),
+  adminUserCreateEnabled: z.boolean(),
+  selfServiceAccountDeletionEnabled: z.boolean(),
   updatedAt: z.string(),
 })
 
-export type AdminSystemSettings = z.infer<typeof adminSystemSettingsSchema>
+export type SystemSettings = z.infer<typeof systemSettingsSchema>
 
-const adminSystemSettingsEnvelopeSchema = successEnvelopeSchema(adminSystemSettingsSchema)
+export interface UpdateSystemSettingsInput {
+  authMode?: z.infer<typeof authModeSchema>
+  registrationMode?: z.infer<typeof registrationModeSchema>
+  adminUserCreateEnabled?: boolean
+  selfServiceAccountDeletionEnabled?: boolean
+}
+
+const systemSettingsEnvelopeSchema = successEnvelopeSchema(systemSettingsSchema)
 
 export async function getAdminSystemSettings() {
   try {
-    const payload = await authApi.get('/api/admin/system-settings').json<unknown>()
-    return adminSystemSettingsEnvelopeSchema.parse(payload).data
+    const payload = await authApi.get('/api/system/settings').json<unknown>()
+    return systemSettingsEnvelopeSchema.parse(payload).data
   } catch (error) {
     return normalizeAPIError(error)
   }
 }
 
-export async function updateRegistrationMode(registrationMode: 'disabled' | 'password') {
+export async function updateSystemSettings(input: UpdateSystemSettingsInput) {
   try {
-    const payload = await authApi.patch('/api/admin/system-settings/registration', { json: { registrationMode } }).json<unknown>()
-    return adminSystemSettingsEnvelopeSchema.parse(payload).data
+    const payload = await authApi.patch('/api/system/settings', { json: input }).json<unknown>()
+    return systemSettingsEnvelopeSchema.parse(payload).data
   } catch (error) {
     return normalizeAPIError(error)
   }

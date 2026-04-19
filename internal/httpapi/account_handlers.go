@@ -12,11 +12,11 @@ import (
 	"strings"
 
 	"main/internal/auth"
-	"main/internal/users"
+	"main/internal/authorization"
+	"main/internal/identity"
 )
 
 const (
-	minPasswordLength       = 8
 	maxAvatarFileSizeBytes  = 5 * 1024 * 1024
 	maxAvatarUploadBodySize = maxAvatarFileSizeBytes + (1 << 20)
 )
@@ -26,7 +26,7 @@ type updateProfileRequest struct {
 	Email    *string `json:"email"`
 }
 
-type updatePasswordRequest struct {
+type changePasswordRequest struct {
 	CurrentPassword string `json:"currentPassword"`
 	NewPassword     string `json:"newPassword"`
 }
@@ -36,8 +36,8 @@ type deleteAccountResponse struct {
 }
 
 func (api *API) updateProfileHandler(w http.ResponseWriter, r *http.Request) {
-	currentUser, err := api.currentUser(r.Context())
-	if err != nil {
+	actor, ok := api.currentActor(r.Context())
+	if !ok {
 		writeAPIError(w, http.StatusUnauthorized, "unauthorized", "Authentication is required.")
 		return
 	}
@@ -52,14 +52,14 @@ func (api *API) updateProfileHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := api.users.UpdateProfile(r.Context(), currentUser.ID, payload.Username, payload.Email)
+	updated, err := api.identities.UpdateProfile(r.Context(), actor.User.ID, payload.Username, payload.Email)
 	if err != nil {
 		switch {
-		case errors.Is(err, users.ErrUsernameTaken):
+		case errors.Is(err, identity.ErrUsernameTaken):
 			writeAPIError(w, http.StatusConflict, "username_taken", "Username is already in use.")
-		case errors.Is(err, users.ErrEmailTaken):
+		case errors.Is(err, identity.ErrEmailTaken):
 			writeAPIError(w, http.StatusConflict, "email_taken", "Email is already in use.")
-		case errors.Is(err, users.ErrUserNotFound):
+		case errors.Is(err, identity.ErrUserNotFound):
 			writeAPIError(w, http.StatusUnauthorized, "unauthorized", "Authentication is required.")
 		default:
 			writeAPIError(w, http.StatusInternalServerError, "profile_update_failed", "Failed to update account profile.")
@@ -67,19 +67,24 @@ func (api *API) updateProfileHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeSuccessJSON(w, http.StatusOK, user.Public())
+	viewer, err := api.auth.BuildViewer(r.Context(), updated.ID)
+	if err != nil {
+		writeAPIError(w, http.StatusInternalServerError, "profile_update_failed", "Failed to load updated viewer.")
+		return
+	}
+	writeSuccessJSON(w, http.StatusOK, api.toViewerResponse(viewer))
 }
 
 func (api *API) updateAvatarHandler(w http.ResponseWriter, r *http.Request) {
-	currentUser, err := api.currentUser(r.Context())
-	if err != nil {
+	actor, ok := api.currentActor(r.Context())
+	if !ok {
 		writeAPIError(w, http.StatusUnauthorized, "unauthorized", "Authentication is required.")
 		return
 	}
 
 	currentAvatarPath := ""
-	if currentUser.AvatarPath != nil {
-		currentAvatarPath = filepath.Join(users.AvatarDir(api.dataDir), filepath.Base(*currentUser.AvatarPath))
+	if actor.User.AvatarPath != nil {
+		currentAvatarPath = filepath.Join(identity.AvatarDir(api.dataDir), filepath.Base(*actor.User.AvatarPath))
 	}
 
 	avatarFileName, err := api.storeAvatarUpload(w, r)
@@ -89,18 +94,13 @@ func (api *API) updateAvatarHandler(w http.ResponseWriter, r *http.Request) {
 			writeAPIError(w, avatarError.StatusCode, avatarError.Code, avatarError.Message)
 			return
 		}
-
 		writeAPIError(w, http.StatusInternalServerError, "avatar_upload_failed", "Failed to upload avatar.")
 		return
 	}
 
-	user, err := api.users.UpdateAvatar(r.Context(), currentUser.ID, &avatarFileName)
+	updated, err := api.identities.UpdateAvatar(r.Context(), actor.User.ID, &avatarFileName)
 	if err != nil {
-		_ = os.Remove(filepath.Join(users.AvatarDir(api.dataDir), avatarFileName))
-		if errors.Is(err, users.ErrUserNotFound) {
-			writeAPIError(w, http.StatusUnauthorized, "unauthorized", "Authentication is required.")
-			return
-		}
+		_ = os.Remove(filepath.Join(identity.AvatarDir(api.dataDir), avatarFileName))
 		writeAPIError(w, http.StatusInternalServerError, "avatar_update_failed", "Failed to update avatar.")
 		return
 	}
@@ -109,115 +109,74 @@ func (api *API) updateAvatarHandler(w http.ResponseWriter, r *http.Request) {
 		_ = os.Remove(currentAvatarPath)
 	}
 
-	writeSuccessJSON(w, http.StatusOK, user.Public())
+	viewer, err := api.auth.BuildViewer(r.Context(), updated.ID)
+	if err != nil {
+		writeAPIError(w, http.StatusInternalServerError, "avatar_update_failed", "Failed to load updated viewer.")
+		return
+	}
+	writeSuccessJSON(w, http.StatusOK, api.toViewerResponse(viewer))
 }
 
-func (api *API) updatePasswordHandler(w http.ResponseWriter, r *http.Request) {
-	currentUser, err := api.currentUser(r.Context())
-	if err != nil {
+func (api *API) changePasswordHandler(w http.ResponseWriter, r *http.Request) {
+	actor, ok := api.currentActor(r.Context())
+	if !ok {
 		writeAPIError(w, http.StatusUnauthorized, "unauthorized", "Authentication is required.")
 		return
 	}
-	principal, _ := auth.PrincipalFromContext(r.Context())
 
-	var payload updatePasswordRequest
+	var payload changePasswordRequest
 	if err := decodeJSON(w, r, &payload); err != nil {
 		writeAPIError(w, http.StatusBadRequest, "invalid_request", describeJSONDecodeError(err))
 		return
 	}
-	if len(payload.NewPassword) < minPasswordLength {
-		writeAPIError(w, http.StatusBadRequest, "password_too_short", "New password must be at least 8 characters.")
-		return
-	}
 
-	passwordMatches, err := users.VerifyPassword(payload.CurrentPassword, currentUser.PasswordHash)
+	ip, userAgent := requestMetadata(r)
+	err := api.auth.ChangePassword(r.Context(), actor, payload.CurrentPassword, payload.NewPassword, ip, userAgent)
 	if err != nil {
-		writeAPIError(w, http.StatusInternalServerError, "password_update_failed", "Failed to update password.")
-		return
-	}
-	if !passwordMatches {
-		writeAPIError(w, http.StatusBadRequest, "current_password_invalid", "Current password is incorrect.")
-		return
-	}
-
-	passwordHash, err := users.HashPassword(payload.NewPassword)
-	if err != nil {
-		writeAPIError(w, http.StatusInternalServerError, "password_update_failed", "Failed to update password.")
-		return
-	}
-
-	user, err := api.users.UpdatePassword(r.Context(), currentUser.ID, passwordHash, false)
-	if err != nil {
-		if errors.Is(err, users.ErrUserNotFound) {
-			writeAPIError(w, http.StatusUnauthorized, "unauthorized", "Authentication is required.")
-			return
+		switch {
+		case errors.Is(err, auth.ErrCurrentPasswordInvalid):
+			writeAPIError(w, http.StatusBadRequest, "current_password_invalid", "Current password is incorrect.")
+		case errors.Is(err, auth.ErrPasswordTooShort):
+			writeAPIError(w, http.StatusBadRequest, "password_too_short", "Password must be at least 8 characters.")
+		default:
+			writeAPIError(w, http.StatusInternalServerError, "password_update_failed", "Failed to update password.")
 		}
-		writeAPIError(w, http.StatusInternalServerError, "password_update_failed", "Failed to update password.")
-		return
-	}
-
-	if err := api.auth.RevokeRefreshSessionsByUser(r.Context(), user.ID, "password_changed"); err != nil {
-		writeAPIError(w, http.StatusInternalServerError, "password_update_failed", "Failed to revoke active sessions after password change.")
-		return
-	}
-	api.auth.InvalidateUser(user.ID)
-
-	requestIP, requestUserAgent := requestMetadata(r)
-	api.logAuthEvent(r.Context(), users.AuthLogParams{
-		UserID:    new(user.ID),
-		SessionID: new(principal.SessionID),
-		IP:        nullableString(requestIP),
-		UserAgent: nullableString(requestUserAgent),
-		EventType: users.AuthLogEventPasswordChanged,
-		Success:   true,
-	})
-	api.logAuthEvent(r.Context(), users.AuthLogParams{
-		UserID:        new(user.ID),
-		SessionID:     nullableString(principal.SessionID),
-		IP:            nullableString(requestIP),
-		UserAgent:     nullableString(requestUserAgent),
-		EventType:     users.AuthLogEventPasswordChangedForcedLogout,
-		Success:       true,
-		FailureReason: new("all_sessions_revoked"),
-	})
-
-	if err := users.ClearBootstrapPasswordFile(api.dataDir); err != nil {
-		writeAPIError(w, http.StatusInternalServerError, "bootstrap_password_cleanup_failed", "Password was changed, but cleanup failed.")
 		return
 	}
 
 	api.auth.ClearRefreshCookie(w, r)
-	writeSuccessJSON(w, http.StatusOK, user.Public())
+	writeSuccessJSON(w, http.StatusOK, passwordChangedResponse{PasswordChanged: true})
 }
 
 func (api *API) deleteAccountHandler(w http.ResponseWriter, r *http.Request) {
-	currentUser, err := api.currentUser(r.Context())
-	if err != nil {
+	actor, ok := api.currentActor(r.Context())
+	if !ok {
 		writeAPIError(w, http.StatusUnauthorized, "unauthorized", "Authentication is required.")
 		return
 	}
-	if currentUser.Role == users.RoleSuperAdmin {
-		writeAPIError(w, http.StatusForbidden, "super_admin_delete_forbidden", "Super administrators cannot delete their own account.")
+	if !api.authorization.HasCapability(actor.Authorization.Capabilities, authorization.CapabilityAccountDeleteSelf) {
+		writeAPIError(w, http.StatusForbidden, "account_delete_forbidden", "This account cannot delete itself.")
 		return
 	}
 
-	if err := api.auth.RevokeRefreshSessionsByUser(r.Context(), currentUser.ID, "account_deleted"); err != nil {
-		writeAPIError(w, http.StatusInternalServerError, "account_delete_failed", "Failed to revoke active sessions.")
-		return
+	currentAvatarPath := ""
+	if actor.User.AvatarPath != nil {
+		currentAvatarPath = filepath.Join(identity.AvatarDir(api.dataDir), filepath.Base(*actor.User.AvatarPath))
 	}
-	api.auth.InvalidateUser(currentUser.ID)
 
-	if err := api.users.Delete(r.Context(), currentUser.ID); err != nil {
-		if errors.Is(err, users.ErrUserNotFound) {
-			writeAPIError(w, http.StatusUnauthorized, "unauthorized", "Authentication is required.")
-			return
-		}
+	ip, userAgent := requestMetadata(r)
+	if err := api.identities.DeleteUser(r.Context(), actor.User.ID, identity.ActionAuditContext{
+		ActorUserID:   new(actor.User.ID),
+		AuthSessionID: new(actor.SessionID),
+		IP:            nullableString(ip),
+		UserAgent:     nullableString(userAgent),
+	}, "self_service"); err != nil {
 		writeAPIError(w, http.StatusInternalServerError, "account_delete_failed", "Failed to delete account.")
 		return
 	}
 
-	if currentUser.AvatarPath != nil {
-		_ = os.Remove(filepath.Join(users.AvatarDir(api.dataDir), filepath.Base(*currentUser.AvatarPath)))
+	if currentAvatarPath != "" {
+		_ = os.Remove(currentAvatarPath)
 	}
 
 	api.auth.ClearRefreshCookie(w, r)
@@ -231,7 +190,7 @@ func (api *API) avatarHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fullPath := filepath.Join(users.AvatarDir(api.dataDir), filename)
+	fullPath := filepath.Join(identity.AvatarDir(api.dataDir), filename)
 	if _, err := os.Stat(fullPath); err != nil {
 		http.NotFound(w, r)
 		return
@@ -261,14 +220,14 @@ func (api *API) storeAvatarUpload(w http.ResponseWriter, r *http.Request) (strin
 		case strings.Contains(err.Error(), "http: request body too large"):
 			return "", &avatarUploadError{StatusCode: http.StatusRequestEntityTooLarge, Code: "avatar_too_large", Message: "Avatar file must be 5MB or smaller."}
 		default:
-			return "", fmt.Errorf("failed to read avatar upload: %w", err)
+			return "", fmt.Errorf("read avatar upload: %w", err)
 		}
 	}
 	defer file.Close()
 
 	data, err := io.ReadAll(io.LimitReader(file, maxAvatarFileSizeBytes+1))
 	if err != nil {
-		return "", fmt.Errorf("failed to read avatar file: %w", err)
+		return "", fmt.Errorf("read avatar file: %w", err)
 	}
 	if len(data) == 0 {
 		return "", &avatarUploadError{StatusCode: http.StatusBadRequest, Code: "avatar_required", Message: "Avatar file is required."}
@@ -288,9 +247,13 @@ func (api *API) storeAvatarUpload(w http.ResponseWriter, r *http.Request) (strin
 		return "", err
 	}
 
-	fullPath := filepath.Join(users.AvatarDir(api.dataDir), fileName)
+	if err := os.MkdirAll(identity.AvatarDir(api.dataDir), 0o755); err != nil {
+		return "", fmt.Errorf("create avatar dir: %w", err)
+	}
+
+	fullPath := filepath.Join(identity.AvatarDir(api.dataDir), fileName)
 	if err := os.WriteFile(fullPath, data, 0o644); err != nil {
-		return "", fmt.Errorf("failed to write avatar file: %w", err)
+		return "", fmt.Errorf("write avatar file: %w", err)
 	}
 
 	return fileName, nil
@@ -312,8 +275,7 @@ func avatarExtensionForContentType(contentType string) (string, bool) {
 func randomAvatarFileName(extension string) (string, error) {
 	randomBytes := make([]byte, 16)
 	if _, err := rand.Read(randomBytes); err != nil {
-		return "", fmt.Errorf("failed to generate avatar filename: %w", err)
+		return "", fmt.Errorf("generate avatar filename: %w", err)
 	}
-
 	return hex.EncodeToString(randomBytes) + extension, nil
 }

@@ -1,5 +1,4 @@
 import type { RouteLocationNormalized, Router } from 'vue-router'
-import { hasMinimumUserRole } from '@/lib/auth/roles'
 import pinia from '@/stores/pinia'
 import { useAuthStore } from '@/stores/auth'
 
@@ -20,19 +19,17 @@ export function installAuthGuard(router: Router) {
     const requiresAuth = to.matched.some((record) => record.meta.requiresAuth === true)
     const guestOnly = to.matched.some((record) => record.meta.guestOnly === true)
     const maskUnauthorizedAsNotFound = to.matched.some((record) => record.meta.maskUnauthorizedAsNotFound === true)
-    const requiredRole = to.matched.reduce<number | null>((highestRequiredRole, record) => {
-      if (typeof record.meta.requiredRole !== 'number') {
-        return highestRequiredRole
-      }
-
-      return highestRequiredRole === null ? record.meta.requiredRole : Math.max(highestRequiredRole, record.meta.requiredRole)
-    }, null)
-
-    if (!requiresAuth && !guestOnly && requiredRole === null) {
-      return true
-    }
+    const requiredCapabilities = to.matched.flatMap((record) => record.meta.requiredCapabilities ?? [])
 
     await authStore.initialize()
+
+    if (!authStore.isSetupComplete && to.name !== 'setup') {
+      return { name: 'setup' }
+    }
+
+    if (authStore.isSetupComplete && to.name === 'setup') {
+      return authStore.isAuthenticated ? { name: 'dashboard' } : { name: 'login' }
+    }
 
     if (guestOnly && authStore.isAuthenticated) {
       return { name: 'dashboard' }
@@ -45,12 +42,12 @@ export function installAuthGuard(router: Router) {
       }
     }
 
-    if (requiredRole !== null && !hasMinimumUserRole(authStore.user?.role ?? 0, requiredRole)) {
+    if (requiredCapabilities.length > 0 && !requiredCapabilities.every((capability) => authStore.can(capability))) {
       if (maskUnauthorizedAsNotFound) {
         return resolveNotFoundLocation(to)
       }
 
-      return { name: 'dashboard' }
+      return authStore.isAuthenticated ? { name: 'dashboard' } : { name: 'login' }
     }
 
     return true

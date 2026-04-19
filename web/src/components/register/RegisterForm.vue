@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { HTMLAttributes } from 'vue'
 import { CircleOff } from 'lucide-vue-next'
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
@@ -13,7 +13,6 @@ import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Spinner } from '@/components/ui/spinner'
-import { getRegistrationPolicy } from '@/lib/api/auth'
 import { getAPIErrorMessage } from '@/lib/api/error-messages'
 import { useAuthStore } from '@/stores/auth'
 
@@ -25,9 +24,7 @@ const { t } = useI18n()
 const router = useRouter()
 const authStore = useAuthStore()
 
-const registrationMode = ref<'disabled' | 'password' | null>(null)
 const loadingPolicy = ref(true)
-const refreshingPolicy = ref(false)
 const loadFailed = ref(false)
 const username = ref('')
 const email = ref('')
@@ -35,48 +32,38 @@ const password = ref('')
 const confirmPassword = ref('')
 const isSubmitting = ref(false)
 
+const registrationEnabled = computed(() => authStore.publicAuthConfig?.registrationEnabled === true)
+
 onMounted(() => {
   void loadPolicy()
 })
 
-async function loadPolicy(options: { background?: boolean } = {}) {
-  if (options.background === true) {
-    refreshingPolicy.value = true
-  } else {
-    loadingPolicy.value = true
-  }
-
+async function loadPolicy() {
+  loadingPolicy.value = true
   try {
-    const policy = await getRegistrationPolicy()
-    registrationMode.value = policy.registrationMode
+    await authStore.refreshPublicState()
     loadFailed.value = false
   } catch (error) {
     loadFailed.value = true
     toast.error(getAPIErrorMessage(t, error, 'auth.signUp.policyLoadFailed'))
   } finally {
     loadingPolicy.value = false
-    refreshingPolicy.value = false
   }
 }
 
 async function handleSubmit() {
-  if (isSubmitting.value || registrationMode.value !== 'password') {
+  if (isSubmitting.value || !registrationEnabled.value) {
     return
   }
-
   if (password.value !== confirmPassword.value) {
     toast.error(t('auth.signUp.passwordMismatch'))
     return
   }
 
   isSubmitting.value = true
-
   const registerPromise = authStore.register({
     username: username.value.trim(),
-    email: (() => {
-      const trimmedEmail = email.value.trim()
-      return trimmedEmail === '' ? null : trimmedEmail
-    })(),
+    email: email.value.trim() === '' ? null : email.value.trim(),
     password: password.value,
   })
 
@@ -90,8 +77,7 @@ async function handleSubmit() {
     await registerPromise
     await router.push({ name: 'dashboard' })
   } catch {
-    await loadPolicy({ background: true })
-    return
+    await loadPolicy()
   } finally {
     isSubmitting.value = false
   }
@@ -128,7 +114,7 @@ async function handleSubmit() {
     </Card>
 
     <Card
-      v-else-if="registrationMode === 'disabled'"
+      v-else-if="!registrationEnabled"
       class="border-border/60 shadow-sm"
     >
       <CardContent class="p-6 sm:p-8">
@@ -228,7 +214,7 @@ async function handleSubmit() {
         <Field>
           <Button
             type="submit"
-            :disabled="isSubmitting || refreshingPolicy"
+            :disabled="isSubmitting"
           >
             <Spinner
               v-if="isSubmitting"

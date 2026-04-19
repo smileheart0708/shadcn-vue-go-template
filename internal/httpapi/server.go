@@ -12,19 +12,26 @@ import (
 	"strings"
 	"time"
 
+	"main/internal/audit"
 	"main/internal/auth"
+	"main/internal/authorization"
+	"main/internal/identity"
 	"main/internal/logging"
+	"main/internal/setup"
 	"main/internal/systemsettings"
-	"main/internal/users"
 )
 
 type HandlerOptions struct {
 	Logger         *slog.Logger
 	LogStream      *logging.Stream
-	UserStore      *users.Store
+	Auth           *auth.Service
+	Authorization  *authorization.Service
+	Identity       *identity.Service
+	Setup          *setup.Service
+	SystemSettings *systemsettings.Service
+	Audit          *audit.Service
 	DataDir        string
 	FrontendFS     fs.FS
-	Auth           auth.Options
 	LogAPIRequests bool
 }
 
@@ -34,54 +41,134 @@ func NewHandlerWithOptions(options HandlerOptions) http.Handler {
 		logger = slog.Default()
 	}
 
-	var settingsStore *systemsettings.Store
-	if options.UserStore != nil {
-		settingsStore = systemsettings.NewStore(options.UserStore.DB())
+	apiService := &API{
+		auth:          options.Auth,
+		authorization: options.Authorization,
+		identities:    options.Identity,
+		setup:         options.Setup,
+		settings:      options.SystemSettings,
+		audit:         options.Audit,
+		dataDir:       options.DataDir,
+		logger:        logger,
+		logStream:     options.LogStream,
 	}
 
-	apiService := NewAPI(options.UserStore, settingsStore, options.DataDir, options.Auth)
-	apiService.logger = logger
-	apiService.logStream = options.LogStream
 	api := newAPIMux(apiService)
 	if options.LogAPIRequests {
 		api = Chain(api, requestLogger(logger))
 	}
 	spa := newSPAHandler(options.FrontendFS)
 
-	root := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if isAPIRequest(r.URL.Path) {
 			api.ServeHTTP(w, r)
 			return
 		}
-
 		spa.ServeHTTP(w, r)
 	})
-
-	return root
 }
 
 func newAPIMux(api *API) http.Handler {
 	mux := http.NewServeMux()
+
 	mux.HandleFunc("GET /api/healthz", healthz)
-	mux.Handle("GET /api/auth/registration-policy", http.HandlerFunc(api.registrationPolicyHandler))
-	mux.Handle("POST /api/auth/login", http.HandlerFunc(api.loginHandler))
-	mux.Handle("POST /api/auth/register", http.HandlerFunc(api.registerHandler))
-	mux.Handle("POST /api/auth/refresh", http.HandlerFunc(api.refreshHandler))
-	mux.Handle("POST /api/auth/logout", http.HandlerFunc(api.logoutHandler))
-	mux.Handle("GET /api/auth/me", Chain(http.HandlerFunc(api.meHandler), RequireAuth(api.auth)))
-	mux.Handle("PATCH /api/account/profile", Chain(http.HandlerFunc(api.updateProfileHandler), RequireAuth(api.auth)))
-	mux.Handle("POST /api/account/avatar", Chain(http.HandlerFunc(api.updateAvatarHandler), RequireAuth(api.auth)))
-	mux.Handle("POST /api/account/password", Chain(http.HandlerFunc(api.updatePasswordHandler), RequireAuth(api.auth)))
-	mux.Handle("DELETE /api/account", Chain(http.HandlerFunc(api.deleteAccountHandler), RequireAuth(api.auth)))
+	mux.Handle("GET /api/install/state", http.HandlerFunc(api.installStateHandler))
+	mux.Handle("POST /api/install/setup", http.HandlerFunc(api.installSetupHandler))
+	mux.Handle("GET /api/auth/public-config", http.HandlerFunc(api.publicAuthConfigHandler))
+	mux.Handle("POST /api/auth/login", Chain(http.HandlerFunc(api.loginHandler), RequireSetupCompleted(api.setup)))
+	mux.Handle("POST /api/auth/register", Chain(http.HandlerFunc(api.registerHandler), RequireSetupCompleted(api.setup)))
+	mux.Handle("POST /api/auth/refresh", Chain(http.HandlerFunc(api.refreshHandler), RequireSetupCompleted(api.setup)))
+	mux.Handle("POST /api/auth/logout", Chain(http.HandlerFunc(api.logoutHandler), RequireSetupCompleted(api.setup)))
+	mux.Handle("GET /api/auth/me", Chain(http.HandlerFunc(api.meHandler), RequireSetupCompleted(api.setup), RequireAuth(api.auth)))
+	mux.Handle("PATCH /api/account/profile", Chain(http.HandlerFunc(api.updateProfileHandler), RequireSetupCompleted(api.setup), RequireAuth(api.auth)))
+	mux.Handle("POST /api/account/avatar", Chain(http.HandlerFunc(api.updateAvatarHandler), RequireSetupCompleted(api.setup), RequireAuth(api.auth)))
+	mux.Handle("POST /api/account/password", Chain(http.HandlerFunc(api.changePasswordHandler), RequireSetupCompleted(api.setup), RequireAuth(api.auth)))
+	mux.Handle("DELETE /api/account", Chain(http.HandlerFunc(api.deleteAccountHandler), RequireSetupCompleted(api.setup), RequireAuth(api.auth)))
 	mux.Handle("GET /api/avatars/{filename}", http.HandlerFunc(api.avatarHandler))
-	mux.Handle("GET /api/admin/system-settings", Chain(http.HandlerFunc(api.adminGetSystemSettingsHandler), RequireAuth(api.auth), RequireRole(users.RoleAdmin)))
-	mux.Handle("PATCH /api/admin/system-settings/registration", Chain(http.HandlerFunc(api.adminUpdateRegistrationHandler), RequireAuth(api.auth), RequireRole(users.RoleAdmin)))
-	mux.Handle("GET /api/admin/users", Chain(http.HandlerFunc(api.adminListUsersHandler), RequireAuth(api.auth), RequireRole(users.RoleAdmin)))
-	mux.Handle("POST /api/admin/users", Chain(http.HandlerFunc(api.adminCreateUserHandler), RequireAuth(api.auth), RequireRole(users.RoleAdmin)))
-	mux.Handle("PATCH /api/admin/users/{id}", Chain(http.HandlerFunc(api.adminUpdateUserHandler), RequireAuth(api.auth), RequireRole(users.RoleAdmin)))
-	mux.Handle("POST /api/admin/users/{id}/ban", Chain(http.HandlerFunc(api.adminBanUserHandler), RequireAuth(api.auth), RequireRole(users.RoleAdmin)))
-	mux.Handle("POST /api/admin/users/{id}/unban", Chain(http.HandlerFunc(api.adminUnbanUserHandler), RequireAuth(api.auth), RequireRole(users.RoleAdmin)))
-	mux.Handle("GET /api/admin/system-logs/stream", Chain(http.HandlerFunc(api.adminStreamSystemLogsHandler), RequireAuth(api.auth), RequireRole(users.RoleAdmin)))
+
+	mux.Handle(
+		"GET /api/system/settings",
+		Chain(
+			http.HandlerFunc(api.getSystemSettingsHandler),
+			RequireSetupCompleted(api.setup),
+			RequireAuth(api.auth),
+			RequireCapability(authorization.CapabilitySystemSettingsRead),
+		),
+	)
+	mux.Handle(
+		"PATCH /api/system/settings",
+		Chain(
+			http.HandlerFunc(api.updateSystemSettingsHandler),
+			RequireSetupCompleted(api.setup),
+			RequireAuth(api.auth),
+			RequireCapability(authorization.CapabilitySystemSettingsUpdate),
+		),
+	)
+
+	mux.Handle(
+		"GET /api/management/users",
+		Chain(
+			http.HandlerFunc(api.listManagementUsersHandler),
+			RequireSetupCompleted(api.setup),
+			RequireAuth(api.auth),
+			RequireCapability(authorization.CapabilityManagementUsersRead),
+		),
+	)
+	mux.Handle(
+		"POST /api/management/users",
+		Chain(
+			http.HandlerFunc(api.createManagementUserHandler),
+			RequireSetupCompleted(api.setup),
+			RequireAuth(api.auth),
+			RequireCapability(authorization.CapabilityManagementUsersCreate),
+		),
+	)
+	mux.Handle(
+		"PATCH /api/management/users/{id}",
+		Chain(
+			http.HandlerFunc(api.updateManagementUserHandler),
+			RequireSetupCompleted(api.setup),
+			RequireAuth(api.auth),
+			RequireCapability(authorization.CapabilityManagementUsersUpdate),
+		),
+	)
+	mux.Handle(
+		"POST /api/management/users/{id}/disable",
+		Chain(
+			http.HandlerFunc(api.disableManagementUserHandler),
+			RequireSetupCompleted(api.setup),
+			RequireAuth(api.auth),
+			RequireCapability(authorization.CapabilityManagementUsersDisable),
+		),
+	)
+	mux.Handle(
+		"POST /api/management/users/{id}/enable",
+		Chain(
+			http.HandlerFunc(api.enableManagementUserHandler),
+			RequireSetupCompleted(api.setup),
+			RequireAuth(api.auth),
+			RequireCapability(authorization.CapabilityManagementUsersEnable),
+		),
+	)
+	mux.Handle(
+		"GET /api/management/audit-logs",
+		Chain(
+			http.HandlerFunc(api.listAuditLogsHandler),
+			RequireSetupCompleted(api.setup),
+			RequireAuth(api.auth),
+			RequireCapability(authorization.CapabilityManagementAuditLogsRead),
+		),
+	)
+	mux.Handle(
+		"GET /api/management/system-logs/stream",
+		Chain(
+			http.HandlerFunc(api.streamSystemLogsHandler),
+			RequireSetupCompleted(api.setup),
+			RequireAuth(api.auth),
+			RequireCapability(authorization.CapabilityManagementSystemLogsRead),
+		),
+	)
+
 	return mux
 }
 
@@ -145,7 +232,6 @@ func serveFSContent(w http.ResponseWriter, r *http.Request, fsys fs.FS, storedNa
 		if originalName == "index.html" {
 			status = http.StatusServiceUnavailable
 		}
-
 		http.Error(w, http.StatusText(status), status)
 		return
 	}
@@ -187,7 +273,6 @@ func clientAcceptsGzip(header string) bool {
 			return true
 		}
 	}
-
 	return false
 }
 
@@ -212,7 +297,6 @@ func qualityValueAllowed(params string) bool {
 		if err != nil {
 			return false
 		}
-
 		return quality > 0
 	}
 
@@ -229,7 +313,6 @@ func setVary(header http.Header, value string) {
 			}
 		}
 	}
-
 	header.Add("Vary", value)
 }
 
@@ -283,6 +366,5 @@ func clientAddr(remoteAddr string) string {
 	if err == nil {
 		return host
 	}
-
 	return remoteAddr
 }

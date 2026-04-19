@@ -6,7 +6,6 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/lmittmann/tint v1.1.3
 	github.com/mattn/go-isatty v0.0.21
-	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/ysmood/goe v0.8.4
 	golang.org/x/crypto v0.50.0
 	modernc.org/sqlite v1.48.2

@@ -22,6 +22,7 @@ const enUS = {
       filter: 'Filter',
       import: 'Import',
       menu: 'Open menu',
+      next: 'Next',
       refresh: 'Refresh',
       reset: 'Reset',
       retry: 'Retry',
@@ -55,12 +56,12 @@ const enUS = {
       success: 'Success',
     },
     text: { yes: 'Yes', no: 'No', none: 'None', all: 'All', optional: 'Optional', required: 'Required' },
-    userRole: { 0: 'User', 1: 'Admin', 2: 'Super Admin' },
+    role: { owner: 'Owner', admin: 'Admin', user: 'User' },
   },
   apiError: {
     unknown: 'Something went wrong. Please try again.',
     invalidCredentials: 'Invalid username, email, or password.',
-    accountBanned: 'This account has been banned.',
+    accountDisabled: 'This account is disabled.',
     unauthorized: 'Authentication is required.',
     usernameRequired: 'Username is required.',
     usernameTaken: 'That username is already in use.',
@@ -69,6 +70,8 @@ const enUS = {
     passwordTooShort: 'New password must be at least 8 characters.',
     registrationDisabled: 'Registration is currently disabled.',
     invalidRegistrationMode: 'Registration mode is invalid.',
+    setupRequired: 'The application has not been initialized yet. Complete setup first.',
+    setupCompleted: 'The application has already been initialized.',
     avatarRequired: 'Please choose an avatar image.',
     avatarInvalidType: 'Please choose a JPG, PNG, or WebP image.',
     avatarTooLarge: 'Image size must be 5MB or smaller.',
@@ -76,7 +79,8 @@ const enUS = {
     avatarUploadFailed: 'Failed to upload avatar.',
     passwordUpdateFailed: 'Failed to update password.',
     accountDeleteFailed: 'Failed to delete account.',
-    superAdminDeleteForbidden: 'Super administrators cannot delete their own account.',
+    accountDeleteForbidden: 'This account cannot delete itself.',
+    invalidRoleKeys: 'The requested role assignment is invalid.',
     systemLogStreamFailed: 'Failed to connect to the system log stream.',
   },
   route: {
@@ -87,14 +91,16 @@ const enUS = {
     notFound: 'Page not found',
     settings: 'Settings',
     register: 'Register',
+    setup: 'Setup',
     systemLogs: 'System Logs',
     tasks: 'Tasks',
     feedback: { loadFailed: 'Failed to load the page. Please refresh and try again.' },
   },
   systemConfig: {
     title: 'System Configuration',
-    description: 'Manage system-wide registration and other administrator-only controls separately from personal preferences.',
-    badge: 'Admin only',
+    description: 'Manage the owner-only auth mode, public registration, self-delete policy, and admin user creation switches.',
+    badge: 'Owner only',
+    updatedAt: 'Last updated: {value}',
     registration: {
       title: 'Registration Policy',
       description: 'Control whether new accounts can be created and which self-service registration flow is currently available.',
@@ -115,15 +121,64 @@ const enUS = {
       description: 'System Logs remains the reference implementation for admin-only operational surfaces.',
       cta: 'Open System Logs',
     },
+    cards: {
+      auth: {
+        title: 'Auth Settings',
+        description: 'These switches define how the single-instance baseline handles setup, public registration, and account lifecycle.',
+      },
+      effectivePolicy: {
+        title: 'Effective Policy',
+        description: 'A quick summary of the policy state that will take effect after saving.',
+      },
+    },
+    fields: {
+      authMode: {
+        title: 'Auth mode',
+        description: 'Single user keeps only the unique owner account. Multi user enables owner/admin managed user lifecycle.',
+      },
+      registrationMode: {
+        title: 'Registration mode',
+        description: 'v1 only supports disabled or public registration. Public registration only works in multi-user mode.',
+      },
+      adminUserCreateEnabled: {
+        title: 'Allow admins to create users',
+        description: 'When disabled, only the owner can create users from the management surface.',
+      },
+      selfServiceAccountDeletionEnabled: {
+        title: 'Allow self-service account deletion',
+        description: 'When disabled, users and admins lose self-delete capability. Owner can never self-delete.',
+      },
+      passwordLoginEnabled: {
+        title: 'Password login',
+        description: 'v1 only supports local password credentials, so this remains enabled as read-only baseline state.',
+      },
+    },
+    options: {
+      authMode: {
+        singleUser: 'Single user',
+        multiUser: 'Multi user',
+      },
+      registrationMode: {
+        disabled: 'Disabled',
+        public: 'Public',
+      },
+    },
+    policy: {
+      authMode: 'Auth mode: {value}',
+      registrationMode: 'Registration mode: {value}',
+      publicRegistration: 'Public registration: {value}',
+      adminUserCreate: 'Admin user creation: {value}',
+      selfServiceAccountDeletion: 'Self-service deletion: {value}',
+    },
     actions: {
       retry: 'Retry',
     },
     feedback: {
       loadFailedTitle: 'Failed to load system settings',
       loadFailed: 'Refresh this page to try again.',
-      saving: 'Saving registration settings...',
-      saved: 'Registration settings saved.',
-      saveFailed: 'Failed to save registration settings.',
+      saving: 'Saving system settings...',
+      saved: 'System settings saved.',
+      saveFailed: 'Failed to save system settings.',
     },
   },
   settings: {
@@ -152,8 +207,7 @@ const enUS = {
       edit: 'Edit',
       editProfile: 'Edit Profile',
       editProfileDesc: 'Update your account information',
-      mustChangePasswordTitle: 'Change the bootstrap password',
-      mustChangePasswordDesc: 'This account is still using its bootstrap password. Update it now so the password stops being logged on server restart.',
+      statusActive: 'Active',
       password: 'Password',
       passwordDesc: 'Change your password',
       currentPassword: 'Current Password',
@@ -172,7 +226,8 @@ const enUS = {
       deleteAccount: 'Delete Account',
       deleteAccountConfirm: 'This action cannot be undone. All your data will be permanently deleted.',
       deleteAccountSuccess: 'Account deleted.',
-      superAdminDeleteForbidden: 'Super administrators cannot delete their own account.',
+      deleteAccountOwnerForbidden: 'Owner accounts cannot delete themselves.',
+      deleteAccountUnavailable: 'Self-service account deletion is disabled for this account.',
     },
     basic: {
       theme: 'Theme',
@@ -199,6 +254,15 @@ const enUS = {
       security: 'Security Alerts',
       securityDesc: 'Get notified about security events',
     },
+  },
+  setup: {
+    title: 'Complete initial setup',
+    description: 'Create the unique owner account for this installation. Setup closes permanently after the first successful run.',
+    emailHint: 'Email is optional. The owner is the install root account and cannot be transferred in v1.',
+    creating: 'Creating owner account...',
+    success: 'Setup completed.',
+    failed: 'Setup failed.',
+    submit: 'Finish setup',
   },
   auth: {
     signIn: {
@@ -246,8 +310,8 @@ const enUS = {
       createUser: 'Create User',
       refresh: 'Refresh',
       retry: 'Retry',
-      ban: 'Ban',
-      unban: 'Unban',
+      disable: 'Disable',
+      enable: 'Enable',
       previousPage: 'Previous',
       nextPage: 'Next',
     },
@@ -271,12 +335,11 @@ const enUS = {
       actions: 'Actions',
       empty: 'No matching users found.',
       noEmail: 'No email',
-      mustChangePassword: 'Bootstrap password still active',
       pageSummary: 'Page {page} of {totalPages} · {total} total user(s)',
     },
     status: {
       active: 'Active',
-      banned: 'Banned',
+      disabled: 'Disabled',
     },
     dialog: {
       createTitle: 'Create user',
@@ -291,10 +354,10 @@ const enUS = {
       passwordHint: 'Initial passwords must be at least 8 characters.',
     },
     confirm: {
-      banTitle: 'Ban user',
-      banDescription: 'Ban {username} and revoke their active sessions.',
-      unbanTitle: 'Unban user',
-      unbanDescription: 'Restore access for {username}. They will need to sign in again.',
+      disableTitle: 'Disable user',
+      disableDescription: 'Disable {username} and revoke all of their active sessions.',
+      enableTitle: 'Enable user',
+      enableDescription: 'Restore access for {username}. They will need to sign in again.',
     },
     feedback: {
       loadFailedTitle: 'Failed to load users',
@@ -306,12 +369,12 @@ const enUS = {
       updating: 'Updating user...',
       updateSuccess: 'User updated.',
       updateFailed: 'Failed to update user.',
-      banning: 'Banning user...',
-      banSuccess: 'User banned.',
-      banFailed: 'Failed to ban user.',
-      unbanning: 'Restoring user...',
-      unbanSuccess: 'User restored.',
-      unbanFailed: 'Failed to restore user.',
+      disabling: 'Disabling user...',
+      disableSuccess: 'User disabled.',
+      disableFailed: 'Failed to disable user.',
+      enabling: 'Enabling user...',
+      enableSuccess: 'User enabled.',
+      enableFailed: 'Failed to enable user.',
     },
   },
   table: {
@@ -354,7 +417,11 @@ const enUS = {
   theme: { light: 'Light', dark: 'Dark', system: 'System' },
   systemLogs: {
     title: 'System Logs',
-    description: 'View live application and access logs from the current process.',
+    description: 'View live application logs and paginated authentication/security audit records from the current process.',
+    tabs: {
+      console: 'Live Logs',
+      audit: 'Audit Logs',
+    },
     summary: { buffered: '{count} buffered' },
     connection: {
       connected: 'Connected',
@@ -405,6 +472,28 @@ const enUS = {
     empty: {
       title: 'No matching logs',
       description: 'Wait for new logs or adjust the current filters.',
+    },
+    audit: {
+      title: 'Security Audit Logs',
+      description: 'Audit records capture setup, login, refresh, logout, password changes, role changes, account disable/enable, and account deletion facts.',
+      pageSummary: 'Page {page} of {totalPages} · {total} total audit record(s)',
+      outcome: {
+        success: 'Success',
+        failure: 'Failure',
+      },
+      table: {
+        occurredAt: 'Occurred At',
+        eventType: 'Event Type',
+        outcome: 'Outcome',
+        actor: 'Actor',
+        subject: 'Subject',
+        reason: 'Reason',
+        empty: 'No audit records found.',
+      },
+      feedback: {
+        loadFailedTitle: 'Failed to load audit logs',
+        loadFailed: 'Refresh this page to try again.',
+      },
     },
     feedback: {
       exportSuccess: 'Exported {count} logs.',

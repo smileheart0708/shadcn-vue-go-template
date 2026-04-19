@@ -1,6 +1,6 @@
 import type { RouteRecordRaw } from 'vue-router'
 import { createRouter, createWebHistory } from 'vue-router'
-import { USER_ROLE } from '@/lib/auth/roles'
+import { CAPABILITY } from '@/lib/auth/roles'
 import { installAuthGuard } from '@/middleware/auth'
 import { installRequestLoadingTracking, installRouteLoading } from '@/router/route-loading'
 import type { RouteTitleKey } from '@/router/route-title'
@@ -9,6 +9,7 @@ const AppShellLayout = async () => import('@/layouts/AppShellLayout.vue')
 const BlankLayout = async () => import('@/layouts/BlankLayout.vue')
 const Dashboard = async () => import('@/views/DashboardView.vue')
 const Home = async () => import('@/views/HomeView.vue')
+const Setup = async () => import('@/views/SetupView.vue')
 const Login = async () => import('@/views/LoginView.vue')
 const Register = async () => import('@/views/RegisterView.vue')
 const Settings = async () => import('@/views/SettingsView.vue')
@@ -39,25 +40,25 @@ const appShellRoutes = [
     path: 'system-configs',
     name: 'system-config',
     component: AdminSettings,
-    meta: { titleKey: 'route.systemConfig', requiresAuth: true, requiredRole: USER_ROLE.admin, maskUnauthorizedAsNotFound: true },
+    meta: { titleKey: 'route.systemConfig', requiresAuth: true, requiredCapabilities: [CAPABILITY.systemSettingsRead], maskUnauthorizedAsNotFound: true },
   }),
   defineAppShellRoute({
     path: 'admin-users',
     name: 'admin-users',
     component: AdminUsers,
-    meta: { titleKey: 'route.adminUsers', requiresAuth: true, requiredRole: USER_ROLE.admin, maskUnauthorizedAsNotFound: true },
+    meta: { titleKey: 'route.adminUsers', requiresAuth: true, requiredCapabilities: [CAPABILITY.managementUsersRead], maskUnauthorizedAsNotFound: true },
   }),
-  {
+  defineAppShellRoute({
     path: 'tasks',
     name: 'tasks',
     component: Tasks,
     meta: { titleKey: 'route.tasks', requiresAuth: true },
-  },
+  }),
   defineAppShellRoute({
     path: 'system-logs',
     name: 'system-logs',
     component: SystemLogs,
-    meta: { titleKey: 'route.systemLogs', requiresAuth: true, requiredRole: USER_ROLE.admin, maskUnauthorizedAsNotFound: true },
+    meta: { titleKey: 'route.systemLogs', requiresAuth: true, requiredCapabilities: [CAPABILITY.managementSystemLogsRead], maskUnauthorizedAsNotFound: true },
   }),
 ] satisfies RouteRecordRaw[]
 
@@ -74,6 +75,7 @@ const router = createRouter({
       component: AppShellLayout,
       children: appShellRoutes,
     },
+    { path: '/setup', name: 'setup', component: Setup, meta: { titleKey: 'route.setup' } },
     { path: '/login', name: 'login', component: Login, meta: { titleKey: 'route.login', guestOnly: true } },
     { path: '/register', name: 'register', component: Register, meta: { titleKey: 'route.register', guestOnly: true } },
     {

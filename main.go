@@ -12,12 +12,16 @@ import (
 	"syscall"
 	"time"
 
+	"main/internal/audit"
 	"main/internal/auth"
+	"main/internal/authorization"
 	"main/internal/config"
 	"main/internal/database"
 	"main/internal/httpapi"
+	"main/internal/identity"
 	"main/internal/logging"
-	"main/internal/users"
+	"main/internal/setup"
+	"main/internal/systemsettings"
 )
 
 const shutdownTimeout = 10 * time.Second
@@ -70,27 +74,37 @@ func run() error {
 
 	slog.Info("database ready", "path", dbPath)
 
-	userStore := users.NewStore(dbContainer.DB())
-	if err := users.NewBootstrapManager(userStore, dataDir, logger).Ensure(context.Background()); err != nil {
-		return fmt.Errorf("bootstrap default super admin: %w", err)
+	if err := authorization.EnsureCatalog(context.Background(), dbContainer.DB()); err != nil {
+		return fmt.Errorf("seed authorization catalog: %w", err)
 	}
+
+	authorizationService := authorization.NewService()
+	identityService := identity.NewService(dbContainer.DB())
+	systemSettingsService := systemsettings.NewService(dbContainer.DB())
+	setupService := setup.NewService(dbContainer.DB(), identityService)
+	auditService := audit.NewService(dbContainer.DB())
+	authService := auth.NewService(auth.Options{
+		Secret:             []byte(cfg.JWTSecret),
+		TTL:                cfg.JWTTTL,
+		RefreshIdleTTL:     cfg.RefreshIdleTTL,
+		RefreshAbsoluteTTL: cfg.RefreshAbsoluteTTL,
+		RefreshCookieName:  cfg.RefreshCookieName,
+	}, dbContainer.DB(), identityService, authorizationService, systemSettingsService)
 
 	server := &http.Server{
 		Addr: listenAddr,
 		Handler: httpapi.NewHandlerWithOptions(httpapi.HandlerOptions{
 			Logger:         logger,
 			LogStream:      logStream,
-			UserStore:      userStore,
+			Auth:           authService,
+			Authorization:  authorizationService,
+			Identity:       identityService,
+			Setup:          setupService,
+			SystemSettings: systemSettingsService,
+			Audit:          auditService,
 			DataDir:        dataDir,
 			FrontendFS:     frontendAssets,
 			LogAPIRequests: cfg.APIRequestLogEnabled,
-			Auth: auth.Options{
-				Secret:             []byte(cfg.JWTSecret),
-				TTL:                cfg.JWTTTL,
-				RefreshIdleTTL:     cfg.RefreshIdleTTL,
-				RefreshAbsoluteTTL: cfg.RefreshAbsoluteTTL,
-				RefreshCookieName:  cfg.RefreshCookieName,
-			},
 		}),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,

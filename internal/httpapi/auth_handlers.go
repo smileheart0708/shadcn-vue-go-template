@@ -1,16 +1,21 @@
 package httpapi
 
 import (
-	"context"
 	"errors"
 	"net/http"
 	"strings"
-	"time"
 
+	"main/internal/audit"
 	"main/internal/auth"
-	"main/internal/systemsettings"
-	"main/internal/users"
+	"main/internal/identity"
+	"main/internal/setup"
 )
+
+type installSetupRequest struct {
+	Username string  `json:"username"`
+	Email    *string `json:"email"`
+	Password string  `json:"password"`
+}
 
 type loginRequest struct {
 	Identifier string `json:"identifier"`
@@ -23,19 +28,84 @@ type registerRequest struct {
 	Password string  `json:"password"`
 }
 
-type registrationPolicyResponse struct {
-	RegistrationMode systemsettings.RegistrationMode `json:"registrationMode"`
-}
-
-type loginResponse struct {
-	AccessToken string           `json:"accessToken"`
-	TokenType   string           `json:"tokenType"`
-	ExpiresAt   time.Time        `json:"expiresAt"`
-	User        users.PublicUser `json:"user"`
-}
-
 type logoutResponse struct {
 	LoggedOut bool `json:"loggedOut"`
+}
+
+type passwordChangedResponse struct {
+	PasswordChanged bool `json:"passwordChanged"`
+}
+
+func (api *API) installStateHandler(w http.ResponseWriter, r *http.Request) {
+	state, err := api.setup.GetState(r.Context())
+	if err != nil {
+		writeAPIError(w, http.StatusInternalServerError, "setup_state_unavailable", "Failed to load install state.")
+		return
+	}
+
+	writeSuccessJSON(w, http.StatusOK, installStateResponse{
+		SetupState:     state.SetupState,
+		SetupCompleted: state.SetupCompleted,
+		OwnerUserID:    state.OwnerUserID,
+		CompletedAt:    state.SetupCompletedAt,
+	})
+}
+
+func (api *API) installSetupHandler(w http.ResponseWriter, r *http.Request) {
+	var payload installSetupRequest
+	if err := decodeJSON(w, r, &payload); err != nil {
+		writeAPIError(w, http.StatusBadRequest, "invalid_request", describeJSONDecodeError(err))
+		return
+	}
+	if strings.TrimSpace(payload.Username) == "" {
+		writeAPIError(w, http.StatusBadRequest, "username_required", "Username is required.")
+		return
+	}
+	if len(strings.TrimSpace(payload.Password)) < auth.MinPasswordLength {
+		writeAPIError(w, http.StatusBadRequest, "password_too_short", "Password must be at least 8 characters.")
+		return
+	}
+
+	ip, userAgent := requestMetadata(r)
+	owner, err := api.setup.Complete(r.Context(), setup.CompleteSetupInput{
+		Username: payload.Username,
+		Email:    payload.Email,
+		Password: payload.Password,
+	}, identity.ActionAuditContext{
+		IP:        nullableString(ip),
+		UserAgent: nullableString(userAgent),
+	})
+	if err != nil {
+		switch {
+		case errors.Is(err, setup.ErrAlreadyCompleted):
+			writeAPIError(w, http.StatusConflict, "setup_completed", "The application has already been initialized.")
+		case errors.Is(err, identity.ErrUsernameTaken):
+			writeAPIError(w, http.StatusConflict, "username_taken", "Username is already in use.")
+		case errors.Is(err, identity.ErrEmailTaken):
+			writeAPIError(w, http.StatusConflict, "email_taken", "Email is already in use.")
+		default:
+			writeAPIError(w, http.StatusInternalServerError, "setup_failed", "Failed to initialize the application.")
+		}
+		return
+	}
+
+	session, err := api.auth.IssueSessionForUser(r.Context(), owner, ip, userAgent)
+	if err != nil {
+		writeAPIError(w, http.StatusInternalServerError, "session_create_failed", "Failed to create owner session.")
+		return
+	}
+
+	api.auth.SetRefreshCookie(w, r, session.RefreshToken)
+	writeSuccessJSON(w, http.StatusCreated, api.toSessionResponse(session))
+}
+
+func (api *API) publicAuthConfigHandler(w http.ResponseWriter, r *http.Request) {
+	config, err := api.settings.PublicConfig(r.Context())
+	if err != nil {
+		writeAPIError(w, http.StatusInternalServerError, "public_auth_config_unavailable", "Failed to load authentication configuration.")
+		return
+	}
+	writeSuccessJSON(w, http.StatusOK, config)
 }
 
 func (api *API) loginHandler(w http.ResponseWriter, r *http.Request) {
@@ -45,101 +115,25 @@ func (api *API) loginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	identifier := strings.TrimSpace(payload.Identifier)
-	requestIP, requestUserAgent := requestMetadata(r)
-
-	user, err := api.users.FindByIdentifier(r.Context(), identifier)
+	ip, userAgent := requestMetadata(r)
+	result, err := api.auth.Login(r.Context(), payload.Identifier, payload.Password, ip, userAgent)
 	if err != nil {
-		if errors.Is(err, users.ErrUserNotFound) {
-			api.logAuthEvent(r.Context(), users.AuthLogParams{
-				Identifier:    nullableString(identifier),
-				IP:            nullableString(requestIP),
-				UserAgent:     nullableString(requestUserAgent),
-				EventType:     users.AuthLogEventLoginFailed,
-				Success:       false,
-				FailureReason: new("invalid_credentials"),
-			})
+		switch {
+		case errors.Is(err, auth.ErrInvalidCredentials):
 			writeAPIError(w, http.StatusUnauthorized, "invalid_credentials", "Username/email or password is invalid.")
-			return
+		case errors.Is(err, auth.ErrAccountDisabled):
+			writeAPIError(w, http.StatusForbidden, "account_disabled", "This account is disabled.")
+		default:
+			writeAPIError(w, http.StatusInternalServerError, "login_failed", "Failed to authenticate user.")
 		}
-
-		writeAPIError(w, http.StatusInternalServerError, "login_failed", "Failed to authenticate user.")
 		return
 	}
 
-	passwordMatches, err := users.VerifyPassword(payload.Password, user.PasswordHash)
-	if err != nil {
-		writeAPIError(w, http.StatusInternalServerError, "login_failed", "Failed to authenticate user.")
-		return
-	}
-	if !passwordMatches {
-		api.logAuthEvent(r.Context(), users.AuthLogParams{
-			UserID:        new(user.ID),
-			Identifier:    nullableString(identifier),
-			IP:            nullableString(requestIP),
-			UserAgent:     nullableString(requestUserAgent),
-			EventType:     users.AuthLogEventLoginFailed,
-			Success:       false,
-			FailureReason: new("invalid_credentials"),
-		})
-		writeAPIError(w, http.StatusUnauthorized, "invalid_credentials", "Username/email or password is invalid.")
-		return
-	}
-	if user.IsBanned {
-		api.logAuthEvent(r.Context(), users.AuthLogParams{
-			UserID:        new(user.ID),
-			Identifier:    nullableString(identifier),
-			IP:            nullableString(requestIP),
-			UserAgent:     nullableString(requestUserAgent),
-			EventType:     users.AuthLogEventLoginFailed,
-			Success:       false,
-			FailureReason: new("account_banned"),
-		})
-		writeAPIError(w, http.StatusForbidden, "account_banned", "This account has been banned.")
-		return
-	}
-
-	response, err := api.issueLoginResponse(r.Context(), w, r, user, requestIP, requestUserAgent)
-	if err != nil {
-		writeAPIError(w, http.StatusInternalServerError, "session_create_failed", "Failed to create refresh session.")
-		return
-	}
-	api.logAuthEvent(r.Context(), users.AuthLogParams{
-		UserID:     new(user.ID),
-		SessionID:  new(response.SessionID),
-		Identifier: nullableString(identifier),
-		IP:         nullableString(requestIP),
-		UserAgent:  nullableString(requestUserAgent),
-		EventType:  users.AuthLogEventLoginSuccess,
-		Success:    true,
-	})
-
-	writeSuccessJSON(w, http.StatusOK, response.Payload)
-}
-
-func (api *API) registrationPolicyHandler(w http.ResponseWriter, r *http.Request) {
-	settings, err := api.settings.Get(r.Context())
-	if err != nil {
-		writeAPIError(w, http.StatusInternalServerError, "registration_policy_failed", "Failed to load registration policy.")
-		return
-	}
-
-	writeSuccessJSON(w, http.StatusOK, registrationPolicyResponse{
-		RegistrationMode: settings.RegistrationMode,
-	})
+	api.auth.SetRefreshCookie(w, r, result.RefreshToken)
+	writeSuccessJSON(w, http.StatusOK, api.toSessionResponse(result))
 }
 
 func (api *API) registerHandler(w http.ResponseWriter, r *http.Request) {
-	settings, err := api.settings.Get(r.Context())
-	if err != nil {
-		writeAPIError(w, http.StatusInternalServerError, "registration_policy_failed", "Failed to load registration policy.")
-		return
-	}
-	if settings.RegistrationMode != systemsettings.RegistrationModePassword {
-		writeAPIError(w, http.StatusForbidden, "registration_disabled", "Registration is currently disabled.")
-		return
-	}
-
 	var payload registerRequest
 	if err := decodeJSON(w, r, &payload); err != nil {
 		writeAPIError(w, http.StatusBadRequest, "invalid_request", describeJSONDecodeError(err))
@@ -149,28 +143,22 @@ func (api *API) registerHandler(w http.ResponseWriter, r *http.Request) {
 		writeAPIError(w, http.StatusBadRequest, "username_required", "Username is required.")
 		return
 	}
-	if len(payload.Password) < minPasswordLength {
-		writeAPIError(w, http.StatusBadRequest, "password_too_short", "Password must be at least 8 characters.")
-		return
-	}
 
-	passwordHash, err := users.HashPassword(payload.Password)
-	if err != nil {
-		writeAPIError(w, http.StatusInternalServerError, "registration_failed", "Failed to register user.")
-		return
-	}
-
-	user, err := api.users.Create(r.Context(), users.CreateParams{
-		Username:     payload.Username,
-		Email:        payload.Email,
-		PasswordHash: passwordHash,
-		Role:         users.RoleUser,
-	})
+	ip, userAgent := requestMetadata(r)
+	result, err := api.auth.Register(r.Context(), auth.RegisterParams{
+		Username: payload.Username,
+		Email:    payload.Email,
+		Password: payload.Password,
+	}, ip, userAgent)
 	if err != nil {
 		switch {
-		case errors.Is(err, users.ErrUsernameTaken):
+		case errors.Is(err, auth.ErrRegistrationDisabled):
+			writeAPIError(w, http.StatusForbidden, "registration_disabled", "Registration is currently disabled.")
+		case errors.Is(err, auth.ErrPasswordTooShort):
+			writeAPIError(w, http.StatusBadRequest, "password_too_short", "Password must be at least 8 characters.")
+		case errors.Is(err, identity.ErrUsernameTaken):
 			writeAPIError(w, http.StatusConflict, "username_taken", "Username is already in use.")
-		case errors.Is(err, users.ErrEmailTaken):
+		case errors.Is(err, identity.ErrEmailTaken):
 			writeAPIError(w, http.StatusConflict, "email_taken", "Email is already in use.")
 		default:
 			writeAPIError(w, http.StatusInternalServerError, "registration_failed", "Failed to register user.")
@@ -178,100 +166,43 @@ func (api *API) registerHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	requestIP, requestUserAgent := requestMetadata(r)
-	response, err := api.issueLoginResponse(r.Context(), w, r, user, requestIP, requestUserAgent)
-	if err != nil {
-		writeAPIError(w, http.StatusInternalServerError, "session_create_failed", "Failed to create refresh session.")
-		return
-	}
-
-	api.logAuthEvent(r.Context(), users.AuthLogParams{
-		UserID:     new(user.ID),
-		SessionID:  new(response.SessionID),
-		Identifier: nullableString(user.Username),
-		IP:         nullableString(requestIP),
-		UserAgent:  nullableString(requestUserAgent),
-		EventType:  users.AuthLogEventRegisterSuccess,
-		Success:    true,
-	})
-
-	writeSuccessJSON(w, http.StatusCreated, response.Payload)
+	api.auth.SetRefreshCookie(w, r, result.RefreshToken)
+	writeSuccessJSON(w, http.StatusCreated, api.toSessionResponse(result))
 }
 
 func (api *API) refreshHandler(w http.ResponseWriter, r *http.Request) {
 	rawToken, err := api.auth.ReadRefreshCookie(r)
 	if err != nil {
-		api.logAuthEvent(r.Context(), users.AuthLogParams{
-			IP:            nullableString(clientAddr(r.RemoteAddr)),
-			UserAgent:     nullableString(r.UserAgent()),
-			EventType:     users.AuthLogEventRefreshFailed,
-			Success:       false,
-			FailureReason: new("refresh_cookie_missing"),
+		api.logAuditEvent(r, audit.Entry{
+			EventType: audit.EventRefreshFailed,
+			Outcome:   audit.OutcomeFailure,
+			Reason:    new("refresh_cookie_missing"),
 		})
 		api.auth.ClearRefreshCookie(w, r)
 		writeAPIError(w, http.StatusUnauthorized, "invalid_refresh_token", "Refresh session is invalid or expired.")
 		return
 	}
 
-	result, attempt, err := api.auth.RefreshSession(r.Context(), rawToken)
-	requestIP, requestUserAgent := requestMetadata(r)
+	ip, userAgent := requestMetadata(r)
+	result, err := api.auth.Refresh(r.Context(), rawToken, ip, userAgent)
 	if err != nil {
-		eventType := users.AuthLogEventRefreshFailed
-		if errors.Is(err, auth.ErrTokenReuseDetected) {
-			eventType = users.AuthLogEventTokenReuseDetected
-		}
-		api.logAuthEvent(r.Context(), users.AuthLogParams{
-			UserID:        attempt.UserID,
-			SessionID:     attempt.SessionID,
-			IP:            nullableString(requestIP),
-			UserAgent:     nullableString(requestUserAgent),
-			EventType:     eventType,
-			Success:       false,
-			FailureReason: new(attempt.FailureReason),
-		})
 		api.auth.ClearRefreshCookie(w, r)
 		writeAPIError(w, http.StatusUnauthorized, "invalid_refresh_token", "Refresh session is invalid or expired.")
 		return
 	}
 
 	api.auth.SetRefreshCookie(w, r, result.RefreshToken)
-	api.logAuthEvent(r.Context(), users.AuthLogParams{
-		UserID:    new(result.User.ID),
-		SessionID: new(result.SessionID),
-		IP:        nullableString(requestIP),
-		UserAgent: nullableString(requestUserAgent),
-		EventType: users.AuthLogEventRefreshSuccess,
-		Success:   true,
-	})
-
-	writeSuccessJSON(w, http.StatusOK, loginResponse{
-		AccessToken: result.AccessToken,
-		TokenType:   "Bearer",
-		ExpiresAt:   result.ExpiresAt,
-		User:        result.User.Public(),
-	})
+	writeSuccessJSON(w, http.StatusOK, api.toSessionResponse(result))
 }
 
 func (api *API) logoutHandler(w http.ResponseWriter, r *http.Request) {
-	requestIP, requestUserAgent := requestMetadata(r)
 	rawToken, err := api.auth.ReadRefreshCookie(r)
 	if err == nil {
-		sessionID, _, parseErr := auth.ParseRefreshToken(rawToken)
-		if parseErr == nil {
-			sessionState, stateErr := api.auth.LoadRefreshSessionState(r.Context(), sessionID)
-			if stateErr == nil {
-				api.logAuthEvent(r.Context(), users.AuthLogParams{
-					UserID:    new(sessionState.UserID),
-					SessionID: new(sessionID),
-					IP:        nullableString(requestIP),
-					UserAgent: nullableString(requestUserAgent),
-					EventType: users.AuthLogEventLogout,
-					Success:   true,
-				})
-			}
+		ip, userAgent := requestMetadata(r)
+		if err := api.auth.Logout(r.Context(), rawToken, ip, userAgent); err != nil {
+			writeAPIError(w, http.StatusInternalServerError, "logout_failed", "Failed to revoke refresh session.")
+			return
 		}
-
-		_, _ = api.auth.RevokeRefreshSession(r.Context(), rawToken, "logout")
 	}
 
 	api.auth.ClearRefreshCookie(w, r)
@@ -279,41 +210,14 @@ func (api *API) logoutHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (api *API) meHandler(w http.ResponseWriter, r *http.Request) {
-	user, err := api.currentUser(r.Context())
-	if err != nil {
+	actor, ok := api.currentActor(r.Context())
+	if !ok {
 		writeAPIError(w, http.StatusUnauthorized, "unauthorized", "Authentication is required.")
 		return
 	}
 
-	writeSuccessJSON(w, http.StatusOK, user.Public())
-}
-
-type issuedLoginResponse struct {
-	SessionID string
-	Payload   loginResponse
-}
-
-func (api *API) issueLoginResponse(ctx context.Context, w http.ResponseWriter, r *http.Request, user users.User, requestIP string, requestUserAgent string) (issuedLoginResponse, error) {
-	sessionID, refreshToken, err := api.auth.CreateRefreshSession(ctx, user, requestIP, requestUserAgent)
-	if err != nil {
-		return issuedLoginResponse{}, err
-	}
-
-	accessToken, expiresAt, err := api.auth.IssueToken(user, sessionID)
-	if err != nil {
-		_ = api.auth.RevokeSessionByID(ctx, sessionID, "access_token_issue_failed")
-		return issuedLoginResponse{}, err
-	}
-
-	api.auth.SetRefreshCookie(w, r, refreshToken)
-
-	return issuedLoginResponse{
-		SessionID: sessionID,
-		Payload: loginResponse{
-			AccessToken: accessToken,
-			TokenType:   "Bearer",
-			ExpiresAt:   expiresAt,
-			User:        user.Public(),
-		},
-	}, nil
+	writeSuccessJSON(w, http.StatusOK, api.toViewerResponse(auth.Viewer{
+		User:          actor.User,
+		Authorization: actor.Authorization,
+	}))
 }

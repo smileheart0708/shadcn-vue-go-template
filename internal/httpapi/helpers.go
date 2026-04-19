@@ -3,6 +3,8 @@ package httpapi
 import (
 	"net/http"
 	"strings"
+
+	"main/internal/audit"
 )
 
 func requestMetadata(r *http.Request) (string, string) {
@@ -17,12 +19,20 @@ func nullableString(value string) *string {
 	return &value
 }
 
-//go:fix inline
-func authStringPointer(value string) *string {
-	return new(value)
-}
+func (api *API) logAuditEvent(r *http.Request, entry audit.Entry) {
+	if api == nil || api.audit == nil {
+		return
+	}
 
-//go:fix inline
-func authInt64Pointer(value int64) *int64 {
-	return new(value)
+	if entry.IP == nil || entry.UserAgent == nil {
+		ip, userAgent := requestMetadata(r)
+		if entry.IP == nil {
+			entry.IP = nullableString(ip)
+		}
+		if entry.UserAgent == nil {
+			entry.UserAgent = nullableString(userAgent)
+		}
+	}
+
+	_ = api.audit.Log(r.Context(), entry)
 }

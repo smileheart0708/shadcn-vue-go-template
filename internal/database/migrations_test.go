@@ -10,9 +10,8 @@ import (
 )
 
 const (
-	baselineMigrationVersion    = 1
-	baselineMigrationName       = "0001_baseline.sql"
-	authLogsActiveUserIndexName = "auth_refresh_sessions_active_user_idx"
+	baselineMigrationVersion = 1
+	baselineMigrationName    = "0001_baseline.sql"
 )
 
 func TestRunMigrationsAppliesCurrentSchema(t *testing.T) {
@@ -36,23 +35,33 @@ func TestRunMigrationsAppliesCurrentSchema(t *testing.T) {
 		"id",
 		"username",
 		"email",
-		"password_hash",
 		"avatar_path",
-		"role",
-		"bootstrap_password_active",
-		"auth_version",
+		"status",
+		"security_version",
+		"disabled_at",
+		"created_at",
+		"updated_at",
+	})
+	assertTableColumns(t, db, "credentials", []string{
+		"user_id",
+		"password_hash",
 		"password_changed_at",
 		"created_at",
 		"updated_at",
-		"is_banned",
-		"banned_at",
 	})
-	assertTableColumns(t, db, "auth_refresh_sessions", []string{
+	assertTableColumns(t, db, "user_roles", []string{
+		"user_id",
+		"role_key",
+		"assigned_at",
+		"assigned_by_user_id",
+	})
+	assertTableColumns(t, db, "auth_sessions", []string{
 		"id",
 		"user_id",
-		"token_hash",
-		"issued_at",
+		"refresh_token_hash",
+		"created_at",
 		"last_used_at",
+		"last_rotated_at",
 		"expires_at",
 		"idle_expires_at",
 		"revoked_at",
@@ -60,21 +69,34 @@ func TestRunMigrationsAppliesCurrentSchema(t *testing.T) {
 		"ip",
 		"user_agent",
 	})
-	assertTableColumns(t, db, "auth_login_logs", []string{
+	assertTableColumns(t, db, "audit_logs", []string{
 		"id",
-		"user_id",
-		"session_id",
-		"identifier",
+		"actor_user_id",
+		"subject_user_id",
+		"auth_session_id",
+		"event_type",
+		"outcome",
+		"reason",
 		"ip",
 		"user_agent",
-		"event_type",
-		"success",
-		"failure_reason",
+		"metadata_json",
+		"occurred_at",
+	})
+	assertTableColumns(t, db, "install_state", []string{
+		"id",
+		"setup_state",
+		"owner_user_id",
+		"setup_completed_at",
 		"created_at",
+		"updated_at",
 	})
 	assertTableColumns(t, db, "system_settings", []string{
 		"id",
+		"auth_mode",
 		"registration_mode",
+		"password_login_enabled",
+		"admin_user_create_enabled",
+		"self_service_account_deletion_enabled",
 		"updated_at",
 	})
 
@@ -83,8 +105,11 @@ func TestRunMigrationsAppliesCurrentSchema(t *testing.T) {
 	}
 
 	assertAppliedMigration(t, db, baselineMigrationVersion, baselineMigrationName)
-	assertForeignKeyCount(t, db, "auth_login_logs", 0)
-	assertIndexExists(t, db, authLogsActiveUserIndexName)
+	assertIndexExists(t, db, "user_roles_owner_unique_idx")
+	assertDefaultInstallState(t, db)
+	assertDefaultSystemSettings(t, db)
+	assertSeedCount(t, db, "roles", 3)
+	assertSeedCount(t, db, "permissions", 9)
 }
 
 func TestRunMigrationsRejectsModifiedAppliedMigration(t *testing.T) {
@@ -180,35 +205,6 @@ func TestRunMigrationsAllowsConcurrentStartup(t *testing.T) {
 	assertAppliedMigration(t, db1, baselineMigrationVersion, baselineMigrationName)
 }
 
-func openRawSQLiteDB(t *testing.T) (*sql.DB, func()) {
-	t.Helper()
-	return openRawSQLiteDBAtPath(t, filepath.Join(t.TempDir(), "app.db"))
-}
-
-func openRawSQLiteDBAtPath(t *testing.T, path string) (*sql.DB, func()) {
-	t.Helper()
-
-	db, err := sql.Open("sqlite", sqliteDSN(Options{Path: path}))
-	if err != nil {
-		t.Fatalf("failed to open raw sqlite database: %v", err)
-	}
-	db.SetMaxOpenConns(1)
-	db.SetMaxIdleConns(1)
-	db.SetConnMaxLifetime(0)
-	db.SetConnMaxIdleTime(0)
-
-	if err := db.PingContext(context.Background()); err != nil {
-		_ = db.Close()
-		t.Fatalf("failed to ping raw sqlite database: %v", err)
-	}
-
-	return db, func() {
-		if err := db.Close(); err != nil {
-			t.Fatalf("failed to close raw sqlite database: %v", err)
-		}
-	}
-}
-
 func mustReadEmbeddedMigration(t *testing.T, name string) []byte {
 	t.Helper()
 
@@ -250,7 +246,6 @@ func assertTableColumns(t *testing.T, db *sql.DB, table string, want []string) {
 	if len(got) != len(want) {
 		t.Fatalf("expected %d columns in %s, got %d (%v)", len(want), table, len(got), got)
 	}
-
 	for i := range want {
 		if got[i] != want[i] {
 			t.Fatalf("expected column %d in %s to be %q, got %q", i, table, want[i], got[i])
@@ -276,27 +271,6 @@ func assertAppliedMigration(t *testing.T, db *sql.DB, version int64, name string
 	}
 }
 
-func assertForeignKeyCount(t *testing.T, db *sql.DB, table string, want int) {
-	t.Helper()
-
-	rows, err := db.Query(`PRAGMA foreign_key_list(` + table + `)`)
-	if err != nil {
-		t.Fatalf("failed to inspect foreign keys for %s: %v", table, err)
-	}
-	defer rows.Close()
-
-	count := 0
-	for rows.Next() {
-		count++
-	}
-	if err := rows.Err(); err != nil {
-		t.Fatalf("failed to iterate foreign keys for %s: %v", table, err)
-	}
-	if count != want {
-		t.Fatalf("expected %d foreign keys for %s, got %d", want, table, count)
-	}
-}
-
 func assertIndexExists(t *testing.T, db *sql.DB, indexName string) {
 	t.Helper()
 
@@ -306,5 +280,98 @@ func assertIndexExists(t *testing.T, db *sql.DB, indexName string) {
 	}
 	if count != 1 {
 		t.Fatalf("expected index %q to exist, got count=%d", indexName, count)
+	}
+}
+
+func assertDefaultInstallState(t *testing.T, db *sql.DB) {
+	t.Helper()
+
+	var setupState string
+	if err := db.QueryRow(`SELECT setup_state FROM install_state WHERE id = 1`).Scan(&setupState); err != nil {
+		t.Fatalf("failed to load install state: %v", err)
+	}
+	if setupState != "pending" {
+		t.Fatalf("expected default setup_state pending, got %q", setupState)
+	}
+}
+
+func assertDefaultSystemSettings(t *testing.T, db *sql.DB) {
+	t.Helper()
+
+	var (
+		authMode                          string
+		registrationMode                  string
+		passwordLoginEnabled              int
+		adminUserCreateEnabled            int
+		selfServiceAccountDeletionEnabled int
+	)
+	if err := db.QueryRow(
+		`SELECT auth_mode, registration_mode, password_login_enabled, admin_user_create_enabled, self_service_account_deletion_enabled
+		FROM system_settings
+		WHERE id = 1`,
+	).Scan(
+		&authMode,
+		&registrationMode,
+		&passwordLoginEnabled,
+		&adminUserCreateEnabled,
+		&selfServiceAccountDeletionEnabled,
+	); err != nil {
+		t.Fatalf("failed to load system settings: %v", err)
+	}
+
+	if authMode != "single_user" {
+		t.Fatalf("expected auth_mode single_user, got %q", authMode)
+	}
+	if registrationMode != "disabled" {
+		t.Fatalf("expected registration_mode disabled, got %q", registrationMode)
+	}
+	if passwordLoginEnabled != 1 || adminUserCreateEnabled != 1 || selfServiceAccountDeletionEnabled != 1 {
+		t.Fatalf(
+			"expected default auth settings flags to be enabled, got password_login_enabled=%d admin_user_create_enabled=%d self_service_account_deletion_enabled=%d",
+			passwordLoginEnabled,
+			adminUserCreateEnabled,
+			selfServiceAccountDeletionEnabled,
+		)
+	}
+}
+
+func assertSeedCount(t *testing.T, db *sql.DB, table string, want int) {
+	t.Helper()
+
+	var count int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM ` + table).Scan(&count); err != nil {
+		t.Fatalf("failed to count %s rows: %v", table, err)
+	}
+	if count != want {
+		t.Fatalf("expected %d rows in %s, got %d", want, table, count)
+	}
+}
+
+func openRawSQLiteDB(t *testing.T) (*sql.DB, func()) {
+	t.Helper()
+	return openRawSQLiteDBAtPath(t, filepath.Join(t.TempDir(), "app.db"))
+}
+
+func openRawSQLiteDBAtPath(t *testing.T, path string) (*sql.DB, func()) {
+	t.Helper()
+
+	db, err := sql.Open("sqlite", sqliteDSN(Options{Path: path}))
+	if err != nil {
+		t.Fatalf("failed to open raw sqlite database: %v", err)
+	}
+	db.SetMaxOpenConns(1)
+	db.SetMaxIdleConns(1)
+	db.SetConnMaxLifetime(0)
+	db.SetConnMaxIdleTime(0)
+
+	if err := db.PingContext(context.Background()); err != nil {
+		_ = db.Close()
+		t.Fatalf("failed to ping raw sqlite database: %v", err)
+	}
+
+	return db, func() {
+		if err := db.Close(); err != nil {
+			t.Fatalf("failed to close raw sqlite database: %v", err)
+		}
 	}
 }

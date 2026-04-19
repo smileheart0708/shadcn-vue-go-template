@@ -1,4 +1,5 @@
 import 'vue-router'
+import type { Capability } from '@/lib/api/auth'
 import type { RouteTitleKey } from '@/router/route-title'
 
 declare module 'vue-router' {
@@ -6,7 +7,7 @@ declare module 'vue-router' {
     titleKey?: RouteTitleKey
     requiresAuth?: boolean
     guestOnly?: boolean
-    requiredRole?: number
+    requiredCapabilities?: Capability[]
     maskUnauthorizedAsNotFound?: boolean
   }
 }

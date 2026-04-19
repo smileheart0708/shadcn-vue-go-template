@@ -1,67 +1,63 @@
 import { z } from 'zod'
 import { authApi, normalizeAPIError } from '@/lib/api/client'
 import { successEnvelopeSchema } from '@/lib/api/envelope'
+import { roleKeySchema } from '@/lib/api/auth'
 
-export const adminUserSchema = z.object({
+export const managedUserSchema = z.object({
   id: z.number().int().positive(),
   username: z.string(),
   email: z.email().nullable(),
   avatarUrl: z.string().nullable(),
-  role: z.number().int(),
-  status: z.enum(['active', 'banned']),
+  roleKeys: z.array(roleKeySchema),
+  status: z.enum(['active', 'disabled']),
   createdAt: z.string(),
-  bannedAt: z.string().nullable(),
-  mustChangePassword: z.boolean(),
+  updatedAt: z.string(),
+  actions: z.array(z.enum(['update', 'disable', 'enable'])),
 })
 
-export type AdminUser = z.infer<typeof adminUserSchema>
+export type ManagedUser = z.infer<typeof managedUserSchema>
 
-export interface ListAdminUsersParams {
+export interface ListManagedUsersParams {
   q?: string
-  role?: number | null
-  status?: 'active' | 'banned' | null
-  sort?: 'created_at_desc' | 'created_at_asc' | 'username_asc' | 'username_desc'
+  role?: string | null
+  status?: 'active' | 'disabled' | null
   page?: number
   pageSize?: number
 }
 
-export interface AdminUserUpsertInput {
+export interface ManagedUserUpsertInput {
   username: string
   email: string | null
-  role?: number | null
+  roleKeys: string[]
 }
 
-export interface AdminCreateUserInput extends AdminUserUpsertInput {
+export interface ManagedUserCreateInput extends ManagedUserUpsertInput {
   password: string
 }
 
-const adminUsersPageSchema = successEnvelopeSchema(
+const managementUsersPageSchema = successEnvelopeSchema(
   z.object({
-    items: z.array(adminUserSchema),
+    items: z.array(managedUserSchema),
     page: z.number().int().positive(),
     pageSize: z.number().int().positive(),
     total: z.number().int().nonnegative(),
   }),
 )
 
-const adminUserEnvelopeSchema = successEnvelopeSchema(adminUserSchema)
+const managedUserEnvelopeSchema = successEnvelopeSchema(managedUserSchema)
 
-export async function listAdminUsers(params: ListAdminUsersParams = {}) {
+export async function listAdminUsers(params: ListManagedUsersParams = {}) {
   try {
     const searchParams = new URLSearchParams()
     const query = params.q?.trim()
-
-    if (query !== undefined && query.length > 0) {
+    if (query !== undefined && query !== '') {
       searchParams.set('q', query)
     }
-    if (typeof params.role === 'number') {
-      searchParams.set('role', String(params.role))
+    if (params.role !== null && params.role !== undefined && params.role !== '') {
+      searchParams.set('role', params.role)
     }
-    if (params.status) {
+    if (params.status !== null && params.status !== undefined) {
       searchParams.set('status', params.status)
-    }
-    if (params.sort) {
-      searchParams.set('sort', params.sort)
     }
     if (typeof params.page === 'number') {
       searchParams.set('page', String(params.page))
@@ -70,44 +66,44 @@ export async function listAdminUsers(params: ListAdminUsersParams = {}) {
       searchParams.set('pageSize', String(params.pageSize))
     }
 
-    const payload = await authApi.get('/api/admin/users', { searchParams }).json<unknown>()
-    return adminUsersPageSchema.parse(payload).data
+    const payload = await authApi.get('/api/management/users', { searchParams }).json<unknown>()
+    return managementUsersPageSchema.parse(payload).data
   } catch (error) {
     return normalizeAPIError(error)
   }
 }
 
-export async function createAdminUser(input: AdminCreateUserInput) {
+export async function createAdminUser(input: ManagedUserCreateInput) {
   try {
-    const payload = await authApi.post('/api/admin/users', { json: input }).json<unknown>()
-    return adminUserEnvelopeSchema.parse(payload).data
+    const payload = await authApi.post('/api/management/users', { json: input }).json<unknown>()
+    return managedUserEnvelopeSchema.parse(payload).data
   } catch (error) {
     return normalizeAPIError(error)
   }
 }
 
-export async function updateAdminUser(id: number, input: AdminUserUpsertInput) {
+export async function updateAdminUser(id: number, input: ManagedUserUpsertInput) {
   try {
-    const payload = await authApi.patch(`/api/admin/users/${String(id)}`, { json: input }).json<unknown>()
-    return adminUserEnvelopeSchema.parse(payload).data
+    const payload = await authApi.patch(`/api/management/users/${String(id)}`, { json: input }).json<unknown>()
+    return managedUserEnvelopeSchema.parse(payload).data
   } catch (error) {
     return normalizeAPIError(error)
   }
 }
 
-export async function banAdminUser(id: number) {
+export async function disableAdminUser(id: number) {
   try {
-    const payload = await authApi.post(`/api/admin/users/${String(id)}/ban`).json<unknown>()
-    return adminUserEnvelopeSchema.parse(payload).data
+    const payload = await authApi.post(`/api/management/users/${String(id)}/disable`).json<unknown>()
+    return managedUserEnvelopeSchema.parse(payload).data
   } catch (error) {
     return normalizeAPIError(error)
   }
 }
 
-export async function unbanAdminUser(id: number) {
+export async function enableAdminUser(id: number) {
   try {
-    const payload = await authApi.post(`/api/admin/users/${String(id)}/unban`).json<unknown>()
-    return adminUserEnvelopeSchema.parse(payload).data
+    const payload = await authApi.post(`/api/management/users/${String(id)}/enable`).json<unknown>()
+    return managedUserEnvelopeSchema.parse(payload).data
   } catch (error) {
     return normalizeAPIError(error)
   }

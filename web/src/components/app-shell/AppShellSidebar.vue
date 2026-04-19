@@ -14,10 +14,10 @@ const authStore = useAuthStore()
 const navigation = useAppShellNavigation()
 
 const currentUser = computed(() => ({
-  username: authStore.user?.username ?? 'admin',
-  email: authStore.user?.email ?? null,
-  avatarUrl: authStore.user?.avatarUrl ?? null,
-  role: authStore.user?.role ?? 0,
+  username: authStore.viewer?.identity.username ?? 'owner',
+  email: authStore.viewer?.identity.email ?? null,
+  avatarUrl: authStore.viewer?.identity.avatarUrl ?? null,
+  roleKeys: authStore.viewer?.authorization.roleKeys ?? [],
 }))
 
 async function handleLogout() {

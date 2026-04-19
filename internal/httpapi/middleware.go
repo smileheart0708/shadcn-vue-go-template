@@ -2,63 +2,73 @@ package httpapi
 
 import (
 	"net/http"
+	"slices"
 
 	"main/internal/auth"
+	"main/internal/setup"
 )
 
 type Middleware func(http.Handler) http.Handler
 
 func Chain(handler http.Handler, middlewares ...Middleware) http.Handler {
 	wrapped := handler
-
 	for i := len(middlewares) - 1; i >= 0; i-- {
 		wrapped = middlewares[i](wrapped)
 	}
-
 	return wrapped
+}
+
+func RequireSetupCompleted(setupService *setup.Service) Middleware {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			state, err := setupService.GetState(r.Context())
+			if err != nil {
+				writeAPIError(w, http.StatusInternalServerError, "setup_state_unavailable", "Failed to load install state.")
+				return
+			}
+			if !state.SetupCompleted {
+				writeAPIError(w, http.StatusServiceUnavailable, "setup_required", "The application must be initialized before this endpoint can be used.")
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
 }
 
 func RequireAuth(authService *auth.Service) Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			token, err := auth.BearerTokenFromHeader(r.Header.Get("Authorization"))
+			actor, err := authService.AuthenticateRequest(r.Context(), r.Header.Get("Authorization"))
 			if err != nil {
-				writeAPIError(w, http.StatusUnauthorized, "missing_token", "Missing bearer token.")
+				switch err {
+				case auth.ErrMissingBearerToken:
+					writeAPIError(w, http.StatusUnauthorized, "missing_token", "Missing bearer token.")
+				default:
+					writeAPIError(w, http.StatusUnauthorized, "invalid_token", "Invalid or expired token.")
+				}
 				return
 			}
 
-			principal, err := authService.ParseToken(token)
-			if err != nil {
-				writeAPIError(w, http.StatusUnauthorized, "invalid_token", "Invalid or expired token.")
-				return
-			}
-
-			if err := authService.ValidatePrincipal(r.Context(), principal); err != nil {
-				writeAPIError(w, http.StatusUnauthorized, "invalid_token", "Invalid or expired token.")
-				return
-			}
-
-			ctx := auth.WithPrincipal(r.Context(), principal)
-			next.ServeHTTP(w, r.WithContext(ctx))
+			next.ServeHTTP(w, r.WithContext(auth.WithActor(r.Context(), actor)))
 		})
 	}
 }
 
-func RequireRole(minRole int) Middleware {
+func RequireCapability(capability string) Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			principal, ok := auth.PrincipalFromContext(r.Context())
+			actor, ok := auth.ActorFromContext(r.Context())
 			if !ok {
 				writeAPIError(w, http.StatusUnauthorized, "unauthorized", "Authentication is required.")
 				return
 			}
 
-			if principal.Role < minRole {
-				writeAPIError(w, http.StatusForbidden, "forbidden", "You do not have permission to access this resource.")
+			if slices.Contains(actor.Authorization.Capabilities, capability) {
+				next.ServeHTTP(w, r)
 				return
 			}
 
-			next.ServeHTTP(w, r)
+			writeAPIError(w, http.StatusForbidden, "forbidden", "You do not have permission to access this resource.")
 		})
 	}
 }

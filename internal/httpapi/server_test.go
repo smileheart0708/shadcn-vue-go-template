@@ -1,38 +1,39 @@
 package httpapi
 
 import (
-	"bufio"
 	"bytes"
 	"compress/gzip"
 	"context"
-	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"io"
-	"log/slog"
-	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 
+	"main/internal/audit"
 	"main/internal/auth"
+	"main/internal/authorization"
 	"main/internal/database"
+	"main/internal/identity"
 	"main/internal/logging"
-	"main/internal/users"
+	"main/internal/setup"
+	"main/internal/systemsettings"
 )
 
 type testContext struct {
-	handler   http.Handler
-	store     *users.Store
-	logStream *logging.Stream
-	dataDir   string
-	logs      *bytes.Buffer
-	auth      auth.Options
-	dbCleanup func()
+	handler         http.Handler
+	authService     *auth.Service
+	identityService *identity.Service
+	settingsService *systemsettings.Service
+	setupService    *setup.Service
+	auditService    *audit.Service
+	logStream       *logging.Stream
+	dataDir         string
 }
 
 type testSuccessEnvelope[T any] struct {
@@ -48,288 +49,163 @@ type testErrorEnvelope struct {
 	} `json:"error"`
 }
 
-func TestHealthz(t *testing.T) {
+func TestInstallSetupOnlyRunsOnceAndCreatesOwnerSession(t *testing.T) {
 	t.Parallel()
 
-	ctx := newTestContext(t, true)
+	ctx := newTestContext(t)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/healthz", nil)
-	req.RemoteAddr = "203.0.113.10:1234"
-	rec := httptest.NewRecorder()
+	stateReq := httptest.NewRequest(http.MethodGet, "/api/install/state", nil)
+	stateRec := httptest.NewRecorder()
+	ctx.handler.ServeHTTP(stateRec, stateReq)
 
-	ctx.handler.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusNoContent {
-		t.Fatalf("expected status %d, got %d", http.StatusNoContent, rec.Code)
+	if stateRec.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, stateRec.Code)
 	}
 
-	output := ctx.logs.String()
-	if !strings.Contains(output, "route=\"GET /api/healthz\"") {
-		t.Fatalf("expected matched route in logs, got %q", output)
-	}
-	if !strings.Contains(output, "status=204") {
-		t.Fatalf("expected status=204 in logs, got %q", output)
-	}
-	if !strings.Contains(output, "remote_addr=203.0.113.10") {
-		t.Fatalf("expected stripped remote addr in logs, got %q", output)
-	}
-}
-
-func TestAPIRoutesAreNotLoggedByDefault(t *testing.T) {
-	t.Parallel()
-
-	ctx := newTestContext(t, false)
-
-	req := httptest.NewRequest(http.MethodGet, "/api/healthz", nil)
-	rec := httptest.NewRecorder()
-
-	ctx.handler.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusNoContent {
-		t.Fatalf("expected status %d, got %d", http.StatusNoContent, rec.Code)
-	}
-	if output := strings.TrimSpace(ctx.logs.String()); output != "" {
-		t.Fatalf("expected API logs to be disabled by default, got %q", output)
-	}
-}
-
-func TestLoginAndMeFlow(t *testing.T) {
-	t.Parallel()
-
-	ctx := newTestContext(t, false)
-	token := loginAsBootstrapAdmin(t, ctx)
-
-	req := httptest.NewRequest(http.MethodGet, "/api/auth/me", nil)
-	req.Header.Set("Authorization", "Bearer "+token)
-	rec := httptest.NewRecorder()
-
-	ctx.handler.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected status %d, got %d", http.StatusOK, rec.Code)
+	var stateEnvelope testSuccessEnvelope[installStateResponse]
+	decodeJSONResponse(t, stateRec.Body.Bytes(), &stateEnvelope)
+	if stateEnvelope.Data.SetupCompleted {
+		t.Fatal("expected fresh install state to be pending")
 	}
 
-	var response testSuccessEnvelope[users.PublicUser]
-	decodeJSONResponse(t, rec.Body.Bytes(), &response)
-
-	if !response.Success {
-		t.Fatal("expected success response")
-	}
-	if response.Data.Username != "admin" {
-		t.Fatalf("expected username admin, got %q", response.Data.Username)
-	}
-	if response.Data.Role != users.RoleSuperAdmin {
-		t.Fatalf("expected role %d, got %d", users.RoleSuperAdmin, response.Data.Role)
-	}
-	if !response.Data.MustChangePassword {
-		t.Fatal("expected bootstrap admin to require password change")
-	}
-}
-
-func TestLoginSetsRefreshCookieAndWritesLog(t *testing.T) {
-	t.Parallel()
-
-	ctx := newTestContext(t, false)
-	response, refreshCookie := loginBootstrapAdminSession(t, ctx)
-
+	session, refreshCookie := performSetup(t, ctx)
 	if refreshCookie == nil {
-		t.Fatal("expected refresh cookie to be set")
+		t.Fatal("expected refresh cookie after setup")
 	}
-	if !refreshCookie.HttpOnly {
-		t.Fatal("expected refresh cookie to be httpOnly")
-	}
-	if refreshCookie.Name != auth.ResolveRefreshCookieName(ctx.auth) {
-		t.Fatalf("expected refresh cookie name %q, got %q", auth.ResolveRefreshCookieName(ctx.auth), refreshCookie.Name)
-	}
-	if refreshCookie.Path != auth.RefreshCookiePath {
-		t.Fatalf("expected refresh cookie path %q, got %q", auth.RefreshCookiePath, refreshCookie.Path)
-	}
-	if response.AccessToken == "" {
-		t.Fatal("expected access token in login response")
+	if got := session.Viewer.Authorization.RoleKeys; len(got) != 1 || got[0] != authorization.RoleOwner {
+		t.Fatalf("expected owner role after setup, got %+v", got)
 	}
 
-	logs, err := ctx.store.ListAuthLogs(context.Background())
-	if err != nil {
-		t.Fatalf("failed to list auth logs: %v", err)
+	secondReq := httptest.NewRequest(http.MethodPost, "/api/install/setup", strings.NewReader(`{"username":"other","password":"password123"}`))
+	secondReq.Header.Set("Content-Type", "application/json")
+	secondRec := httptest.NewRecorder()
+	ctx.handler.ServeHTTP(secondRec, secondReq)
+
+	if secondRec.Code != http.StatusConflict {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusConflict, secondRec.Code, secondRec.Body.String())
 	}
-	if len(logs) != 1 || logs[0].EventType != users.AuthLogEventLoginSuccess || !logs[0].Success {
-		t.Fatalf("expected one login_success log, got %+v", logs)
-	}
+
+	decodeErrorCode(t, secondRec.Body.Bytes(), "setup_completed")
 }
 
-func TestLoginSupportsCustomRefreshCookieName(t *testing.T) {
+func TestSetupRequiredBlocksNormalAuthRoutesUntilInitialized(t *testing.T) {
 	t.Parallel()
 
-	ctx := newTestContextWithAuthOptions(t, false, auth.Options{
-		Issuer:             "test-suite",
-		Secret:             []byte("test-secret"),
-		TTL:                time.Hour,
-		RefreshIdleTTL:     7 * 24 * time.Hour,
-		RefreshAbsoluteTTL: 30 * 24 * time.Hour,
-		RefreshCookieName:  "project_a_refresh_token",
-	})
-	_, refreshCookie := loginBootstrapAdminSession(t, ctx)
+	ctx := newTestContext(t)
 
-	if refreshCookie == nil {
-		t.Fatal("expected refresh cookie to be set")
-	}
-	if refreshCookie.Name != "project_a_refresh_token" {
-		t.Fatalf("expected refresh cookie name %q, got %q", "project_a_refresh_token", refreshCookie.Name)
-	}
-}
-
-func TestLoginSupportsEmailIdentifier(t *testing.T) {
-	t.Parallel()
-
-	ctx := newTestContext(t, false)
-	password := "member123"
-	createTestUser(t, ctx.store, users.CreateParams{
-		Username:     "member",
-		Email:        new("member@example.com"),
-		PasswordHash: mustHashPassword(t, password),
-		Role:         users.RoleUser,
-	})
-
-	loginBody := `{"identifier":"member@example.com","password":"member123"}`
-	req := httptest.NewRequest(http.MethodPost, "/api/auth/login", strings.NewReader(loginBody))
+	req := httptest.NewRequest(http.MethodPost, "/api/auth/login", strings.NewReader(`{"identifier":"owner","password":"password123"}`))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
-
 	ctx.handler.ServeHTTP(rec, req)
 
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected status %d, got %d", http.StatusOK, rec.Code)
+	if rec.Code != http.StatusServiceUnavailable {
+		t.Fatalf("expected status %d, got %d", http.StatusServiceUnavailable, rec.Code)
 	}
-
-	var response testSuccessEnvelope[loginResponse]
-	decodeJSONResponse(t, rec.Body.Bytes(), &response)
-	if response.Data.User.Username != "member" {
-		t.Fatalf("expected username member, got %q", response.Data.User.Username)
-	}
+	decodeErrorCode(t, rec.Body.Bytes(), "setup_required")
 }
 
-func TestInvalidCredentialsReturnUnauthorized(t *testing.T) {
+func TestSingleUserModeBlocksManagedUserCreationByDefault(t *testing.T) {
 	t.Parallel()
 
-	ctx := newTestContext(t, false)
+	ctx := newTestContext(t)
+	ownerSession, _ := performSetup(t, ctx)
 
-	req := httptest.NewRequest(http.MethodPost, "/api/auth/login", strings.NewReader(`{"identifier":"admin","password":"wrongpass"}`))
+	req := httptest.NewRequest(http.MethodPost, "/api/management/users", strings.NewReader(`{"username":"member","password":"member123","roleKeys":["user"]}`))
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+ownerSession.AccessToken)
 	rec := httptest.NewRecorder()
-
 	ctx.handler.ServeHTTP(rec, req)
 
-	if rec.Code != http.StatusUnauthorized {
-		t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, rec.Code)
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusForbidden, rec.Code, rec.Body.String())
 	}
-
-	var response testErrorEnvelope
-	decodeJSONResponse(t, rec.Body.Bytes(), &response)
-	if response.Success {
-		t.Fatal("expected unsuccessful response")
-	}
-	if response.Error.Code != "invalid_credentials" {
-		t.Fatalf("expected invalid_credentials, got %q", response.Error.Code)
-	}
-
-	logs, err := ctx.store.ListAuthLogs(context.Background())
-	if err != nil {
-		t.Fatalf("failed to list auth logs: %v", err)
-	}
-	if len(logs) != 1 || logs[0].EventType != users.AuthLogEventLoginFailed || logs[0].Success {
-		t.Fatalf("expected one login_failed log, got %+v", logs)
-	}
+	decodeErrorCode(t, rec.Body.Bytes(), "forbidden")
 }
 
-func TestRefreshRotatesTokenAndWritesLog(t *testing.T) {
+func TestMultiUserRegisterRefreshReplayAndLogoutFlow(t *testing.T) {
 	t.Parallel()
 
-	ctx := newTestContext(t, false)
-	_, refreshCookie := loginBootstrapAdminSession(t, ctx)
+	ctx := newTestContext(t)
+	ownerSession, _ := performSetup(t, ctx)
+	updateSystemSettings(t, ctx, ownerSession.AccessToken, `{"authMode":"multi_user","registrationMode":"public","adminUserCreateEnabled":true,"selfServiceAccountDeletionEnabled":true}`)
 
-	req := httptest.NewRequest(http.MethodPost, "/api/auth/refresh", nil)
-	req.AddCookie(refreshCookie)
-	rec := httptest.NewRecorder()
-
-	ctx.handler.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, rec.Code, rec.Body.String())
-	}
-
-	var response testSuccessEnvelope[loginResponse]
-	decodeJSONResponse(t, rec.Body.Bytes(), &response)
-	if response.Data.AccessToken == "" {
-		t.Fatal("expected refreshed access token")
-	}
-
-	nextCookie := findCookie(rec.Result().Cookies(), auth.ResolveRefreshCookieName(ctx.auth))
-	if nextCookie == nil {
-		t.Fatal("expected rotated refresh cookie")
-	}
-	if nextCookie.Value == refreshCookie.Value {
-		t.Fatal("expected refresh token rotation to change cookie value")
-	}
-
-	logs, err := ctx.store.ListAuthLogs(context.Background())
-	if err != nil {
-		t.Fatalf("failed to list auth logs: %v", err)
-	}
-	if len(logs) != 2 || logs[1].EventType != users.AuthLogEventRefreshSuccess || !logs[1].Success {
-		t.Fatalf("expected refresh_success log after login, got %+v", logs)
-	}
-}
-
-func TestExpiredAccessTokenCanRefreshSession(t *testing.T) {
-	t.Parallel()
-
-	ctx := newTestContextWithAuthOptions(t, false, auth.Options{
-		Issuer:             "test-suite",
-		Secret:             []byte("test-secret"),
-		TTL:                5 * time.Millisecond,
-		RefreshIdleTTL:     7 * 24 * time.Hour,
-		RefreshAbsoluteTTL: 30 * 24 * time.Hour,
-	})
-	response, refreshCookie := loginBootstrapAdminSession(t, ctx)
-
-	time.Sleep(20 * time.Millisecond)
-
-	meReq := httptest.NewRequest(http.MethodGet, "/api/auth/me", nil)
-	meReq.Header.Set("Authorization", "Bearer "+response.AccessToken)
-	meRec := httptest.NewRecorder()
-	ctx.handler.ServeHTTP(meRec, meReq)
-
-	if meRec.Code != http.StatusUnauthorized {
-		t.Fatalf("expected expired access token to fail with 401, got %d", meRec.Code)
+	_, memberCookie := registerUser(t, ctx, "member", "member@example.com", "member123")
+	if memberCookie == nil {
+		t.Fatal("expected refresh cookie for registered member")
 	}
 
 	refreshReq := httptest.NewRequest(http.MethodPost, "/api/auth/refresh", nil)
-	refreshReq.AddCookie(refreshCookie)
+	refreshReq.AddCookie(memberCookie)
 	refreshRec := httptest.NewRecorder()
 	ctx.handler.ServeHTTP(refreshRec, refreshReq)
 
 	if refreshRec.Code != http.StatusOK {
-		t.Fatalf("expected refresh status %d, got %d: %s", http.StatusOK, refreshRec.Code, refreshRec.Body.String())
+		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, refreshRec.Code, refreshRec.Body.String())
+	}
+	var refreshedEnvelope testSuccessEnvelope[sessionResponse]
+	decodeJSONResponse(t, refreshRec.Body.Bytes(), &refreshedEnvelope)
+	nextCookie := findCookie(refreshRec.Result().Cookies(), ctx.authServiceCookieName())
+	if nextCookie == nil || nextCookie.Value == memberCookie.Value {
+		t.Fatal("expected rotated refresh cookie")
+	}
+
+	meReq := httptest.NewRequest(http.MethodGet, "/api/auth/me", nil)
+	meReq.Header.Set("Authorization", "Bearer "+refreshedEnvelope.Data.AccessToken)
+	meRec := httptest.NewRecorder()
+	ctx.handler.ServeHTTP(meRec, meReq)
+	if meRec.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, meRec.Code)
+	}
+
+	replayReq := httptest.NewRequest(http.MethodPost, "/api/auth/refresh", nil)
+	replayReq.AddCookie(memberCookie)
+	replayRec := httptest.NewRecorder()
+	ctx.handler.ServeHTTP(replayRec, replayReq)
+
+	if replayRec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, replayRec.Code)
+	}
+	decodeErrorCode(t, replayRec.Body.Bytes(), "invalid_refresh_token")
+
+	postReplayRefreshReq := httptest.NewRequest(http.MethodPost, "/api/auth/refresh", nil)
+	postReplayRefreshReq.AddCookie(nextCookie)
+	postReplayRefreshRec := httptest.NewRecorder()
+	ctx.handler.ServeHTTP(postReplayRefreshRec, postReplayRefreshReq)
+	if postReplayRefreshRec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, postReplayRefreshRec.Code)
+	}
+
+	_, latestSessionCookie := loginUser(t, ctx, "member", "member123")
+	logoutReq := httptest.NewRequest(http.MethodPost, "/api/auth/logout", nil)
+	logoutReq.AddCookie(latestSessionCookie)
+	logoutRec := httptest.NewRecorder()
+	ctx.handler.ServeHTTP(logoutRec, logoutReq)
+	if logoutRec.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, logoutRec.Code)
+	}
+
+	postLogoutRefreshReq := httptest.NewRequest(http.MethodPost, "/api/auth/refresh", nil)
+	postLogoutRefreshReq.AddCookie(latestSessionCookie)
+	postLogoutRefreshRec := httptest.NewRecorder()
+	ctx.handler.ServeHTTP(postLogoutRefreshRec, postLogoutRefreshReq)
+	if postLogoutRefreshRec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, postLogoutRefreshRec.Code)
 	}
 }
 
 func TestPasswordChangeInvalidatesOldAccessAndRefreshTokens(t *testing.T) {
 	t.Parallel()
 
-	ctx := newTestContext(t, false)
-	loginResponse, refreshCookie := loginBootstrapAdminSession(t, ctx)
-	bootstrapPassword := readBootstrapPassword(t, ctx.dataDir)
+	ctx := newTestContext(t)
+	ownerSession, _ := performSetup(t, ctx)
+	updateSystemSettings(t, ctx, ownerSession.AccessToken, `{"authMode":"multi_user","registrationMode":"public","adminUserCreateEnabled":true,"selfServiceAccountDeletionEnabled":true}`)
+	memberSession, memberCookie := registerUser(t, ctx, "member", "member@example.com", "member123")
 
-	changeReq := httptest.NewRequest(
-		http.MethodPost,
-		"/api/account/password",
-		strings.NewReader(`{"currentPassword":"`+bootstrapPassword+`","newPassword":"newsecure1"}`),
-	)
+	changeReq := httptest.NewRequest(http.MethodPost, "/api/account/password", strings.NewReader(`{"currentPassword":"member123","newPassword":"member456"}`))
 	changeReq.Header.Set("Content-Type", "application/json")
-	changeReq.Header.Set("Authorization", "Bearer "+loginResponse.AccessToken)
-	changeReq.AddCookie(refreshCookie)
+	changeReq.Header.Set("Authorization", "Bearer "+memberSession.AccessToken)
+	changeReq.AddCookie(memberCookie)
 	changeRec := httptest.NewRecorder()
-
 	ctx.handler.ServeHTTP(changeRec, changeReq)
 
 	if changeRec.Code != http.StatusOK {
@@ -337,504 +213,180 @@ func TestPasswordChangeInvalidatesOldAccessAndRefreshTokens(t *testing.T) {
 	}
 
 	meReq := httptest.NewRequest(http.MethodGet, "/api/auth/me", nil)
-	meReq.Header.Set("Authorization", "Bearer "+loginResponse.AccessToken)
+	meReq.Header.Set("Authorization", "Bearer "+memberSession.AccessToken)
 	meRec := httptest.NewRecorder()
 	ctx.handler.ServeHTTP(meRec, meReq)
-
 	if meRec.Code != http.StatusUnauthorized {
-		t.Fatalf("expected old access token to be rejected after password change, got %d", meRec.Code)
+		t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, meRec.Code)
 	}
 
 	refreshReq := httptest.NewRequest(http.MethodPost, "/api/auth/refresh", nil)
-	refreshReq.AddCookie(refreshCookie)
+	refreshReq.AddCookie(memberCookie)
 	refreshRec := httptest.NewRecorder()
 	ctx.handler.ServeHTTP(refreshRec, refreshReq)
-
 	if refreshRec.Code != http.StatusUnauthorized {
-		t.Fatalf("expected old refresh token to be rejected after password change, got %d", refreshRec.Code)
-	}
-
-	logs, err := ctx.store.ListAuthLogs(context.Background())
-	if err != nil {
-		t.Fatalf("failed to list auth logs: %v", err)
-	}
-	if !containsAuthEvent(logs, users.AuthLogEventPasswordChanged) || !containsAuthEvent(logs, users.AuthLogEventPasswordChangedForcedLogout) {
-		t.Fatalf("expected password change auth logs, got %+v", logs)
+		t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, refreshRec.Code)
 	}
 }
 
-func TestLogoutInvalidatesRefreshToken(t *testing.T) {
+func TestRoleChangeAndDisableInvalidateExistingSessions(t *testing.T) {
 	t.Parallel()
 
-	ctx := newTestContext(t, false)
-	_, refreshCookie := loginBootstrapAdminSession(t, ctx)
+	ctx := newTestContext(t)
+	ownerSession, _ := performSetup(t, ctx)
+	updateSystemSettings(t, ctx, ownerSession.AccessToken, `{"authMode":"multi_user","registrationMode":"public","adminUserCreateEnabled":true,"selfServiceAccountDeletionEnabled":true}`)
 
-	logoutReq := httptest.NewRequest(http.MethodPost, "/api/auth/logout", nil)
-	logoutReq.AddCookie(refreshCookie)
-	logoutRec := httptest.NewRecorder()
-	ctx.handler.ServeHTTP(logoutRec, logoutReq)
+	memberSession, memberCookie := registerUser(t, ctx, "member", "member@example.com", "member123")
+	member := findUserByUsername(t, ctx, "member")
 
-	if logoutRec.Code != http.StatusOK {
-		t.Fatalf("expected logout status %d, got %d: %s", http.StatusOK, logoutRec.Code, logoutRec.Body.String())
+	updateReq := httptest.NewRequest(http.MethodPatch, "/api/management/users/"+strconv.FormatInt(member.ID, 10), strings.NewReader(`{"username":"member","email":"member@example.com","roleKeys":["admin"]}`))
+	updateReq.Header.Set("Content-Type", "application/json")
+	updateReq.Header.Set("Authorization", "Bearer "+ownerSession.AccessToken)
+	updateRec := httptest.NewRecorder()
+	ctx.handler.ServeHTTP(updateRec, updateReq)
+
+	if updateRec.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, updateRec.Code, updateRec.Body.String())
 	}
 
-	refreshReq := httptest.NewRequest(http.MethodPost, "/api/auth/refresh", nil)
-	refreshReq.AddCookie(refreshCookie)
-	refreshRec := httptest.NewRecorder()
-	ctx.handler.ServeHTTP(refreshRec, refreshReq)
+	assertUnauthorizedMeAndRefresh(t, ctx, memberSession.AccessToken, memberCookie)
 
-	if refreshRec.Code != http.StatusUnauthorized {
-		t.Fatalf("expected refresh token to be rejected after logout, got %d", refreshRec.Code)
+	adminSession, adminCookie := loginUser(t, ctx, "member", "member123")
+	disableReq := httptest.NewRequest(http.MethodPost, "/api/management/users/"+strconv.FormatInt(member.ID, 10)+"/disable", nil)
+	disableReq.Header.Set("Authorization", "Bearer "+ownerSession.AccessToken)
+	disableRec := httptest.NewRecorder()
+	ctx.handler.ServeHTTP(disableRec, disableReq)
+
+	if disableRec.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, disableRec.Code, disableRec.Body.String())
 	}
+
+	assertUnauthorizedMeAndRefresh(t, ctx, adminSession.AccessToken, adminCookie)
 }
 
-func TestRefreshAfterUserDeletionDoesNotLogAuthInsertError(t *testing.T) {
+func TestAdminCannotManageOwnerOrOtherAdminsAndOwnerRemainsVisible(t *testing.T) {
 	t.Parallel()
 
-	ctx := newTestContext(t, false)
-	_, refreshCookie := loginBootstrapAdminSession(t, ctx)
+	ctx := newTestContext(t)
+	ownerSession, _ := performSetup(t, ctx)
+	updateSystemSettings(t, ctx, ownerSession.AccessToken, `{"authMode":"multi_user","registrationMode":"disabled","adminUserCreateEnabled":true,"selfServiceAccountDeletionEnabled":true}`)
 
-	admin, err := ctx.store.FindByIdentifier(context.Background(), "admin")
-	if err != nil {
-		t.Fatalf("failed to load bootstrap admin: %v", err)
-	}
-	if err := ctx.store.Delete(context.Background(), admin.ID); err != nil {
-		t.Fatalf("failed to delete bootstrap admin: %v", err)
-	}
+	createManagedUser(t, ctx, ownerSession.AccessToken, `{"username":"admin-one","email":"admin-one@example.com","password":"admin1234","roleKeys":["admin"]}`)
+	createManagedUser(t, ctx, ownerSession.AccessToken, `{"username":"member-one","email":"member-one@example.com","password":"member1234","roleKeys":["user"]}`)
 
-	ctx.logs.Reset()
+	adminSession, _ := loginUser(t, ctx, "admin-one", "admin1234")
+	listReq := httptest.NewRequest(http.MethodGet, "/api/management/users", nil)
+	listReq.Header.Set("Authorization", "Bearer "+adminSession.AccessToken)
+	listRec := httptest.NewRecorder()
+	ctx.handler.ServeHTTP(listRec, listReq)
 
-	refreshReq := httptest.NewRequest(http.MethodPost, "/api/auth/refresh", nil)
-	refreshReq.AddCookie(refreshCookie)
-	refreshRec := httptest.NewRecorder()
-	ctx.handler.ServeHTTP(refreshRec, refreshReq)
-
-	if refreshRec.Code != http.StatusUnauthorized {
-		t.Fatalf("expected refresh token to be rejected after user deletion, got %d", refreshRec.Code)
-	}
-	if strings.Contains(ctx.logs.String(), "failed to write auth log") {
-		t.Fatalf("expected stale refresh to avoid auth log write errors, got %q", ctx.logs.String())
+	if listRec.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, listRec.Code, listRec.Body.String())
 	}
 
-	logs, err := ctx.store.ListAuthLogs(context.Background())
-	if err != nil {
-		t.Fatalf("failed to list auth logs: %v", err)
+	var listEnvelope testSuccessEnvelope[managementUsersPageResponse]
+	decodeJSONResponse(t, listRec.Body.Bytes(), &listEnvelope)
+
+	var ownerActions []string
+	var adminActions []string
+	var memberActions []string
+	for _, item := range listEnvelope.Data.Items {
+		switch item.Username {
+		case "owner":
+			ownerActions = item.Actions
+		case "admin-one":
+			adminActions = item.Actions
+		case "member-one":
+			memberActions = item.Actions
+		}
 	}
-	if len(logs) != 2 {
-		t.Fatalf("expected login and refresh auth logs, got %+v", logs)
+
+	if len(ownerActions) != 0 {
+		t.Fatalf("expected owner to be visible but not actionable for admin, got %+v", ownerActions)
 	}
-	if logs[1].EventType != users.AuthLogEventRefreshFailed || logs[1].Success {
-		t.Fatalf("expected refresh_failed auth log, got %+v", logs[1])
+	if len(adminActions) != 0 {
+		t.Fatalf("expected admin self row to be non-actionable, got %+v", adminActions)
 	}
-	if logs[1].UserID == nil || *logs[1].UserID != admin.ID {
-		t.Fatalf("expected deleted user reference %d to be preserved, got %+v", admin.ID, logs[1].UserID)
+	if len(memberActions) == 0 {
+		t.Fatalf("expected member row to remain actionable for admin, got %+v", memberActions)
 	}
-	sessionID, _, err := auth.ParseRefreshToken(refreshCookie.Value)
-	if err != nil {
-		t.Fatalf("failed to parse refresh token: %v", err)
+
+	owner := findUserByUsername(t, ctx, "owner")
+	updateOwnerReq := httptest.NewRequest(http.MethodPatch, "/api/management/users/"+strconv.FormatInt(owner.ID, 10), strings.NewReader(`{"username":"owner","roleKeys":["user"]}`))
+	updateOwnerReq.Header.Set("Content-Type", "application/json")
+	updateOwnerReq.Header.Set("Authorization", "Bearer "+adminSession.AccessToken)
+	updateOwnerRec := httptest.NewRecorder()
+	ctx.handler.ServeHTTP(updateOwnerRec, updateOwnerReq)
+
+	if updateOwnerRec.Code != http.StatusForbidden {
+		t.Fatalf("expected status %d, got %d", http.StatusForbidden, updateOwnerRec.Code)
 	}
-	if logs[1].SessionID == nil || *logs[1].SessionID != sessionID {
-		t.Fatalf("expected deleted session reference %q to be preserved, got %+v", sessionID, logs[1].SessionID)
+
+	createAdminReq := httptest.NewRequest(http.MethodPost, "/api/management/users", strings.NewReader(`{"username":"admin-two","password":"admin1234","roleKeys":["admin"]}`))
+	createAdminReq.Header.Set("Content-Type", "application/json")
+	createAdminReq.Header.Set("Authorization", "Bearer "+adminSession.AccessToken)
+	createAdminRec := httptest.NewRecorder()
+	ctx.handler.ServeHTTP(createAdminRec, createAdminReq)
+
+	if createAdminRec.Code != http.StatusBadRequest {
+		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, createAdminRec.Code)
 	}
+	decodeErrorCode(t, createAdminRec.Body.Bytes(), "invalid_role_keys")
 }
 
-func TestProtectedRouteRejectsMissingToken(t *testing.T) {
+func TestAuditLogsEndpointIncludesSecurityEvents(t *testing.T) {
 	t.Parallel()
 
-	ctx := newTestContext(t, false)
+	ctx := newTestContext(t)
+	ownerSession, _ := performSetup(t, ctx)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/auth/me", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/management/audit-logs?page=1&pageSize=20", nil)
+	req.Header.Set("Authorization", "Bearer "+ownerSession.AccessToken)
 	rec := httptest.NewRecorder()
-
-	ctx.handler.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusUnauthorized {
-		t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, rec.Code)
-	}
-
-	var response testErrorEnvelope
-	decodeJSONResponse(t, rec.Body.Bytes(), &response)
-	if response.Error.Code != "missing_token" {
-		t.Fatalf("expected missing_token error, got %q", response.Error.Code)
-	}
-}
-
-func TestUpdateProfileHandlesNullableEmail(t *testing.T) {
-	t.Parallel()
-
-	ctx := newTestContext(t, false)
-	token := loginAsBootstrapAdmin(t, ctx)
-
-	req := httptest.NewRequest(http.MethodPatch, "/api/account/profile", strings.NewReader(`{"username":"admin-renamed","email":null}`))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+token)
-	rec := httptest.NewRecorder()
-
-	ctx.handler.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected status %d, got %d", http.StatusOK, rec.Code)
-	}
-
-	var response testSuccessEnvelope[users.PublicUser]
-	decodeJSONResponse(t, rec.Body.Bytes(), &response)
-	if response.Data.Username != "admin-renamed" {
-		t.Fatalf("expected updated username, got %q", response.Data.Username)
-	}
-	if response.Data.Email != nil {
-		t.Fatalf("expected nil email, got %v", *response.Data.Email)
-	}
-}
-
-func TestUpdatePasswordClearsBootstrapFlagAndFile(t *testing.T) {
-	t.Parallel()
-
-	ctx := newTestContext(t, false)
-	token := loginAsBootstrapAdmin(t, ctx)
-	bootstrapPassword := readBootstrapPassword(t, ctx.dataDir)
-
-	req := httptest.NewRequest(
-		http.MethodPost,
-		"/api/account/password",
-		strings.NewReader(`{"currentPassword":"`+bootstrapPassword+`","newPassword":"newsecure1"}`),
-	)
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+token)
-	rec := httptest.NewRecorder()
-
 	ctx.handler.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
-		t.Fatalf("expected status %d, got %d", http.StatusOK, rec.Code)
+		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, rec.Code, rec.Body.String())
 	}
 
-	var response testSuccessEnvelope[users.PublicUser]
-	decodeJSONResponse(t, rec.Body.Bytes(), &response)
-	if response.Data.MustChangePassword {
-		t.Fatal("expected bootstrap flag to be cleared")
+	var envelope testSuccessEnvelope[audit.ListResult]
+	decodeJSONResponse(t, rec.Body.Bytes(), &envelope)
+	if len(envelope.Data.Items) == 0 {
+		t.Fatal("expected setup audit log to be present")
 	}
-
-	if _, err := os.Stat(users.BootstrapPasswordPath(ctx.dataDir)); !os.IsNotExist(err) {
-		t.Fatalf("expected bootstrap password file to be deleted, stat err=%v", err)
-	}
-}
-
-func TestAvatarUploadStoresFileAndReturnsURL(t *testing.T) {
-	t.Parallel()
-
-	ctx := newTestContext(t, false)
-	token := loginAsBootstrapAdmin(t, ctx)
-
-	body, contentType := newAvatarUploadRequest(t, "avatar.png", oneByOnePNG(t))
-	req := httptest.NewRequest(http.MethodPost, "/api/account/avatar", body)
-	req.Header.Set("Content-Type", contentType)
-	req.Header.Set("Authorization", "Bearer "+token)
-	rec := httptest.NewRecorder()
-
-	ctx.handler.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected status %d, got %d", http.StatusOK, rec.Code)
-	}
-
-	var response testSuccessEnvelope[users.PublicUser]
-	decodeJSONResponse(t, rec.Body.Bytes(), &response)
-	if response.Data.AvatarURL == nil {
-		t.Fatal("expected avatar URL in response")
-	}
-
-	avatarFiles, err := os.ReadDir(users.AvatarDir(ctx.dataDir))
-	if err != nil {
-		t.Fatalf("failed to read avatar dir: %v", err)
-	}
-	if len(avatarFiles) != 1 {
-		t.Fatalf("expected 1 avatar file, got %d", len(avatarFiles))
+	if envelope.Data.Items[0].EventType != audit.EventSetupCompleted {
+		t.Fatalf("expected first audit event %q, got %q", audit.EventSetupCompleted, envelope.Data.Items[0].EventType)
 	}
 }
 
-func TestAvatarUploadRejectsUnsupportedType(t *testing.T) {
+func TestSPAFallbackAndGzipStillWork(t *testing.T) {
 	t.Parallel()
 
-	ctx := newTestContext(t, false)
-	token := loginAsBootstrapAdmin(t, ctx)
-
-	body, contentType := newAvatarUploadRequest(t, "avatar.txt", []byte("plain text"))
-	req := httptest.NewRequest(http.MethodPost, "/api/account/avatar", body)
-	req.Header.Set("Content-Type", contentType)
-	req.Header.Set("Authorization", "Bearer "+token)
-	rec := httptest.NewRecorder()
-
-	ctx.handler.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusBadRequest {
-		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, rec.Code)
-	}
-
-	var response testErrorEnvelope
-	decodeJSONResponse(t, rec.Body.Bytes(), &response)
-	if response.Error.Code != "avatar_invalid_type" {
-		t.Fatalf("expected avatar_invalid_type, got %q", response.Error.Code)
-	}
-}
-
-func TestDeleteAccountAllowsNormalUsers(t *testing.T) {
-	t.Parallel()
-
-	ctx := newTestContext(t, false)
-	user := createTestUser(t, ctx.store, users.CreateParams{
-		Username:     "member",
-		PasswordHash: mustHashPassword(t, "member123"),
-		Role:         users.RoleUser,
-	})
-	token := issueTokenForUser(t, ctx, user)
-
-	req := httptest.NewRequest(http.MethodDelete, "/api/account", nil)
-	req.Header.Set("Authorization", "Bearer "+token)
-	rec := httptest.NewRecorder()
-
-	ctx.handler.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected status %d, got %d", http.StatusOK, rec.Code)
-	}
-
-	if _, err := ctx.store.GetByID(context.Background(), user.ID); !errors.Is(err, users.ErrUserNotFound) {
-		t.Fatalf("expected user to be deleted, got err=%v", err)
-	}
-}
-
-func TestDeleteAccountRejectsSuperAdmin(t *testing.T) {
-	t.Parallel()
-
-	ctx := newTestContext(t, false)
-	token := loginAsBootstrapAdmin(t, ctx)
-
-	req := httptest.NewRequest(http.MethodDelete, "/api/account", nil)
-	req.Header.Set("Authorization", "Bearer "+token)
-	rec := httptest.NewRecorder()
-
-	ctx.handler.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusForbidden {
-		t.Fatalf("expected status %d, got %d", http.StatusForbidden, rec.Code)
-	}
-
-	var response testErrorEnvelope
-	decodeJSONResponse(t, rec.Body.Bytes(), &response)
-	if response.Error.Code != "super_admin_delete_forbidden" {
-		t.Fatalf("expected super_admin_delete_forbidden, got %q", response.Error.Code)
-	}
-}
-
-func TestSPAFallbackServesIndexForClientRoute(t *testing.T) {
-	t.Parallel()
-
-	ctx := newTestContext(t, false)
+	ctx := newTestContext(t)
 
 	req := httptest.NewRequest(http.MethodGet, "/dashboard", nil)
 	rec := httptest.NewRecorder()
-
 	ctx.handler.ServeHTTP(rec, req)
-
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, rec.Code)
 	}
 	if !strings.Contains(rec.Body.String(), "<title>SPA</title>") {
 		t.Fatalf("expected SPA index response, got %q", rec.Body.String())
 	}
-}
 
-func TestSPAFallbackPrefersGzipIndexWhenSupported(t *testing.T) {
-	t.Parallel()
-
-	ctx := newTestContext(t, false)
-
-	req := httptest.NewRequest(http.MethodGet, "/dashboard", nil)
-	req.Header.Set("Accept-Encoding", "gzip, br")
-	rec := httptest.NewRecorder()
-
-	ctx.handler.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected status %d, got %d", http.StatusOK, rec.Code)
+	gzipReq := httptest.NewRequest(http.MethodGet, "/dashboard", nil)
+	gzipReq.Header.Set("Accept-Encoding", "gzip")
+	gzipRec := httptest.NewRecorder()
+	ctx.handler.ServeHTTP(gzipRec, gzipReq)
+	if gzipRec.Header().Get("Content-Encoding") != "gzip" {
+		t.Fatalf("expected gzip content encoding, got %q", gzipRec.Header().Get("Content-Encoding"))
 	}
-	if got := rec.Header().Get("Content-Encoding"); got != "gzip" {
-		t.Fatalf("expected gzip content encoding, got %q", got)
-	}
-	if got := rec.Header().Get("Vary"); !strings.Contains(got, "Accept-Encoding") {
-		t.Fatalf("expected Accept-Encoding in Vary header, got %q", got)
-	}
-
-	body := gunzipBody(t, rec.Body.Bytes())
-	if !strings.Contains(body, "<title>SPA</title>") {
-		t.Fatalf("expected gzipped index body, got %q", body)
+	if got := gunzipBody(t, gzipRec.Body.Bytes()); !strings.Contains(got, "<title>SPA</title>") {
+		t.Fatalf("expected gzipped SPA body, got %q", got)
 	}
 }
 
-func TestUnknownAPIRouteDoesNotFallbackToSPA(t *testing.T) {
-	t.Parallel()
-
-	ctx := newTestContext(t, false)
-
-	req := httptest.NewRequest(http.MethodGet, "/api/missing", nil)
-	rec := httptest.NewRecorder()
-
-	ctx.handler.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusNotFound {
-		t.Fatalf("expected status %d, got %d", http.StatusNotFound, rec.Code)
-	}
-	if strings.Contains(rec.Body.String(), "<title>SPA</title>") {
-		t.Fatalf("expected API 404 instead of SPA fallback, got %q", rec.Body.String())
-	}
-}
-
-func TestAdminSystemLogsRequiresAuthentication(t *testing.T) {
-	t.Parallel()
-
-	ctx := newTestContext(t, false)
-	req := httptest.NewRequest(http.MethodGet, "/api/admin/system-logs/stream", nil)
-	rec := httptest.NewRecorder()
-
-	ctx.handler.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusUnauthorized {
-		t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, rec.Code)
-	}
-}
-
-func TestAdminSystemLogsRequiresAdmin(t *testing.T) {
-	t.Parallel()
-
-	ctx := newTestContext(t, false)
-	user := createTestUser(t, ctx.store, users.CreateParams{
-		Username:     "member",
-		PasswordHash: mustHashPassword(t, "member123"),
-		Role:         users.RoleUser,
-	})
-
-	req := httptest.NewRequest(http.MethodGet, "/api/admin/system-logs/stream", nil)
-	req.Header.Set("Authorization", "Bearer "+issueTokenForUser(t, ctx, user))
-	rec := httptest.NewRecorder()
-
-	ctx.handler.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusForbidden {
-		t.Fatalf("expected status %d, got %d", http.StatusForbidden, rec.Code)
-	}
-}
-
-func TestAdminSystemLogsStreamsReplayAndLiveEntries(t *testing.T) {
-	t.Parallel()
-
-	ctx := newTestContext(t, false)
-	ctx.logStream.Publish(logging.StreamEntry{
-		Timestamp: 1_700_000_001,
-		Level:     "INFO",
-		Message:   "boot complete",
-		Text:      "boot complete",
-		Source:    "app",
-	})
-
-	server := httptest.NewServer(ctx.handler)
-	defer server.Close()
-
-	reqCtx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, server.URL+"/api/admin/system-logs/stream?tail=1", nil)
-	if err != nil {
-		t.Fatalf("NewRequestWithContext() error = %v", err)
-	}
-	req.Header.Set("Authorization", "Bearer "+loginAsBootstrapAdmin(t, ctx))
-
-	response, err := server.Client().Do(req)
-	if err != nil {
-		t.Fatalf("Do() error = %v", err)
-	}
-	defer response.Body.Close()
-
-	if response.StatusCode != http.StatusOK {
-		t.Fatalf("expected status %d, got %d", http.StatusOK, response.StatusCode)
-	}
-	if contentType := response.Header.Get("Content-Type"); !strings.Contains(contentType, "text/event-stream") {
-		t.Fatalf("expected event stream content type, got %q", contentType)
-	}
-
-	ctx.logStream.Publish(logging.StreamEntry{
-		Timestamp: 1_700_000_002,
-		Level:     "ERROR",
-		Message:   "worker failed",
-		Text:      "worker failed operation=refresh",
-		Source:    "app",
-	})
-
-	events := readSystemLogEvents(t, response.Body, 2)
-	cancel()
-
-	if len(events) != 2 {
-		t.Fatalf("expected 2 events, got %d", len(events))
-	}
-	if events[0].Message != "boot complete" {
-		t.Fatalf("expected replay event first, got %+v", events[0])
-	}
-	if events[1].Level != "ERROR" || !strings.Contains(events[1].Text, "operation=refresh") {
-		t.Fatalf("expected live event second, got %+v", events[1])
-	}
-}
-
-func TestAdminSystemLogsInvalidTailFallsBackAndLogs(t *testing.T) {
-	t.Parallel()
-
-	ctx := newTestContext(t, false)
-	ctx.logStream.Publish(logging.StreamEntry{
-		Timestamp: 1_700_000_100,
-		Level:     "INFO",
-		Message:   "seed",
-		Text:      "seed",
-		Source:    "app",
-	})
-
-	server := httptest.NewServer(ctx.handler)
-	defer server.Close()
-
-	reqCtx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, server.URL+"/api/admin/system-logs/stream?tail=abc", nil)
-	if err != nil {
-		t.Fatalf("NewRequestWithContext() error = %v", err)
-	}
-	req.Header.Set("Authorization", "Bearer "+loginAsBootstrapAdmin(t, ctx))
-
-	response, err := server.Client().Do(req)
-	if err != nil {
-		t.Fatalf("Do() error = %v", err)
-	}
-	defer response.Body.Close()
-
-	events := readSystemLogEvents(t, response.Body, 1)
-	cancel()
-
-	if len(events) != 1 || events[0].Message != "seed" {
-		t.Fatalf("expected fallback replay entry, got %+v", events)
-	}
-	if !strings.Contains(ctx.logs.String(), "invalid system log tail parameter") {
-		t.Fatalf("expected invalid tail warning in logs, got %q", ctx.logs.String())
-	}
-}
-
-func newTestContext(t *testing.T, logAPIRequests bool) *testContext {
-	return newTestContextWithAuthOptions(t, logAPIRequests, auth.Options{
-		Issuer:             "test-suite",
-		Secret:             []byte("test-secret"),
-		TTL:                time.Hour,
-		RefreshIdleTTL:     7 * 24 * time.Hour,
-		RefreshAbsoluteTTL: 30 * 24 * time.Hour,
-	})
-}
-
-func newTestContextWithAuthOptions(t *testing.T, logAPIRequests bool, authOptions auth.Options) *testContext {
+func newTestContext(t *testing.T) *testContext {
 	t.Helper()
 
 	dataDir := t.TempDir()
@@ -851,110 +403,172 @@ func newTestContextWithAuthOptions(t *testing.T, logAPIRequests bool, authOption
 		}
 	})
 
-	logs := &bytes.Buffer{}
-	logger := testLogger(logs)
-	store := users.NewStore(dbContainer.DB())
-	if err := users.NewBootstrapManager(store, dataDir, logger).Ensure(context.Background()); err != nil {
-		t.Fatalf("failed to bootstrap default super admin: %v", err)
+	if err := authorization.EnsureCatalog(context.Background(), dbContainer.DB()); err != nil {
+		t.Fatalf("failed to seed authorization catalog: %v", err)
 	}
-	logs.Reset()
 
 	logStream := logging.NewStream(logging.StreamOptions{
 		Capacity:  logging.DefaultStreamCapacity,
 		Retention: 3650 * 24 * time.Hour,
 	})
 
+	authzService := authorization.NewService()
+	identityService := identity.NewService(dbContainer.DB())
+	settingsService := systemsettings.NewService(dbContainer.DB())
+	setupService := setup.NewService(dbContainer.DB(), identityService)
+	auditService := audit.NewService(dbContainer.DB())
+	authService := auth.NewService(auth.Options{
+		Issuer:             "test-suite",
+		Secret:             []byte("test-secret"),
+		TTL:                time.Hour,
+		RefreshIdleTTL:     7 * 24 * time.Hour,
+		RefreshAbsoluteTTL: 30 * 24 * time.Hour,
+	}, dbContainer.DB(), identityService, authzService, settingsService)
+	logger := logging.New()
+
 	handler := NewHandlerWithOptions(HandlerOptions{
 		Logger:         logger,
 		LogStream:      logStream,
-		UserStore:      store,
+		Auth:           authService,
+		Authorization:  authzService,
+		Identity:       identityService,
+		Setup:          setupService,
+		SystemSettings: settingsService,
+		Audit:          auditService,
 		DataDir:        dataDir,
 		FrontendFS:     os.DirFS(distDir),
-		LogAPIRequests: logAPIRequests,
-		Auth:           authOptions,
+		LogAPIRequests: false,
 	})
 
 	return &testContext{
-		handler:   handler,
-		store:     store,
-		logStream: logStream,
-		dataDir:   dataDir,
-		logs:      logs,
-		auth:      authOptions,
+		handler:         handler,
+		authService:     authService,
+		identityService: identityService,
+		settingsService: settingsService,
+		setupService:    setupService,
+		auditService:    auditService,
+		logStream:       logStream,
+		dataDir:         dataDir,
 	}
 }
 
-func loginAsBootstrapAdmin(t *testing.T, ctx *testContext) string {
-	t.Helper()
-
-	response, _ := loginBootstrapAdminSession(t, ctx)
-	return response.AccessToken
+func (ctx *testContext) authServiceCookieName() string {
+	return auth.ResolveRefreshCookieName(auth.Options{Secret: []byte("test-secret")})
 }
 
-func loginBootstrapAdminSession(t *testing.T, ctx *testContext) (loginResponse, *http.Cookie) {
+func performSetup(t *testing.T, ctx *testContext) (sessionResponse, *http.Cookie) {
 	t.Helper()
 
-	password := readBootstrapPassword(t, ctx.dataDir)
-	req := httptest.NewRequest(http.MethodPost, "/api/auth/login", strings.NewReader(`{"identifier":"admin","password":"`+password+`"}`))
+	req := httptest.NewRequest(http.MethodPost, "/api/install/setup", strings.NewReader(`{"username":"owner","email":"owner@example.com","password":"owner1234"}`))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
+	ctx.handler.ServeHTTP(rec, req)
 
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusCreated, rec.Code, rec.Body.String())
+	}
+
+	var envelope testSuccessEnvelope[sessionResponse]
+	decodeJSONResponse(t, rec.Body.Bytes(), &envelope)
+	return envelope.Data, findCookie(rec.Result().Cookies(), ctx.authServiceCookieName())
+}
+
+func updateSystemSettings(t *testing.T, ctx *testContext, token string, payload string) {
+	t.Helper()
+
+	req := httptest.NewRequest(http.MethodPatch, "/api/system/settings", strings.NewReader(payload))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+token)
+	rec := httptest.NewRecorder()
 	ctx.handler.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
-		t.Fatalf("expected login success, got %d: %s", rec.Code, rec.Body.String())
+		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, rec.Code, rec.Body.String())
 	}
-
-	var response testSuccessEnvelope[loginResponse]
-	decodeJSONResponse(t, rec.Body.Bytes(), &response)
-	refreshCookie := findCookie(rec.Result().Cookies(), auth.ResolveRefreshCookieName(ctx.auth))
-	return response.Data, refreshCookie
 }
 
-func issueTokenForUser(t *testing.T, ctx *testContext, user users.User) string {
+func registerUser(t *testing.T, ctx *testContext, username string, email string, password string) (sessionResponse, *http.Cookie) {
 	t.Helper()
 
-	service := auth.NewService(ctx.auth, ctx.store)
-	sessionID, _, err := service.CreateRefreshSession(context.Background(), user, "", "")
-	if err != nil {
-		t.Fatalf("failed to create refresh session: %v", err)
+	req := httptest.NewRequest(http.MethodPost, "/api/auth/register", strings.NewReader(`{"username":"`+username+`","email":"`+email+`","password":"`+password+`"}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	ctx.handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusCreated, rec.Code, rec.Body.String())
 	}
 
-	token, _, err := service.IssueToken(user, sessionID)
-	if err != nil {
-		t.Fatalf("failed to issue token: %v", err)
-	}
-	return token
+	var envelope testSuccessEnvelope[sessionResponse]
+	decodeJSONResponse(t, rec.Body.Bytes(), &envelope)
+	return envelope.Data, findCookie(rec.Result().Cookies(), ctx.authServiceCookieName())
 }
 
-func readBootstrapPassword(t *testing.T, dataDir string) string {
+func loginUser(t *testing.T, ctx *testContext, identifier string, password string) (sessionResponse, *http.Cookie) {
 	t.Helper()
 
-	password, err := os.ReadFile(users.BootstrapPasswordPath(dataDir))
-	if err != nil {
-		t.Fatalf("failed to read bootstrap password: %v", err)
+	req := httptest.NewRequest(http.MethodPost, "/api/auth/login", strings.NewReader(`{"identifier":"`+identifier+`","password":"`+password+`"}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	ctx.handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, rec.Code, rec.Body.String())
 	}
-	return strings.TrimSpace(string(password))
+
+	var envelope testSuccessEnvelope[sessionResponse]
+	decodeJSONResponse(t, rec.Body.Bytes(), &envelope)
+	return envelope.Data, findCookie(rec.Result().Cookies(), ctx.authServiceCookieName())
 }
 
-func createTestUser(t *testing.T, store *users.Store, params users.CreateParams) users.User {
+func createManagedUser(t *testing.T, ctx *testContext, token string, payload string) {
 	t.Helper()
 
-	user, err := store.Create(context.Background(), params)
-	if err != nil {
-		t.Fatalf("failed to create test user: %v", err)
+	req := httptest.NewRequest(http.MethodPost, "/api/management/users", strings.NewReader(payload))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+token)
+	rec := httptest.NewRecorder()
+	ctx.handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusCreated, rec.Code, rec.Body.String())
 	}
-	return user
 }
 
-func mustHashPassword(t *testing.T, password string) string {
+func findUserByUsername(t *testing.T, ctx *testContext, username string) identity.UserWithRoles {
 	t.Helper()
 
-	passwordHash, err := users.HashPassword(password)
+	list, err := ctx.identityService.ListUsers(context.Background(), identity.ListUsersParams{Query: username, Page: 1, PageSize: 20})
 	if err != nil {
-		t.Fatalf("failed to hash password: %v", err)
+		t.Fatalf("failed to list users: %v", err)
 	}
-	return passwordHash
+	for _, item := range list.Items {
+		if item.Username == username {
+			return item
+		}
+	}
+	t.Fatalf("user %q not found", username)
+	return identity.UserWithRoles{}
+}
+
+func assertUnauthorizedMeAndRefresh(t *testing.T, ctx *testContext, accessToken string, refreshCookie *http.Cookie) {
+	t.Helper()
+
+	meReq := httptest.NewRequest(http.MethodGet, "/api/auth/me", nil)
+	meReq.Header.Set("Authorization", "Bearer "+accessToken)
+	meRec := httptest.NewRecorder()
+	ctx.handler.ServeHTTP(meRec, meReq)
+	if meRec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, meRec.Code)
+	}
+
+	refreshReq := httptest.NewRequest(http.MethodPost, "/api/auth/refresh", nil)
+	refreshReq.AddCookie(refreshCookie)
+	refreshRec := httptest.NewRecorder()
+	ctx.handler.ServeHTTP(refreshRec, refreshReq)
+	if refreshRec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, refreshRec.Code)
+	}
 }
 
 func createTestDist(t *testing.T) string {
@@ -977,7 +591,6 @@ func createTestDist(t *testing.T) string {
 
 func writeTestFile(t *testing.T, filename string, content string) {
 	t.Helper()
-
 	if err := os.WriteFile(filename, []byte(content), 0o644); err != nil {
 		t.Fatalf("failed to write %s: %v", filename, err)
 	}
@@ -994,46 +607,25 @@ func writeGzipFile(t *testing.T, filename string, content string) {
 	if err := writer.Close(); err != nil {
 		t.Fatalf("failed to finalize gzip %s: %v", filename, err)
 	}
-
 	if err := os.WriteFile(filename, compressed.Bytes(), 0o644); err != nil {
 		t.Fatalf("failed to write %s: %v", filename, err)
 	}
 }
 
-func newAvatarUploadRequest(t *testing.T, fileName string, data []byte) (*bytes.Buffer, string) {
-	t.Helper()
-
-	body := &bytes.Buffer{}
-	writer := multipart.NewWriter(body)
-	fileWriter, err := writer.CreateFormFile("avatar", fileName)
-	if err != nil {
-		t.Fatalf("failed to create multipart file: %v", err)
-	}
-	if _, err := fileWriter.Write(data); err != nil {
-		t.Fatalf("failed to write multipart file: %v", err)
-	}
-	if err := writer.Close(); err != nil {
-		t.Fatalf("failed to close multipart writer: %v", err)
-	}
-
-	return body, writer.FormDataContentType()
-}
-
-func oneByOnePNG(t *testing.T) []byte {
-	t.Helper()
-
-	data, err := base64.StdEncoding.DecodeString("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO5qS3QAAAAASUVORK5CYII=")
-	if err != nil {
-		t.Fatalf("failed to decode PNG fixture: %v", err)
-	}
-	return data
-}
-
 func decodeJSONResponse(t *testing.T, payload []byte, dst any) {
 	t.Helper()
-
 	if err := json.Unmarshal(payload, dst); err != nil {
 		t.Fatalf("failed to decode JSON response: %v; payload=%s", err, string(payload))
+	}
+}
+
+func decodeErrorCode(t *testing.T, payload []byte, wantCode string) {
+	t.Helper()
+
+	var envelope testErrorEnvelope
+	decodeJSONResponse(t, payload, &envelope)
+	if envelope.Error.Code != wantCode {
+		t.Fatalf("expected error code %q, got %q", wantCode, envelope.Error.Code)
 	}
 }
 
@@ -1050,47 +642,7 @@ func gunzipBody(t *testing.T, body []byte) string {
 	if err != nil {
 		t.Fatalf("failed to decode gzip body: %v", err)
 	}
-
 	return string(decoded)
-}
-
-func testLogger(buf *bytes.Buffer) *slog.Logger {
-	return slog.New(slog.NewTextHandler(buf, &slog.HandlerOptions{}))
-}
-
-func readSystemLogEvents(t *testing.T, body io.Reader, count int) []logging.StreamEntry {
-	t.Helper()
-
-	reader := bufio.NewReader(body)
-	events := make([]logging.StreamEntry, 0, count)
-	deadline := time.Now().Add(2 * time.Second)
-
-	for len(events) < count {
-		if time.Now().After(deadline) {
-			t.Fatalf("timed out reading system log events; received %d", len(events))
-		}
-
-		line, err := reader.ReadString('\n')
-		if err != nil {
-			t.Fatalf("ReadString() error = %v", err)
-		}
-		if !strings.HasPrefix(line, "data: ") {
-			continue
-		}
-
-		var entry logging.StreamEntry
-		if err := json.Unmarshal([]byte(strings.TrimSpace(strings.TrimPrefix(line, "data: "))), &entry); err != nil {
-			t.Fatalf("Unmarshal() error = %v", err)
-		}
-		events = append(events, entry)
-	}
-
-	return events
-}
-
-//go:fix inline
-func stringPointer(value string) *string {
-	return new(value)
 }
 
 func findCookie(cookies []*http.Cookie, name string) *http.Cookie {
@@ -1100,13 +652,4 @@ func findCookie(cookies []*http.Cookie, name string) *http.Cookie {
 		}
 	}
 	return nil
-}
-
-func containsAuthEvent(records []users.AuthLogRecord, eventType string) bool {
-	for _, record := range records {
-		if record.EventType == eventType {
-			return true
-		}
-	}
-	return false
 }

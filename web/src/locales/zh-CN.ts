@@ -22,6 +22,7 @@ const zhCN = {
       filter: '筛选',
       import: '导入',
       menu: '打开菜单',
+      next: '下一步',
       refresh: '刷新',
       reset: '重置',
       retry: '重试',
@@ -55,12 +56,12 @@ const zhCN = {
       success: '成功',
     },
     text: { yes: '是', no: '否', none: '暂无', all: '全部', optional: '可选', required: '必填' },
-    userRole: { 0: '普通用户', 1: '管理员', 2: '超级管理员' },
+    role: { owner: 'Owner', admin: '管理员', user: '普通用户' },
   },
   apiError: {
     unknown: '发生未知错误，请稍后重试。',
     invalidCredentials: '用户名、邮箱或密码错误。',
-    accountBanned: '该账号已被封禁。',
+    accountDisabled: '该账号已被禁用。',
     unauthorized: '需要先登录。',
     usernameRequired: '请输入用户名。',
     usernameTaken: '该用户名已被占用。',
@@ -69,6 +70,8 @@ const zhCN = {
     passwordTooShort: '新密码至少需要 8 位。',
     registrationDisabled: '当前已禁止注册。',
     invalidRegistrationMode: '注册模式无效。',
+    setupRequired: '系统尚未完成初始化，请先完成首次安装。',
+    setupCompleted: '系统已经完成初始化，不能再次执行 setup。',
     avatarRequired: '请选择头像图片。',
     avatarInvalidType: '请选择 JPG、PNG 或 WebP 格式的图片。',
     avatarTooLarge: '图片不能超过 5MB。',
@@ -76,7 +79,8 @@ const zhCN = {
     avatarUploadFailed: '上传头像失败。',
     passwordUpdateFailed: '更新密码失败。',
     accountDeleteFailed: '删除账号失败。',
-    superAdminDeleteForbidden: '超级管理员不能删除自己的账号。',
+    accountDeleteForbidden: '当前账号不允许自助删除。',
+    invalidRoleKeys: '角色分配无效。',
     systemLogStreamFailed: '系统日志流连接失败。',
   },
   route: {
@@ -87,14 +91,16 @@ const zhCN = {
     notFound: '页面不存在',
     settings: '设置',
     register: '注册',
+    setup: '初始化',
     systemLogs: '系统日志',
     tasks: '任务',
     feedback: { loadFailed: '页面加载失败，请刷新页面后重试。' },
   },
   systemConfig: {
     title: '系统配置',
-    description: '集中管理注册策略和其他仅管理员可见的系统级配置。',
-    badge: '仅管理员',
+    description: '集中管理认证模式、公开注册、自助删除和管理员创建用户等 owner 级系统设置。',
+    badge: '仅 Owner',
+    updatedAt: '最近更新：{value}',
     registration: {
       title: '注册策略',
       description: '控制当前实例是否允许创建新账号，以及允许哪种自助注册方式。',
@@ -115,15 +121,64 @@ const zhCN = {
       description: '系统日志页继续作为管理员专属运维界面的参考实现。',
       cta: '打开系统日志',
     },
+    cards: {
+      auth: {
+        title: '认证设置',
+        description: '这组设置定义单实例 baseline 的认证入口、公开注册与自助账号能力。',
+      },
+      effectivePolicy: {
+        title: '当前生效策略',
+        description: '展示保存后会影响公开注册与用户生命周期的关键策略汇总。',
+      },
+    },
+    fields: {
+      authMode: {
+        title: '认证模式',
+        description: '单用户模式只保留唯一 owner，多用户模式允许 owner/admin 管理普通用户。',
+      },
+      registrationMode: {
+        title: '注册模式',
+        description: 'v1 只支持禁用或公开注册；公开注册仅在多用户模式下生效。',
+      },
+      adminUserCreateEnabled: {
+        title: '允许管理员创建普通用户',
+        description: '关闭后只有 owner 能通过管理页创建用户。',
+      },
+      selfServiceAccountDeletionEnabled: {
+        title: '允许用户自助删除账号',
+        description: '关闭后普通用户和管理员都失去自删能力，owner 本来就不可自删。',
+      },
+      passwordLoginEnabled: {
+        title: '密码登录',
+        description: 'v1 仅支持本地密码登录，该项会持久化为只读启用状态。',
+      },
+    },
+    options: {
+      authMode: {
+        singleUser: '单用户',
+        multiUser: '多用户',
+      },
+      registrationMode: {
+        disabled: '禁用',
+        public: '公开注册',
+      },
+    },
+    policy: {
+      authMode: '认证模式：{value}',
+      registrationMode: '注册模式：{value}',
+      publicRegistration: '公开注册：{value}',
+      adminUserCreate: '管理员创建用户：{value}',
+      selfServiceAccountDeletion: '自助删除账号：{value}',
+    },
     actions: {
       retry: '重试',
     },
     feedback: {
-      loadFailedTitle: '系统配置加载失败',
+      loadFailedTitle: '系统设置加载失败',
       loadFailed: '请刷新页面后重试。',
-      saving: '正在保存注册策略...',
-      saved: '注册策略已保存。',
-      saveFailed: '保存注册策略失败。',
+      saving: '正在保存系统设置...',
+      saved: '系统设置已保存。',
+      saveFailed: '保存系统设置失败。',
     },
   },
   settings: {
@@ -152,8 +207,7 @@ const zhCN = {
       edit: '编辑',
       editProfile: '编辑资料',
       editProfileDesc: '更新你的账号信息',
-      mustChangePasswordTitle: '请先修改引导密码',
-      mustChangePasswordDesc: '当前账号仍在使用初始化引导密码。在前端修改密码后，后端重启时才会停止打印该密码。',
+      statusActive: '正常',
       password: '密码',
       passwordDesc: '修改你的密码',
       currentPassword: '当前密码',
@@ -172,7 +226,8 @@ const zhCN = {
       deleteAccount: '删除账号',
       deleteAccountConfirm: '此操作不可撤销。你的所有数据将被永久删除。',
       deleteAccountSuccess: '账号已删除。',
-      superAdminDeleteForbidden: '超级管理员不能删除自己的账号。',
+      deleteAccountOwnerForbidden: 'Owner 账户不能删除自己。',
+      deleteAccountUnavailable: '当前系统策略不允许这个账号自助删除。',
     },
     basic: {
       theme: '主题',
@@ -199,6 +254,15 @@ const zhCN = {
       security: '安全提醒',
       securityDesc: '接收安全事件通知',
     },
+  },
+  setup: {
+    title: '完成系统初始化',
+    description: '首次启动时需要创建唯一 owner 账户。完成后系统会进入正式运行状态，并关闭 setup 入口。',
+    emailHint: '邮箱为可选项。owner 是安装根账户，v1 不支持转移。',
+    creating: '正在创建 owner 账户...',
+    success: '系统初始化完成。',
+    failed: '系统初始化失败。',
+    submit: '完成初始化',
   },
   auth: {
     signIn: {
@@ -246,8 +310,8 @@ const zhCN = {
       createUser: '新建用户',
       refresh: '刷新',
       retry: '重试',
-      ban: '封禁',
-      unban: '解封',
+      disable: '禁用',
+      enable: '启用',
       previousPage: '上一页',
       nextPage: '下一页',
     },
@@ -271,12 +335,11 @@ const zhCN = {
       actions: '操作',
       empty: '没有匹配的用户。',
       noEmail: '未设置邮箱',
-      mustChangePassword: '仍在使用初始化密码',
       pageSummary: '第 {page} / {totalPages} 页，共 {total} 个用户',
     },
     status: {
       active: '正常',
-      banned: '已封禁',
+      disabled: '已禁用',
     },
     dialog: {
       createTitle: '新建用户',
@@ -291,10 +354,10 @@ const zhCN = {
       passwordHint: '初始密码至少需要 8 位。',
     },
     confirm: {
-      banTitle: '确认封禁用户',
-      banDescription: '封禁 {username} 并撤销其当前活跃会话。',
-      unbanTitle: '确认解封用户',
-      unbanDescription: '恢复 {username} 的登录权限，对方需要重新登录。',
+      disableTitle: '确认禁用用户',
+      disableDescription: '禁用 {username} 并撤销其所有现有会话。',
+      enableTitle: '确认启用用户',
+      enableDescription: '恢复 {username} 的登录能力，对方需要重新登录。',
     },
     feedback: {
       loadFailedTitle: '用户列表加载失败',
@@ -306,12 +369,12 @@ const zhCN = {
       updating: '正在更新用户...',
       updateSuccess: '用户已更新。',
       updateFailed: '更新用户失败。',
-      banning: '正在封禁用户...',
-      banSuccess: '用户已封禁。',
-      banFailed: '封禁用户失败。',
-      unbanning: '正在解封用户...',
-      unbanSuccess: '用户已恢复。',
-      unbanFailed: '解封用户失败。',
+      disabling: '正在禁用用户...',
+      disableSuccess: '用户已禁用。',
+      disableFailed: '禁用用户失败。',
+      enabling: '正在启用用户...',
+      enableSuccess: '用户已启用。',
+      enableFailed: '启用用户失败。',
     },
   },
   table: {
@@ -354,7 +417,11 @@ const zhCN = {
   theme: { light: '浅色', dark: '深色', system: '跟随系统' },
   systemLogs: {
     title: '系统日志',
-    description: '实时查看当前进程的应用日志和访问日志。',
+    description: '实时查看当前进程应用日志，并按分页查看认证与安全审计事件。',
+    tabs: {
+      console: '实时日志',
+      audit: '安全审计',
+    },
     summary: { buffered: '已缓冲 {count} 条' },
     connection: {
       connected: '实时连接中',
@@ -405,6 +472,28 @@ const zhCN = {
     empty: {
       title: '没有匹配的日志',
       description: '等待新的日志到来，或者调整当前筛选条件。',
+    },
+    audit: {
+      title: '安全审计日志',
+      description: '这里记录 setup、登录、刷新、登出、密码修改、角色变化、禁用/启用和账号删除等安全事实。',
+      pageSummary: '第 {page} / {totalPages} 页，共 {total} 条审计记录',
+      outcome: {
+        success: '成功',
+        failure: '失败',
+      },
+      table: {
+        occurredAt: '发生时间',
+        eventType: '事件类型',
+        outcome: '结果',
+        actor: '操作者',
+        subject: '目标用户',
+        reason: '原因',
+        empty: '暂无审计记录。',
+      },
+      feedback: {
+        loadFailedTitle: '审计日志加载失败',
+        loadFailed: '请刷新后重试。',
+      },
     },
     feedback: {
       exportSuccess: '已导出 {count} 条日志。',

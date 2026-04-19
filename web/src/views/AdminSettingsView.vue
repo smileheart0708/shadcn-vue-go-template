@@ -2,38 +2,64 @@
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
-import { RouterLink } from 'vue-router'
 import { ShieldCheck } from 'lucide-vue-next'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty'
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Spinner } from '@/components/ui/spinner'
+import { Switch } from '@/components/ui/switch'
 import { getAPIErrorMessage } from '@/lib/api/error-messages'
-import { getAdminSystemSettings, updateRegistrationMode } from '@/lib/api/system-settings'
+import { getAdminSystemSettings, updateSystemSettings, type SystemSettings } from '@/lib/api/system-settings'
+import { useAuthStore } from '@/stores/auth'
 
 const { t, locale } = useI18n()
+const authStore = useAuthStore()
 
 const loading = ref(true)
 const saving = ref(false)
 const loadFailed = ref(false)
-const registrationMode = ref<'disabled' | 'password'>('disabled')
-const savedRegistrationMode = ref<'disabled' | 'password'>('disabled')
-const updatedAt = ref<string | null>(null)
+const settings = ref<SystemSettings | null>(null)
+const form = ref<{
+  authMode: 'single_user' | 'multi_user'
+  registrationMode: 'disabled' | 'public'
+  adminUserCreateEnabled: boolean
+  selfServiceAccountDeletionEnabled: boolean
+}>({
+  authMode: 'single_user',
+  registrationMode: 'disabled',
+  adminUserCreateEnabled: true,
+  selfServiceAccountDeletionEnabled: true,
+})
 
-const isDirty = computed(() => registrationMode.value !== savedRegistrationMode.value)
+const isDirty = computed(() => {
+  const currentSettings = settings.value
+  if (!currentSettings) {
+    return false
+  }
+
+  return (
+    form.value.authMode !== currentSettings.authMode ||
+    form.value.registrationMode !== currentSettings.registrationMode ||
+    form.value.adminUserCreateEnabled !== currentSettings.adminUserCreateEnabled ||
+    form.value.selfServiceAccountDeletionEnabled !== currentSettings.selfServiceAccountDeletionEnabled
+  )
+})
+
 const updatedAtLabel = computed(() => {
-  if (updatedAt.value === null) {
+  if (settings.value === null) {
     return null
   }
 
   return new Intl.DateTimeFormat(locale.value, {
     dateStyle: 'medium',
     timeStyle: 'short',
-  }).format(new Date(updatedAt.value))
+  }).format(new Date(settings.value.updatedAt))
 })
+
+const publicRegistrationEffective = computed(() => form.value.authMode === 'multi_user' && form.value.registrationMode === 'public')
 
 onMounted(() => {
   void loadSettings()
@@ -43,10 +69,14 @@ async function loadSettings() {
   loading.value = true
 
   try {
-    const settings = await getAdminSystemSettings()
-    registrationMode.value = settings.registrationMode
-    savedRegistrationMode.value = settings.registrationMode
-    updatedAt.value = settings.updatedAt
+    const nextSettings = await getAdminSystemSettings()
+    settings.value = nextSettings
+    form.value = {
+      authMode: nextSettings.authMode,
+      registrationMode: nextSettings.registrationMode,
+      adminUserCreateEnabled: nextSettings.adminUserCreateEnabled,
+      selfServiceAccountDeletionEnabled: nextSettings.selfServiceAccountDeletionEnabled,
+    }
     loadFailed.value = false
   } catch (error) {
     loadFailed.value = true
@@ -56,14 +86,19 @@ async function loadSettings() {
   }
 }
 
-async function saveRegistrationMode() {
+async function saveSettings() {
   if (!isDirty.value || saving.value) {
     return
   }
 
   saving.value = true
+  const savePromise = updateSystemSettings({
+    authMode: form.value.authMode,
+    registrationMode: form.value.registrationMode,
+    adminUserCreateEnabled: form.value.adminUserCreateEnabled,
+    selfServiceAccountDeletionEnabled: form.value.selfServiceAccountDeletionEnabled,
+  })
 
-  const savePromise = updateRegistrationMode(registrationMode.value)
   toast.promise(savePromise, {
     loading: t('systemConfig.feedback.saving'),
     success: () => t('systemConfig.feedback.saved'),
@@ -71,12 +106,20 @@ async function saveRegistrationMode() {
   })
 
   try {
-    const settings = await savePromise
-    registrationMode.value = settings.registrationMode
-    savedRegistrationMode.value = settings.registrationMode
-    updatedAt.value = settings.updatedAt
-  } catch {
-    return
+    settings.value = await savePromise
+    form.value = {
+      authMode: settings.value.authMode,
+      registrationMode: settings.value.registrationMode,
+      adminUserCreateEnabled: settings.value.adminUserCreateEnabled,
+      selfServiceAccountDeletionEnabled: settings.value.selfServiceAccountDeletionEnabled,
+    }
+    await authStore.refreshPublicState()
+    // 系统设置会直接影响当前 viewer 的权限集合，保存后刷新一次，避免侧边栏和路由守卫继续使用旧权限。
+    try {
+      await authStore.refreshViewer({ backgroundRequest: true })
+    } catch (error: unknown) {
+      console.warn('Failed to refresh viewer after saving system settings', error)
+    }
   } finally {
     saving.value = false
   }
@@ -110,7 +153,8 @@ async function saveRegistrationMode() {
         <CardContent class="space-y-3">
           <Skeleton class="h-18 rounded-xl" />
           <Skeleton class="h-18 rounded-xl" />
-          <Skeleton class="h-10 w-36 rounded-md" />
+          <Skeleton class="h-18 rounded-xl" />
+          <Skeleton class="h-18 rounded-xl" />
         </CardContent>
       </Card>
       <Card>
@@ -145,55 +189,88 @@ async function saveRegistrationMode() {
     >
       <Card>
         <CardHeader>
-          <CardTitle>{{ t('systemConfig.registration.title') }}</CardTitle>
-          <CardDescription>{{ t('systemConfig.registration.description') }}</CardDescription>
+          <CardTitle>{{ t('systemConfig.cards.auth.title') }}</CardTitle>
+          <CardDescription>{{ t('systemConfig.cards.auth.description') }}</CardDescription>
         </CardHeader>
         <CardContent class="space-y-6">
-          <RadioGroup
-            v-model="registrationMode"
-            class="gap-3"
-          >
-            <label class="flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition-colors hover:bg-muted/40">
-              <RadioGroupItem
-                value="disabled"
-                class="mbs-1"
-              />
-              <div class="space-y-1">
-                <div class="font-medium">{{ t('systemConfig.registration.options.disabled.title') }}</div>
-                <p class="text-sm text-muted-foreground">{{ t('systemConfig.registration.options.disabled.description') }}</p>
+          <div class="grid gap-3 md:grid-cols-2">
+            <div class="space-y-2">
+              <div class="text-sm font-medium">{{ t('systemConfig.fields.authMode.title') }}</div>
+              <p class="text-sm text-muted-foreground">{{ t('systemConfig.fields.authMode.description') }}</p>
+              <Select v-model="form.authMode">
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="single_user">{{ t('systemConfig.options.authMode.singleUser') }}</SelectItem>
+                  <SelectItem value="multi_user">{{ t('systemConfig.options.authMode.multiUser') }}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div class="space-y-2">
+              <div class="text-sm font-medium">{{ t('systemConfig.fields.registrationMode.title') }}</div>
+              <p class="text-sm text-muted-foreground">{{ t('systemConfig.fields.registrationMode.description') }}</p>
+              <Select v-model="form.registrationMode">
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="disabled">{{ t('systemConfig.options.registrationMode.disabled') }}</SelectItem>
+                  <SelectItem value="public">{{ t('systemConfig.options.registrationMode.public') }}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div class="grid gap-4 rounded-xl border p-4 md:grid-cols-2">
+            <label class="flex items-center justify-between gap-4">
+              <div>
+                <div class="font-medium">{{ t('systemConfig.fields.adminUserCreateEnabled.title') }}</div>
+                <p class="text-sm text-muted-foreground">{{ t('systemConfig.fields.adminUserCreateEnabled.description') }}</p>
               </div>
+              <Switch v-model:checked="form.adminUserCreateEnabled" />
             </label>
 
-            <label class="flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition-colors hover:bg-muted/40">
-              <RadioGroupItem
-                value="password"
-                class="mbs-1"
-              />
-              <div class="space-y-1">
-                <div class="font-medium">{{ t('systemConfig.registration.options.password.title') }}</div>
-                <p class="text-sm text-muted-foreground">{{ t('systemConfig.registration.options.password.description') }}</p>
+            <label class="flex items-center justify-between gap-4">
+              <div>
+                <div class="font-medium">{{ t('systemConfig.fields.selfServiceAccountDeletionEnabled.title') }}</div>
+                <p class="text-sm text-muted-foreground">{{ t('systemConfig.fields.selfServiceAccountDeletionEnabled.description') }}</p>
               </div>
+              <Switch v-model:checked="form.selfServiceAccountDeletionEnabled" />
             </label>
-          </RadioGroup>
+          </div>
+
+          <div class="rounded-xl border p-4">
+            <div class="font-medium">{{ t('systemConfig.fields.passwordLoginEnabled.title') }}</div>
+            <p class="text-sm text-muted-foreground">{{ t('systemConfig.fields.passwordLoginEnabled.description') }}</p>
+            <Badge
+              class="mbs-3"
+              variant="outline"
+            >
+              {{ settings?.passwordLoginEnabled ? t('common.state.enabled') : t('common.state.disabled') }}
+            </Badge>
+          </div>
 
           <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <p
               v-if="updatedAtLabel"
               class="text-sm text-muted-foreground"
             >
-              {{ t('systemConfig.registration.updatedAt', { value: updatedAtLabel }) }}
+              {{ t('systemConfig.updatedAt', { value: updatedAtLabel }) }}
             </p>
+
             <div class="flex items-center gap-2">
               <Button
                 variant="outline"
                 :disabled="saving || !isDirty"
-                @click="registrationMode = savedRegistrationMode"
+                @click="loadSettings"
               >
                 {{ t('common.action.cancel') }}
               </Button>
               <Button
                 :disabled="saving || !isDirty"
-                @click="saveRegistrationMode"
+                @click="saveSettings"
               >
                 <Spinner
                   v-if="saving"
@@ -208,15 +285,23 @@ async function saveRegistrationMode() {
 
       <Card>
         <CardHeader>
-          <CardTitle>{{ t('systemConfig.observability.title') }}</CardTitle>
-          <CardDescription>{{ t('systemConfig.observability.description') }}</CardDescription>
+          <CardTitle>{{ t('systemConfig.cards.effectivePolicy.title') }}</CardTitle>
+          <CardDescription>{{ t('systemConfig.cards.effectivePolicy.description') }}</CardDescription>
         </CardHeader>
-        <CardContent class="flex h-full items-end">
-          <Button as-child>
-            <RouterLink :to="{ name: 'system-logs' }">
-              {{ t('systemConfig.observability.cta') }}
-            </RouterLink>
-          </Button>
+        <CardContent class="space-y-3">
+          <Badge variant="outline">{{ t('systemConfig.policy.authMode', { value: t(`systemConfig.options.authMode.${form.authMode === 'single_user' ? 'singleUser' : 'multiUser'}`) }) }}</Badge>
+          <Badge variant="outline">
+            {{ t('systemConfig.policy.registrationMode', { value: t(`systemConfig.options.registrationMode.${form.registrationMode}`) }) }}
+          </Badge>
+          <Badge variant="outline">
+            {{ t('systemConfig.policy.publicRegistration', { value: publicRegistrationEffective ? t('common.state.enabled') : t('common.state.disabled') }) }}
+          </Badge>
+          <Badge variant="outline">
+            {{ t('systemConfig.policy.adminUserCreate', { value: form.adminUserCreateEnabled ? t('common.state.enabled') : t('common.state.disabled') }) }}
+          </Badge>
+          <Badge variant="outline">
+            {{ t('systemConfig.policy.selfServiceAccountDeletion', { value: form.selfServiceAccountDeletionEnabled ? t('common.state.enabled') : t('common.state.disabled') }) }}
+          </Badge>
         </CardContent>
       </Card>
     </div>

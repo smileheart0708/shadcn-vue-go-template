@@ -1,11 +1,9 @@
 <script setup lang="ts">
 import type { HTMLAttributes } from 'vue'
-import type { RegistrationMode } from '@/lib/api/auth'
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
-import { getRegistrationPolicy } from '@/lib/api/auth'
 import { getAPIErrorMessage } from '@/lib/api/error-messages'
 import { useAuthStore } from '@/stores/auth'
 
@@ -17,7 +15,6 @@ import { Input } from '@/components/ui/input'
 const props = defineProps<{ class?: HTMLAttributes['class'] }>()
 
 const { t } = useI18n()
-
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
@@ -25,20 +22,11 @@ const authStore = useAuthStore()
 const identifier = ref('')
 const password = ref('')
 const isSubmitting = ref(false)
-const registrationMode = ref<RegistrationMode | null>(null)
+const canRegister = computed(() => authStore.publicAuthConfig?.registrationEnabled === true)
 
 onMounted(() => {
-  void loadRegistrationPolicy()
+  void authStore.refreshPublicState()
 })
-
-async function loadRegistrationPolicy() {
-  try {
-    const policy = await getRegistrationPolicy()
-    registrationMode.value = policy.registrationMode
-  } catch {
-    registrationMode.value = null
-  }
-}
 
 async function handleSubmit() {
   if (isSubmitting.value) {
@@ -46,7 +34,6 @@ async function handleSubmit() {
   }
 
   isSubmitting.value = true
-
   const loginPromise = authStore.login({ identifier: identifier.value, password: password.value })
 
   toast.promise(loginPromise, {
@@ -58,7 +45,6 @@ async function handleSubmit() {
   try {
     await loginPromise
     const redirectTarget = typeof route.query.redirect === 'string' && route.query.redirect.startsWith('/') ? route.query.redirect : { name: 'dashboard' as const }
-
     await router.push(redirectTarget)
   } catch {
     return
@@ -113,7 +99,7 @@ async function handleSubmit() {
             {{ isSubmitting ? t('auth.signIn.signingIn') : t('auth.signIn.submit') }}
           </Button>
         </Field>
-        <Field v-if="registrationMode !== 'disabled'">
+        <Field v-if="canRegister">
           <FieldDescription class="text-center">
             {{ t('auth.signIn.noAccount') }}
             <RouterLink

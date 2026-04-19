@@ -3,49 +3,59 @@ import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
 import { ShieldBan, ShieldCheck, UserPlus } from 'lucide-vue-next'
-import AdminUserDialog from '@/components/admin-users/AdminUserDialog.vue'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Spinner } from '@/components/ui/spinner'
 import { Table, TableBody, TableCell, TableEmpty, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { banAdminUser, createAdminUser, listAdminUsers, type AdminUser, updateAdminUser, unbanAdminUser } from '@/lib/api/admin-users'
+import { createAdminUser, disableAdminUser, enableAdminUser, listAdminUsers, type ManagedUser, updateAdminUser } from '@/lib/api/admin-users'
 import { getAPIErrorMessage } from '@/lib/api/error-messages'
-import { getUserRoleLabelKey, USER_ROLE } from '@/lib/auth/roles'
+import { CAPABILITY, getPrimaryRoleKey, getUserRoleBadgeVariant, getUserRoleLabelKey } from '@/lib/auth/roles'
 import { useAuthStore } from '@/stores/auth'
 
 const { t, locale } = useI18n()
 const authStore = useAuthStore()
 
-const users = ref<AdminUser[]>([])
+const users = ref<ManagedUser[]>([])
 const total = ref(0)
 const page = ref(1)
 const pageSize = ref(10)
 const searchQuery = ref('')
-const roleFilter = ref<'ALL' | '0' | '1' | '2'>('ALL')
-const statusFilter = ref<'ALL' | 'active' | 'banned'>('ALL')
+const roleFilter = ref<'ALL' | 'owner' | 'admin' | 'user'>('ALL')
+const statusFilter = ref<'ALL' | 'active' | 'disabled'>('ALL')
 const loading = ref(true)
-const initialLoadResolved = ref(false)
 const refreshing = ref(false)
 const loadFailed = ref(false)
 
 const dialogOpen = ref(false)
 const dialogMode = ref<'create' | 'edit'>('create')
 const dialogPending = ref(false)
-const selectedUser = ref<AdminUser | null>(null)
+const selectedUser = ref<ManagedUser | null>(null)
+const form = ref<{
+  username: string
+  email: string
+  password: string
+  roleKey: 'user' | 'admin'
+}>({
+  username: '',
+  email: '',
+  password: '',
+  roleKey: 'user',
+})
 
 const confirmOpen = ref(false)
-const confirmTarget = ref<AdminUser | null>(null)
+const confirmTarget = ref<ManagedUser | null>(null)
 const confirmPending = ref(false)
 
-const isSuperAdmin = computed(() => authStore.user?.role === USER_ROLE.superAdmin)
+const canCreateUsers = computed(() => authStore.can(CAPABILITY.managementUsersCreate))
+const canAssignAdminRole = computed(() => authStore.hasRole('owner'))
+const roleOptions = computed<('user' | 'admin')[]>(() => (canAssignAdminRole.value ? ['user', 'admin'] : ['user']))
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize.value)))
-const canGoPrevious = computed(() => page.value > 1)
-const canGoNext = computed(() => page.value < totalPages.value)
 const dateTimeFormatter = computed(
   () =>
     new Intl.DateTimeFormat(locale.value, {
@@ -59,9 +69,7 @@ onMounted(() => {
 })
 
 async function loadUsers(options: { background?: boolean } = {}) {
-  const useBackgroundRefresh = options.background ?? initialLoadResolved.value
-
-  if (useBackgroundRefresh) {
+  if (options.background === true) {
     refreshing.value = true
   } else {
     loading.value = true
@@ -70,23 +78,19 @@ async function loadUsers(options: { background?: boolean } = {}) {
   try {
     const response = await listAdminUsers({
       q: searchQuery.value,
-      role: roleFilter.value === 'ALL' ? null : Number(roleFilter.value),
+      role: roleFilter.value === 'ALL' ? null : roleFilter.value,
       status: statusFilter.value === 'ALL' ? null : statusFilter.value,
       page: page.value,
       pageSize: pageSize.value,
-      sort: 'created_at_desc',
     })
 
     users.value = response.items
     total.value = response.total
     loadFailed.value = false
   } catch (error) {
-    if (!useBackgroundRefresh) {
-      loadFailed.value = true
-    }
+    loadFailed.value = true
     toast.error(getAPIErrorMessage(t, error, 'adminUsers.feedback.loadFailed'))
   } finally {
-    initialLoadResolved.value = true
     loading.value = false
     refreshing.value = false
   }
@@ -97,193 +101,188 @@ function submitFilters() {
   void loadUsers()
 }
 
+function goToPreviousPage() {
+  if (page.value <= 1 || refreshing.value) {
+    return
+  }
+
+  page.value -= 1
+  void loadUsers({ background: true })
+}
+
+function goToNextPage() {
+  if (page.value >= totalPages.value || refreshing.value) {
+    return
+  }
+
+  page.value += 1
+  void loadUsers({ background: true })
+}
+
 function openCreateDialog() {
   dialogMode.value = 'create'
   selectedUser.value = null
+  form.value = {
+    username: '',
+    email: '',
+    password: '',
+    roleKey: 'user',
+  }
   dialogOpen.value = true
 }
 
-function openEditDialog(user: AdminUser) {
+function openEditDialog(user: ManagedUser) {
   dialogMode.value = 'edit'
   selectedUser.value = user
+  form.value = {
+    username: user.username,
+    email: user.email ?? '',
+    password: '',
+    roleKey: resolveManagedRoleKey(user.roleKeys),
+  }
   dialogOpen.value = true
 }
 
-function requestToggleBan(user: AdminUser) {
-  confirmTarget.value = user
-  confirmOpen.value = true
-}
-
-async function handleDialogSubmit(payload: { username: string; email: string | null; password?: string; role?: number | null }) {
-  if (payload.username.length === 0) {
-    toast.error(t('settings.account.usernameRequired'))
-    return
-  }
-  if (dialogMode.value === 'create' && (payload.password === undefined || payload.password.length < 8)) {
-    toast.error(t('apiError.passwordTooShort'))
+async function submitDialog() {
+  if (dialogPending.value) {
     return
   }
 
   dialogPending.value = true
+  const payload = {
+    username: form.value.username.trim(),
+    email: form.value.email.trim() === '' ? null : form.value.email.trim(),
+    roleKeys: [form.value.roleKey],
+  }
+  const creating = dialogMode.value === 'create'
+  const requestPromise = creating
+    ? createAdminUser({
+        ...payload,
+        password: form.value.password,
+      })
+    : updateAdminUser(selectedUser.value?.id ?? 0, payload)
 
-  const actionPromise =
-    dialogMode.value === 'create'
-      ? createAdminUser({
-          username: payload.username,
-          email: payload.email,
-          password: payload.password ?? '',
-          role: payload.role,
-        })
-      : updateAdminUser(selectedUser.value?.id ?? 0, {
-          username: payload.username,
-          email: payload.email,
-          role: payload.role,
-        })
-
-  toast.promise(actionPromise, {
-    loading: dialogMode.value === 'create' ? t('adminUsers.feedback.creating') : t('adminUsers.feedback.updating'),
-    success: () => (dialogMode.value === 'create' ? t('adminUsers.feedback.createSuccess') : t('adminUsers.feedback.updateSuccess')),
-    error: (error: unknown) => getAPIErrorMessage(t, error, dialogMode.value === 'create' ? 'adminUsers.feedback.createFailed' : 'adminUsers.feedback.updateFailed'),
+  toast.promise(requestPromise, {
+    loading: creating ? t('adminUsers.feedback.creating') : t('adminUsers.feedback.updating'),
+    success: () => (creating ? t('adminUsers.feedback.createSuccess') : t('adminUsers.feedback.updateSuccess')),
+    error: (error: unknown) => getAPIErrorMessage(t, error, creating ? 'adminUsers.feedback.createFailed' : 'adminUsers.feedback.updateFailed'),
   })
 
   try {
-    await actionPromise
+    await requestPromise
     dialogOpen.value = false
     await loadUsers({ background: true })
-  } catch {
-    return
   } finally {
     dialogPending.value = false
   }
 }
 
-async function confirmToggleBan() {
-  if (!confirmTarget.value) {
+function requestToggleStatus(user: ManagedUser) {
+  confirmTarget.value = user
+  confirmOpen.value = true
+}
+
+async function confirmToggleStatus() {
+  const target = confirmTarget.value
+  if (!target || confirmPending.value) {
     return
   }
 
   confirmPending.value = true
-  const actionPromise = confirmTarget.value.status === 'banned' ? unbanAdminUser(confirmTarget.value.id) : banAdminUser(confirmTarget.value.id)
+  const disabling = target.status === 'active'
+  const requestPromise = disabling ? disableAdminUser(target.id) : enableAdminUser(target.id)
 
-  toast.promise(actionPromise, {
-    loading: confirmTarget.value.status === 'banned' ? t('adminUsers.feedback.unbanning') : t('adminUsers.feedback.banning'),
-    success: () => (confirmTarget.value?.status === 'banned' ? t('adminUsers.feedback.unbanSuccess') : t('adminUsers.feedback.banSuccess')),
-    error: (error: unknown) => getAPIErrorMessage(t, error, confirmTarget.value?.status === 'banned' ? 'adminUsers.feedback.unbanFailed' : 'adminUsers.feedback.banFailed'),
+  toast.promise(requestPromise, {
+    loading: disabling ? t('adminUsers.feedback.disabling') : t('adminUsers.feedback.enabling'),
+    success: () => (disabling ? t('adminUsers.feedback.disableSuccess') : t('adminUsers.feedback.enableSuccess')),
+    error: (error: unknown) => getAPIErrorMessage(t, error, disabling ? 'adminUsers.feedback.disableFailed' : 'adminUsers.feedback.enableFailed'),
   })
 
   try {
-    await actionPromise
+    await requestPromise
     confirmOpen.value = false
     confirmTarget.value = null
     await loadUsers({ background: true })
-  } catch {
-    return
   } finally {
     confirmPending.value = false
   }
 }
 
-function changePage(nextPage: number) {
-  if (nextPage < 1 || nextPage > totalPages.value || nextPage === page.value) {
-    return
-  }
-
-  page.value = nextPage
-  void loadUsers({ background: true })
-}
-
-function getStatusBadgeVariant(status: AdminUser['status']) {
-  return status === 'banned' ? 'destructive' : 'success'
-}
-
-function getRoleBadgeVariant(role: number) {
-  switch (role) {
-    case USER_ROLE.superAdmin:
-      return 'warning'
-    case USER_ROLE.admin:
-      return 'secondary'
-    default:
-      return 'outline'
-  }
-}
-
-function canManageUser(user: AdminUser) {
-  if (user.id === authStore.user?.id) {
-    return false
-  }
-
-  if (isSuperAdmin.value) {
-    return user.role !== USER_ROLE.superAdmin
-  }
-
-  return user.role === USER_ROLE.user
+function hasAction(user: ManagedUser, action: 'update' | 'disable' | 'enable') {
+  return user.actions.includes(action)
 }
 
 function formatDateTime(value: string) {
   return dateTimeFormatter.value.format(new Date(value))
 }
+
+function getStatusLabel(status: 'active' | 'disabled') {
+  return status === 'active' ? t('adminUsers.status.active') : t('adminUsers.status.disabled')
+}
+
+function getManagedRoleLabel(roleKey: 'user' | 'admin') {
+  return t(getUserRoleLabelKey(roleKey))
+}
+
+function resolveManagedRoleKey(roleKeys: readonly string[]) {
+  return getPrimaryRoleKey(roleKeys) === 'admin' ? 'admin' : 'user'
+}
 </script>
 
 <template>
   <div class="flex flex-1 flex-col gap-6 p-4 lg:p-6">
-    <div class="flex items-start justify-between gap-4">
+    <section class="flex items-start justify-between gap-4">
       <div class="space-y-1">
         <h2 class="text-2xl font-semibold">{{ t('adminUsers.title') }}</h2>
         <p class="text-sm text-muted-foreground">{{ t('adminUsers.description') }}</p>
       </div>
-      <Button @click="openCreateDialog">
+
+      <Button
+        :disabled="!canCreateUsers"
+        @click="openCreateDialog"
+      >
         <UserPlus class="me-2 size-4" />
         {{ t('adminUsers.actions.createUser') }}
       </Button>
-    </div>
+    </section>
 
-    <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-      <div class="flex flex-col gap-3 sm:flex-row">
-        <Input
-          v-model="searchQuery"
-          :placeholder="t('adminUsers.filters.searchPlaceholder')"
-          class="w-full sm:w-80 lg:w-94"
-          @keydown.enter="submitFilters"
-        />
-        <div class="flex flex-wrap gap-3">
-          <Select
-            v-model="roleFilter"
-            @update:model-value="submitFilters"
-          >
-            <SelectTrigger class="w-full sm:w-45">
-              <SelectValue :placeholder="t('adminUsers.filters.rolePlaceholder')" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">{{ t('adminUsers.filters.roleAll') }}</SelectItem>
-              <SelectItem value="0">{{ t('common.userRole.0') }}</SelectItem>
-              <SelectItem
-                v-if="isSuperAdmin"
-                value="1"
-                >{{ t('common.userRole.1') }}</SelectItem
-              >
-              <SelectItem
-                v-if="isSuperAdmin"
-                value="2"
-                >{{ t('common.userRole.2') }}</SelectItem
-              >
-            </SelectContent>
-          </Select>
-          <Select
-            v-model="statusFilter"
-            @update:model-value="submitFilters"
-          >
-            <SelectTrigger class="w-full sm:w-45">
-              <SelectValue :placeholder="t('adminUsers.filters.statusPlaceholder')" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">{{ t('adminUsers.filters.statusAll') }}</SelectItem>
-              <SelectItem value="active">{{ t('adminUsers.status.active') }}</SelectItem>
-              <SelectItem value="banned">{{ t('adminUsers.status.banned') }}</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-    </div>
+    <section class="flex flex-col gap-3 sm:flex-row">
+      <Input
+        v-model="searchQuery"
+        :placeholder="t('adminUsers.filters.searchPlaceholder')"
+        class="w-full sm:w-80"
+        @keydown.enter="submitFilters"
+      />
+
+      <Select
+        v-model="roleFilter"
+        @update:model-value="submitFilters"
+      >
+        <SelectTrigger class="w-full sm:w-44">
+          <SelectValue :placeholder="t('adminUsers.filters.rolePlaceholder')" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="ALL">{{ t('adminUsers.filters.roleAll') }}</SelectItem>
+          <SelectItem value="owner">{{ t('common.role.owner') }}</SelectItem>
+          <SelectItem value="admin">{{ t('common.role.admin') }}</SelectItem>
+          <SelectItem value="user">{{ t('common.role.user') }}</SelectItem>
+        </SelectContent>
+      </Select>
+
+      <Select
+        v-model="statusFilter"
+        @update:model-value="submitFilters"
+      >
+        <SelectTrigger class="w-full sm:w-44">
+          <SelectValue :placeholder="t('adminUsers.filters.statusPlaceholder')" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="ALL">{{ t('adminUsers.filters.statusAll') }}</SelectItem>
+          <SelectItem value="active">{{ t('adminUsers.status.active') }}</SelectItem>
+          <SelectItem value="disabled">{{ t('adminUsers.status.disabled') }}</SelectItem>
+        </SelectContent>
+      </Select>
+    </section>
 
     <div
       v-if="loading"
@@ -292,12 +291,12 @@ function formatDateTime(value: string) {
       <Table>
         <TableHeader class="bg-muted">
           <TableRow class="hover:bg-transparent">
-            <TableHead class="text-sm font-semibold">{{ t('adminUsers.table.username') }}</TableHead>
-            <TableHead class="text-sm font-semibold">{{ t('adminUsers.table.email') }}</TableHead>
-            <TableHead class="text-sm font-semibold">{{ t('adminUsers.table.role') }}</TableHead>
-            <TableHead class="text-sm font-semibold">{{ t('adminUsers.table.status') }}</TableHead>
-            <TableHead class="text-sm font-semibold">{{ t('adminUsers.table.createdAt') }}</TableHead>
-            <TableHead class="text-end text-sm font-semibold">{{ t('adminUsers.table.actions') }}</TableHead>
+            <TableHead>{{ t('adminUsers.table.username') }}</TableHead>
+            <TableHead>{{ t('adminUsers.table.email') }}</TableHead>
+            <TableHead>{{ t('adminUsers.table.role') }}</TableHead>
+            <TableHead>{{ t('adminUsers.table.status') }}</TableHead>
+            <TableHead>{{ t('adminUsers.table.createdAt') }}</TableHead>
+            <TableHead class="text-end">{{ t('adminUsers.table.actions') }}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -318,28 +317,17 @@ function formatDateTime(value: string) {
 
     <div
       v-else-if="loadFailed"
-      class="overflow-hidden rounded-lg border"
+      class="rounded-xl border bg-card p-4"
     >
-      <div class="flex h-96 items-center justify-center">
-        <Empty>
-          <EmptyHeader>
-            <EmptyTitle>{{ t('adminUsers.feedback.loadFailedTitle') }}</EmptyTitle>
-            <EmptyDescription>{{ t('adminUsers.feedback.loadFailed') }}</EmptyDescription>
-          </EmptyHeader>
-          <EmptyContent>
-            <Button
-              :disabled="refreshing"
-              @click="loadUsers()"
-            >
-              <Spinner
-                v-if="refreshing"
-                class="me-2"
-              />
-              {{ t('adminUsers.actions.retry') }}
-            </Button>
-          </EmptyContent>
-        </Empty>
-      </div>
+      <Empty>
+        <EmptyHeader>
+          <EmptyTitle>{{ t('adminUsers.feedback.loadFailedTitle') }}</EmptyTitle>
+          <EmptyDescription>{{ t('adminUsers.feedback.loadFailed') }}</EmptyDescription>
+        </EmptyHeader>
+        <EmptyContent>
+          <Button @click="loadUsers">{{ t('adminUsers.actions.retry') }}</Button>
+        </EmptyContent>
+      </Empty>
     </div>
 
     <div
@@ -350,12 +338,12 @@ function formatDateTime(value: string) {
         <Table>
           <TableHeader class="bg-muted">
             <TableRow class="hover:bg-transparent">
-              <TableHead class="text-sm font-semibold">{{ t('adminUsers.table.username') }}</TableHead>
-              <TableHead class="text-sm font-semibold">{{ t('adminUsers.table.email') }}</TableHead>
-              <TableHead class="text-sm font-semibold">{{ t('adminUsers.table.role') }}</TableHead>
-              <TableHead class="text-sm font-semibold">{{ t('adminUsers.table.status') }}</TableHead>
-              <TableHead class="text-sm font-semibold">{{ t('adminUsers.table.createdAt') }}</TableHead>
-              <TableHead class="text-end text-sm font-semibold">{{ t('adminUsers.table.actions') }}</TableHead>
+              <TableHead>{{ t('adminUsers.table.username') }}</TableHead>
+              <TableHead>{{ t('adminUsers.table.email') }}</TableHead>
+              <TableHead>{{ t('adminUsers.table.role') }}</TableHead>
+              <TableHead>{{ t('adminUsers.table.status') }}</TableHead>
+              <TableHead>{{ t('adminUsers.table.createdAt') }}</TableHead>
+              <TableHead class="text-end">{{ t('adminUsers.table.actions') }}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -364,59 +352,46 @@ function formatDateTime(value: string) {
                 v-for="user in users"
                 :key="user.id"
               >
+                <TableCell class="font-medium">{{ user.username }}</TableCell>
+                <TableCell>{{ user.email ?? t('adminUsers.table.noEmail') }}</TableCell>
                 <TableCell>
-                  <div class="flex min-w-0 flex-col">
-                    <span class="font-medium">{{ user.username }}</span>
-                    <span
-                      v-if="user.mustChangePassword"
-                      class="text-xs text-muted-foreground"
-                    >
-                      {{ t('adminUsers.table.mustChangePassword') }}
-                    </span>
-                  </div>
-                </TableCell>
-                <TableCell class="text-muted-foreground">
-                  {{ user.email ?? t('adminUsers.table.noEmail') }}
-                </TableCell>
-                <TableCell>
-                  <Badge :variant="getRoleBadgeVariant(user.role)">
-                    {{ t(getUserRoleLabelKey(user.role)) }}
+                  <Badge :variant="getUserRoleBadgeVariant(user.roleKeys)">
+                    {{ t(getUserRoleLabelKey(user.roleKeys)) }}
                   </Badge>
                 </TableCell>
                 <TableCell>
-                  <Badge :variant="getStatusBadgeVariant(user.status)">
-                    {{ t(`adminUsers.status.${user.status}`) }}
+                  <Badge :variant="user.status === 'active' ? 'outline' : 'secondary'">
+                    {{ getStatusLabel(user.status) }}
                   </Badge>
                 </TableCell>
-                <TableCell class="whitespace-nowrap text-muted-foreground">
-                  {{ formatDateTime(user.createdAt) }}
-                </TableCell>
+                <TableCell>{{ formatDateTime(user.createdAt) }}</TableCell>
                 <TableCell>
                   <div class="flex justify-end gap-2">
                     <Button
                       variant="outline"
                       size="sm"
-                      :disabled="!canManageUser(user)"
+                      :disabled="!hasAction(user, 'update')"
                       @click="openEditDialog(user)"
                     >
                       {{ t('common.action.edit') }}
                     </Button>
                     <Button
                       size="sm"
-                      :variant="user.status === 'banned' ? 'outline' : 'destructive'"
-                      :disabled="!canManageUser(user)"
-                      @click="requestToggleBan(user)"
+                      :variant="user.status === 'active' ? 'destructive' : 'outline'"
+                      :disabled="!(hasAction(user, 'disable') || hasAction(user, 'enable'))"
+                      @click="requestToggleStatus(user)"
                     >
                       <component
-                        :is="user.status === 'banned' ? ShieldCheck : ShieldBan"
+                        :is="user.status === 'active' ? ShieldBan : ShieldCheck"
                         class="me-2 size-4"
                       />
-                      {{ user.status === 'banned' ? t('adminUsers.actions.unban') : t('adminUsers.actions.ban') }}
+                      {{ user.status === 'active' ? t('adminUsers.actions.disable') : t('adminUsers.actions.enable') }}
                     </Button>
                   </div>
                 </TableCell>
               </TableRow>
             </template>
+
             <TableEmpty
               v-else
               :colspan="6"
@@ -427,11 +402,8 @@ function formatDateTime(value: string) {
         </Table>
       </div>
 
-      <div class="flex flex-col gap-4 px-1 lg:flex-row lg:items-center lg:justify-between">
-        <div
-          class="flex items-center gap-2 text-sm text-muted-foreground"
-          aria-live="polite"
-        >
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2 text-sm text-muted-foreground">
           <Spinner
             v-if="refreshing"
             class="size-4"
@@ -439,20 +411,20 @@ function formatDateTime(value: string) {
           {{ t('adminUsers.table.pageSummary', { page, totalPages, total }) }}
         </div>
 
-        <div class="flex items-center gap-2">
+        <div class="flex gap-2">
           <Button
-            variant="outline"
             size="sm"
-            :disabled="!canGoPrevious || refreshing"
-            @click="changePage(page - 1)"
+            variant="outline"
+            :disabled="page <= 1 || refreshing"
+            @click="goToPreviousPage"
           >
             {{ t('adminUsers.actions.previousPage') }}
           </Button>
           <Button
-            variant="outline"
             size="sm"
-            :disabled="!canGoNext || refreshing"
-            @click="changePage(page + 1)"
+            variant="outline"
+            :disabled="page >= totalPages || refreshing"
+            @click="goToNextPage"
           >
             {{ t('adminUsers.actions.nextPage') }}
           </Button>
@@ -460,26 +432,77 @@ function formatDateTime(value: string) {
       </div>
     </div>
 
-    <AdminUserDialog
-      v-model:open="dialogOpen"
-      :mode="dialogMode"
-      :user="selectedUser"
-      :pending="dialogPending"
-      :can-assign-admin-role="isSuperAdmin"
-      @submit="handleDialogSubmit"
-    />
+    <Dialog v-model:open="dialogOpen">
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{{ dialogMode === 'create' ? t('adminUsers.dialog.createTitle') : t('adminUsers.dialog.editTitle') }}</DialogTitle>
+          <DialogDescription>{{ dialogMode === 'create' ? t('adminUsers.dialog.createDescription') : t('adminUsers.dialog.editDescription') }}</DialogDescription>
+        </DialogHeader>
+
+        <div class="space-y-4 py-2">
+          <Input
+            v-model="form.username"
+            :placeholder="t('adminUsers.dialog.usernamePlaceholder')"
+          />
+          <Input
+            v-model="form.email"
+            :placeholder="t('adminUsers.dialog.emailPlaceholder')"
+          />
+          <Input
+            v-if="dialogMode === 'create'"
+            v-model="form.password"
+            type="password"
+            :placeholder="t('adminUsers.dialog.passwordPlaceholder')"
+          />
+          <Select v-model="form.roleKey">
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem
+                v-for="roleKey in roleOptions"
+                :key="roleKey"
+                :value="roleKey"
+              >
+                {{ getManagedRoleLabel(roleKey) }}
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <DialogFooter>
+          <Button
+            variant="outline"
+            :disabled="dialogPending"
+            @click="dialogOpen = false"
+          >
+            {{ t('common.action.cancel') }}
+          </Button>
+          <Button
+            :disabled="dialogPending"
+            @click="submitDialog"
+          >
+            <Spinner
+              v-if="dialogPending"
+              class="me-2"
+            />
+            {{ dialogMode === 'create' ? t('adminUsers.dialog.createSubmit') : t('adminUsers.dialog.editSubmit') }}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
 
     <AlertDialog v-model:open="confirmOpen">
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>
-            {{ confirmTarget?.status === 'banned' ? t('adminUsers.confirm.unbanTitle') : t('adminUsers.confirm.banTitle') }}
+            {{ confirmTarget?.status === 'active' ? t('adminUsers.confirm.disableTitle') : t('adminUsers.confirm.enableTitle') }}
           </AlertDialogTitle>
           <AlertDialogDescription>
             {{
-              confirmTarget?.status === 'banned'
-                ? t('adminUsers.confirm.unbanDescription', { username: confirmTarget?.username ?? '' })
-                : t('adminUsers.confirm.banDescription', { username: confirmTarget?.username ?? '' })
+              confirmTarget?.status === 'active'
+                ? t('adminUsers.confirm.disableDescription', { username: confirmTarget?.username ?? '' })
+                : t('adminUsers.confirm.enableDescription', { username: confirmTarget?.username ?? '' })
             }}
           </AlertDialogDescription>
         </AlertDialogHeader>
@@ -487,13 +510,13 @@ function formatDateTime(value: string) {
           <AlertDialogCancel :disabled="confirmPending">{{ t('common.action.cancel') }}</AlertDialogCancel>
           <AlertDialogAction
             :disabled="confirmPending"
-            @click.prevent="confirmToggleBan"
+            @click.prevent="confirmToggleStatus"
           >
             <Spinner
               v-if="confirmPending"
               class="me-2"
             />
-            {{ confirmTarget?.status === 'banned' ? t('adminUsers.actions.unban') : t('adminUsers.actions.ban') }}
+            {{ confirmTarget?.status === 'active' ? t('adminUsers.actions.disable') : t('adminUsers.actions.enable') }}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

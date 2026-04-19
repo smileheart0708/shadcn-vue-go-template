@@ -2,16 +2,74 @@ import { z } from 'zod'
 import { authApi, baseApi, normalizeAPIError } from '@/lib/api/client'
 import { successEnvelopeSchema } from '@/lib/api/envelope'
 
-export const authUserSchema = z.object({
+export const roleKeySchema = z.enum(['owner', 'admin', 'user'])
+export const capabilitySchema = z.enum([
+  'system.settings.read',
+  'system.settings.update',
+  'management.users.read',
+  'management.users.create',
+  'management.users.update',
+  'management.users.disable',
+  'management.users.enable',
+  'management.audit_logs.read',
+  'management.system_logs.read',
+  'account.delete_self',
+])
+
+export const viewerIdentitySchema = z.object({
   id: z.number().int().positive(),
   username: z.string(),
   email: z.email().nullable(),
   avatarUrl: z.string().nullable(),
-  role: z.number().int(),
-  mustChangePassword: z.boolean(),
+  status: z.enum(['active', 'disabled']),
 })
 
-export type AuthUser = z.infer<typeof authUserSchema>
+export const viewerAuthorizationSchema = z.object({
+  roleKeys: z.array(roleKeySchema),
+  capabilities: z.array(capabilitySchema),
+})
+
+export const viewerSchema = z.object({
+  identity: viewerIdentitySchema,
+  authorization: viewerAuthorizationSchema,
+})
+
+export const authModeSchema = z.enum(['single_user', 'multi_user'])
+export const registrationModeSchema = z.enum(['disabled', 'public'])
+
+export const installStateSchema = z.object({
+  setupState: z.enum(['pending', 'completed']),
+  setupCompleted: z.boolean(),
+  ownerUserId: z.number().int().positive().nullable(),
+  completedAt: z.string().nullable(),
+})
+
+export const publicAuthConfigSchema = z.object({
+  authMode: authModeSchema,
+  registrationMode: registrationModeSchema,
+  passwordLoginEnabled: z.boolean(),
+  registrationEnabled: z.boolean(),
+})
+
+const sessionPayloadSchema = z.object({
+  accessToken: z.string(),
+  tokenType: z.literal('Bearer'),
+  expiresAt: z.string(),
+  viewer: viewerSchema,
+})
+
+const logoutPayloadSchema = z.object({
+  loggedOut: z.boolean(),
+})
+
+export type RoleKey = z.infer<typeof roleKeySchema>
+export type Capability = z.infer<typeof capabilitySchema>
+export type ViewerIdentity = z.infer<typeof viewerIdentitySchema>
+export type ViewerAuthorization = z.infer<typeof viewerAuthorizationSchema>
+export type Viewer = z.infer<typeof viewerSchema>
+export type InstallState = z.infer<typeof installStateSchema>
+export type PublicAuthConfig = z.infer<typeof publicAuthConfigSchema>
+export type SessionResponse = z.infer<typeof sessionPayloadSchema>
 
 export interface LoginCredentials {
   identifier: string
@@ -24,64 +82,69 @@ export interface RegisterInput {
   password: string
 }
 
-export const registrationModeSchema = z.enum(['disabled', 'password'])
-export type RegistrationMode = z.infer<typeof registrationModeSchema>
+export interface SetupInput {
+  username: string
+  email: string | null
+  password: string
+}
 
-const loginPayloadSchema = z.object({
-  accessToken: z.string(),
-  tokenType: z.string(),
-  expiresAt: z.string(),
-  user: authUserSchema,
-})
-
-const logoutPayloadSchema = z.object({
-  loggedOut: z.boolean(),
-})
-
-const registrationPolicyPayloadSchema = z.object({
-  registrationMode: registrationModeSchema,
-})
-
-export const loginResponseSchema = successEnvelopeSchema(loginPayloadSchema)
-const logoutResponseSchema = successEnvelopeSchema(logoutPayloadSchema)
-const registrationPolicyResponseSchema = successEnvelopeSchema(registrationPolicyPayloadSchema)
-
-export type LoginResponse = z.infer<typeof loginPayloadSchema>
-export interface GetCurrentUserOptions {
+export interface GetViewerOptions {
   signal?: AbortSignal
   backgroundRequest?: boolean
 }
 
-const currentUserResponseSchema = successEnvelopeSchema(authUserSchema)
+const installStateEnvelopeSchema = successEnvelopeSchema(installStateSchema)
+const publicAuthConfigEnvelopeSchema = successEnvelopeSchema(publicAuthConfigSchema)
+const sessionEnvelopeSchema = successEnvelopeSchema(sessionPayloadSchema)
+const viewerEnvelopeSchema = successEnvelopeSchema(viewerSchema)
+const logoutEnvelopeSchema = successEnvelopeSchema(logoutPayloadSchema)
 
-export async function login(credentials: LoginCredentials): Promise<LoginResponse> {
+export async function getInstallState() {
+  try {
+    const payload = await baseApi.get('/api/install/state').json<unknown>()
+    return installStateEnvelopeSchema.parse(payload).data
+  } catch (error) {
+    return normalizeAPIError(error)
+  }
+}
+
+export async function completeSetup(input: SetupInput): Promise<SessionResponse> {
+  try {
+    const payload = await baseApi.post('/api/install/setup', { json: input }).json<unknown>()
+    return sessionEnvelopeSchema.parse(payload).data
+  } catch (error) {
+    return normalizeAPIError(error)
+  }
+}
+
+export async function getPublicAuthConfig() {
+  try {
+    const payload = await baseApi.get('/api/auth/public-config').json<unknown>()
+    return publicAuthConfigEnvelopeSchema.parse(payload).data
+  } catch (error) {
+    return normalizeAPIError(error)
+  }
+}
+
+export async function login(credentials: LoginCredentials): Promise<SessionResponse> {
   try {
     const payload = await baseApi.post('/api/auth/login', { json: credentials }).json<unknown>()
-    return loginResponseSchema.parse(payload).data
+    return sessionEnvelopeSchema.parse(payload).data
   } catch (error) {
     return normalizeAPIError(error)
   }
 }
 
-export async function register(input: RegisterInput): Promise<LoginResponse> {
+export async function register(input: RegisterInput): Promise<SessionResponse> {
   try {
     const payload = await baseApi.post('/api/auth/register', { json: input }).json<unknown>()
-    return loginResponseSchema.parse(payload).data
+    return sessionEnvelopeSchema.parse(payload).data
   } catch (error) {
     return normalizeAPIError(error)
   }
 }
 
-export async function getRegistrationPolicy() {
-  try {
-    const payload = await baseApi.get('/api/auth/registration-policy').json<unknown>()
-    return registrationPolicyResponseSchema.parse(payload).data
-  } catch (error) {
-    return normalizeAPIError(error)
-  }
-}
-
-export async function refreshSession(): Promise<LoginResponse> {
+export async function refreshSession(): Promise<SessionResponse> {
   try {
     const payload = await baseApi
       .post('/api/auth/refresh', {
@@ -90,7 +153,7 @@ export async function refreshSession(): Promise<LoginResponse> {
         },
       })
       .json<unknown>()
-    return loginResponseSchema.parse(payload).data
+    return sessionEnvelopeSchema.parse(payload).data
   } catch (error) {
     return normalizeAPIError(error)
   }
@@ -105,13 +168,13 @@ export async function logout() {
         },
       })
       .json<unknown>()
-    return logoutResponseSchema.parse(payload).data
+    return logoutEnvelopeSchema.parse(payload).data
   } catch (error) {
     return normalizeAPIError(error)
   }
 }
 
-export async function getCurrentUser(options: GetCurrentUserOptions = {}): Promise<AuthUser> {
+export async function getViewer(options: GetViewerOptions = {}) {
   try {
     const payload = await authApi
       .get('/api/auth/me', {
@@ -121,7 +184,7 @@ export async function getCurrentUser(options: GetCurrentUserOptions = {}): Promi
         },
       })
       .json<unknown>()
-    return currentUserResponseSchema.parse(payload).data
+    return viewerEnvelopeSchema.parse(payload).data
   } catch (error) {
     return normalizeAPIError(error)
   }

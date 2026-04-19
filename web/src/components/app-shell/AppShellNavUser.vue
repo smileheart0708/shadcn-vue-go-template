@@ -20,7 +20,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from '@/components/ui/sidebar'
 import { getAvatarFallbackText } from '@/lib/avatar'
-import { getUserRoleBadgeVariant, getUserRoleLabelKey } from '@/lib/auth/roles'
+import { getPrimaryRoleKey, getUserRoleBadgeVariant, getUserRoleLabelKey } from '@/lib/auth/roles'
 import { useI18n } from 'vue-i18n'
 import { supportedLocales, localeNames, type AppLocale } from '@/plugins/i18n'
 import { useLocaleStore } from '@/stores/locale'
@@ -30,7 +30,7 @@ const props = defineProps<{
     username: string
     email: string | null
     avatarUrl: string | null
-    role: number
+    roleKeys: string[]
   }
 }>()
 
@@ -40,8 +40,8 @@ const { isMobile } = useSidebar()
 const { t } = useI18n()
 const localeStore = useLocaleStore()
 const avatarFallbackText = computed(() => getAvatarFallbackText(props.user.username))
-const roleLabel = computed(() => t(getUserRoleLabelKey(props.user.role)))
-const roleBadgeVariant = computed(() => getUserRoleBadgeVariant(props.user.role))
+const roleLabel = computed(() => t(getUserRoleLabelKey(getPrimaryRoleKey(props.user.roleKeys))))
+const roleBadgeVariant = computed(() => getUserRoleBadgeVariant(getPrimaryRoleKey(props.user.roleKeys)))
 
 function switchLanguage(newLocale: AppLocale) {
   localeStore.setLocale(newLocale)

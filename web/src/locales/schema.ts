@@ -16,6 +16,7 @@ export interface MessageSchema {
       filter: string
       import: string
       menu: string
+      next: string
       refresh: string
       reset: string
       retry: string
@@ -44,12 +45,12 @@ export interface MessageSchema {
       success: string
     }
     text: { yes: string; no: string; none: string; all: string; optional: string; required: string }
-    userRole: { 0: string; 1: string; 2: string }
+    role: { owner: string; admin: string; user: string }
   }
   apiError: {
     unknown: string
     invalidCredentials: string
-    accountBanned: string
+    accountDisabled: string
     unauthorized: string
     usernameRequired: string
     usernameTaken: string
@@ -58,6 +59,8 @@ export interface MessageSchema {
     passwordTooShort: string
     registrationDisabled: string
     invalidRegistrationMode: string
+    setupRequired: string
+    setupCompleted: string
     avatarRequired: string
     avatarInvalidType: string
     avatarTooLarge: string
@@ -65,7 +68,8 @@ export interface MessageSchema {
     avatarUploadFailed: string
     passwordUpdateFailed: string
     accountDeleteFailed: string
-    superAdminDeleteForbidden: string
+    accountDeleteForbidden: string
+    invalidRoleKeys: string
     systemLogStreamFailed: string
   }
   route: {
@@ -76,6 +80,7 @@ export interface MessageSchema {
     notFound: string
     settings: string
     register: string
+    setup: string
     systemLogs: string
     tasks: string
     feedback: { loadFailed: string }
@@ -84,6 +89,7 @@ export interface MessageSchema {
     title: string
     description: string
     badge: string
+    updatedAt: string
     registration: {
       title: string
       description: string
@@ -94,6 +100,28 @@ export interface MessageSchema {
       }
     }
     observability: { title: string; description: string; cta: string }
+    cards: {
+      auth: { title: string; description: string }
+      effectivePolicy: { title: string; description: string }
+    }
+    fields: {
+      authMode: { title: string; description: string }
+      registrationMode: { title: string; description: string }
+      adminUserCreateEnabled: { title: string; description: string }
+      selfServiceAccountDeletionEnabled: { title: string; description: string }
+      passwordLoginEnabled: { title: string; description: string }
+    }
+    options: {
+      authMode: { singleUser: string; multiUser: string }
+      registrationMode: { disabled: string; public: string }
+    }
+    policy: {
+      authMode: string
+      registrationMode: string
+      publicRegistration: string
+      adminUserCreate: string
+      selfServiceAccountDeletion: string
+    }
     actions: { retry: string }
     feedback: { loadFailedTitle: string; loadFailed: string; saving: string; saved: string; saveFailed: string }
   }
@@ -123,8 +151,7 @@ export interface MessageSchema {
       edit: string
       editProfile: string
       editProfileDesc: string
-      mustChangePasswordTitle: string
-      mustChangePasswordDesc: string
+      statusActive: string
       password: string
       passwordDesc: string
       currentPassword: string
@@ -143,7 +170,8 @@ export interface MessageSchema {
       deleteAccount: string
       deleteAccountConfirm: string
       deleteAccountSuccess: string
-      superAdminDeleteForbidden: string
+      deleteAccountOwnerForbidden: string
+      deleteAccountUnavailable: string
     }
     basic: {
       theme: string
@@ -170,6 +198,15 @@ export interface MessageSchema {
       security: string
       securityDesc: string
     }
+  }
+  setup: {
+    title: string
+    description: string
+    emailHint: string
+    creating: string
+    success: string
+    failed: string
+    submit: string
   }
   auth: {
     signIn: {
@@ -217,8 +254,8 @@ export interface MessageSchema {
       createUser: string
       refresh: string
       retry: string
-      ban: string
-      unban: string
+      disable: string
+      enable: string
       previousPage: string
       nextPage: string
     }
@@ -242,10 +279,9 @@ export interface MessageSchema {
       actions: string
       empty: string
       noEmail: string
-      mustChangePassword: string
       pageSummary: string
     }
-    status: { active: string; banned: string }
+    status: { active: string; disabled: string }
     dialog: {
       createTitle: string
       createDescription: string
@@ -259,10 +295,10 @@ export interface MessageSchema {
       passwordHint: string
     }
     confirm: {
-      banTitle: string
-      banDescription: string
-      unbanTitle: string
-      unbanDescription: string
+      disableTitle: string
+      disableDescription: string
+      enableTitle: string
+      enableDescription: string
     }
     feedback: {
       loadFailedTitle: string
@@ -274,12 +310,12 @@ export interface MessageSchema {
       updating: string
       updateSuccess: string
       updateFailed: string
-      banning: string
-      banSuccess: string
-      banFailed: string
-      unbanning: string
-      unbanSuccess: string
-      unbanFailed: string
+      disabling: string
+      disableSuccess: string
+      disableFailed: string
+      enabling: string
+      enableSuccess: string
+      enableFailed: string
     }
   }
   table: {
@@ -318,6 +354,7 @@ export interface MessageSchema {
   systemLogs: {
     title: string
     description: string
+    tabs: { console: string; audit: string }
     summary: { buffered: string }
     connection: { connected: string; connecting: string; disconnected: string }
     console: { title: string }
@@ -336,6 +373,22 @@ export interface MessageSchema {
       level: { all: string; DEBUG: string; INFO: string; WARN: string; ERROR: string }
     }
     empty: { title: string; description: string }
+    audit: {
+      title: string
+      description: string
+      pageSummary: string
+      outcome: { success: string; failure: string }
+      table: {
+        occurredAt: string
+        eventType: string
+        outcome: string
+        actor: string
+        subject: string
+        reason: string
+        empty: string
+      }
+      feedback: { loadFailedTitle: string; loadFailed: string }
+    }
     feedback: { exportSuccess: string; exportEmpty: string }
   }
   nav: {
