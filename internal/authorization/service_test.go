@@ -1,6 +1,10 @@
 package authorization
 
-import "testing"
+import (
+	"encoding/json"
+	"strings"
+	"testing"
+)
 
 func TestViewerAuthorizationAppliesDynamicCapabilities(t *testing.T) {
 	t.Parallel()
@@ -17,6 +21,25 @@ func TestViewerAuthorizationAppliesDynamicCapabilities(t *testing.T) {
 	}
 	if !service.HasCapability(viewer.Capabilities, CapabilityAccountDeleteSelf) {
 		t.Fatal("expected account.delete_self capability to be added when allowed")
+	}
+}
+
+func TestViewerAuthorizationAlwaysEncodesEmptyRoleKeysAsArray(t *testing.T) {
+	t.Parallel()
+
+	service := NewService()
+
+	viewer := service.ViewerAuthorization(nil, ViewerOptions{})
+	if viewer.RoleKeys == nil {
+		t.Fatal("expected empty role keys slice to be non-nil")
+	}
+
+	payload, err := json.Marshal(viewer)
+	if err != nil {
+		t.Fatalf("failed to marshal viewer authorization: %v", err)
+	}
+	if !strings.Contains(string(payload), `"roleKeys":[]`) {
+		t.Fatalf("expected role keys to encode as JSON array, got %s", string(payload))
 	}
 }
 

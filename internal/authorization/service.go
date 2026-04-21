@@ -153,7 +153,7 @@ func (s *Service) ViewerAuthorization(roleKeys []string, options ViewerOptions) 
 	}
 	sort.Strings(capabilities)
 
-	nextRoleKeys := append([]string(nil), roleKeys...)
+	nextRoleKeys := cloneStringSlice(roleKeys)
 	sort.Strings(nextRoleKeys)
 	return ViewerAuthorization{
 		RoleKeys:     nextRoleKeys,
@@ -247,4 +247,12 @@ func removeCapability(capabilities []string, capability string) []string {
 		filtered = append(filtered, currentCapability)
 	}
 	return filtered
+}
+
+func cloneStringSlice(values []string) []string {
+	if len(values) == 0 {
+		return []string{}
+	}
+
+	return append([]string(nil), values...)
 }
