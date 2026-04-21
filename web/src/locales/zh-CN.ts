@@ -56,7 +56,7 @@ const zhCN = {
       success: '成功',
     },
     text: { yes: '是', no: '否', none: '暂无', all: '全部', optional: '可选', required: '必填' },
-    role: { owner: 'Owner', admin: '管理员', user: '普通用户' },
+    role: { owner: '所有者', admin: '管理员', user: '普通用户' },
   },
   apiError: {
     unknown: '发生未知错误，请稍后重试。',
@@ -99,7 +99,7 @@ const zhCN = {
   systemConfig: {
     title: '系统配置',
     description: '集中管理认证模式、公开注册、自助删除和管理员创建用户等 owner 级系统设置。',
-    badge: '仅 Owner',
+    badge: '仅所有者',
     updatedAt: '最近更新：{value}',
     registration: {
       title: '注册策略',
@@ -226,7 +226,7 @@ const zhCN = {
       deleteAccount: '删除账号',
       deleteAccountConfirm: '此操作不可撤销。你的所有数据将被永久删除。',
       deleteAccountSuccess: '账号已删除。',
-      deleteAccountOwnerForbidden: 'Owner 账户不能删除自己。',
+      deleteAccountOwnerForbidden: '所有者账户不能删除自己。',
       deleteAccountUnavailable: '当前系统策略不允许这个账号自助删除。',
     },
     basic: {
