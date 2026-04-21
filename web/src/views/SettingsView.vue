@@ -81,17 +81,6 @@ const editAvatarImageSrc = computed(() => pendingAvatarPreviewURL.value ?? curre
 const roleLabel = computed(() => t(getUserRoleLabelKey(currentRoleKey.value)))
 const roleBadgeVariant = computed(() => getUserRoleBadgeVariant(currentRoleKey.value))
 const canDeleteAccount = computed(() => authStore.can(CAPABILITY.accountDeleteSelf))
-const deleteAccountHint = computed(() => {
-  if (canDeleteAccount.value) {
-    return null
-  }
-
-  if (authStore.hasRole('owner')) {
-    return t('settings.account.deleteAccountOwnerForbidden')
-  }
-
-  return t('settings.account.deleteAccountUnavailable')
-})
 const localeOptions = Object.entries(localeNames).map(([value, label]) => ({
   value,
   label,
@@ -133,6 +122,14 @@ watch(editDialogOpen, (isOpen) => {
   }
 })
 
+watch(canDeleteAccount, (allowed) => {
+  if (allowed) {
+    return
+  }
+
+  closeDeleteAccountFlow()
+})
+
 watch(deleteDialogOpen, (isOpen) => {
   if (deleteCountdownTimer !== null) {
     clearInterval(deleteCountdownTimer)
@@ -157,10 +154,7 @@ watch(deleteDialogOpen, (isOpen) => {
 
 onBeforeUnmount(() => {
   clearPendingAvatarPreview()
-
-  if (deleteCountdownTimer !== null) {
-    clearInterval(deleteCountdownTimer)
-  }
+  closeDeleteAccountFlow()
 })
 
 function isThemePreference(value: unknown): value is 'light' | 'dark' | 'system' {
@@ -242,6 +236,17 @@ function clearPendingAvatarPreview() {
 
 function openAvatarPicker() {
   avatarInput.value?.click()
+}
+
+function closeDeleteAccountFlow() {
+  if (deleteCountdownTimer !== null) {
+    clearInterval(deleteCountdownTimer)
+    deleteCountdownTimer = null
+  }
+
+  deleteDialogOpen.value = false
+  deleteCountdown.value = 0
+  deleteAccountConfirmed.value = false
 }
 
 function isSupportedAvatarFileType(fileType: string): fileType is 'image/jpeg' | 'image/png' | 'image/webp' {
@@ -360,9 +365,6 @@ async function updatePassword() {
 
 async function confirmDelete() {
   if (!canDeleteAccount.value || isDeletingAccount.value) {
-    if (deleteAccountHint.value !== null) {
-      toast.error(deleteAccountHint.value)
-    }
     return
   }
 
@@ -370,7 +372,7 @@ async function confirmDelete() {
 
   try {
     await authStore.deleteAccount()
-    deleteDialogOpen.value = false
+    closeDeleteAccountFlow()
     toast.success(t('settings.account.deleteAccountSuccess'))
     await router.push({ name: 'login' })
   } catch (error) {
@@ -636,7 +638,10 @@ async function confirmDelete() {
           </CardFooter>
         </Card>
 
-        <Card class="border-destructive/60">
+        <Card
+          v-if="canDeleteAccount"
+          class="border-destructive/60"
+        >
           <CardHeader>
             <CardTitle class="text-destructive">{{ t('settings.account.dangerZone') }}</CardTitle>
             <CardDescription>{{ t('settings.account.dangerZoneDesc') }}</CardDescription>
@@ -646,25 +651,14 @@ async function confirmDelete() {
               <Checkbox
                 id="delete-account"
                 v-model="deleteAccountConfirmed"
-                :disabled="!canDeleteAccount"
               />
               <Label for="delete-account">{{ t('settings.account.dangerZoneConfirm') }}</Label>
             </div>
-
-            <p
-              v-if="deleteAccountHint !== null"
-              class="text-sm text-muted-foreground"
-            >
-              {{ deleteAccountHint }}
-            </p>
           </CardContent>
           <CardFooter>
             <AlertDialog v-model:open="deleteDialogOpen">
               <AlertDialogTrigger as-child>
-                <Button
-                  variant="destructive"
-                  :disabled="deleteAccountConfirmed === false || !canDeleteAccount"
-                >
+                <Button variant="destructive">
                   {{ t('settings.account.deleteAccount') }}
                 </Button>
               </AlertDialogTrigger>

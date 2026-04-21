@@ -170,8 +170,6 @@ export interface MessageSchema {
       deleteAccount: string
       deleteAccountConfirm: string
       deleteAccountSuccess: string
-      deleteAccountOwnerForbidden: string
-      deleteAccountUnavailable: string
     }
     basic: {
       theme: string

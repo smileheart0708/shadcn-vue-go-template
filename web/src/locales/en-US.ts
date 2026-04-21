@@ -226,8 +226,6 @@ const enUS = {
       deleteAccount: 'Delete Account',
       deleteAccountConfirm: 'This action cannot be undone. All your data will be permanently deleted.',
       deleteAccountSuccess: 'Account deleted.',
-      deleteAccountOwnerForbidden: 'Owner accounts cannot delete themselves.',
-      deleteAccountUnavailable: 'Self-service account deletion is disabled for this account.',
     },
     basic: {
       theme: 'Theme',

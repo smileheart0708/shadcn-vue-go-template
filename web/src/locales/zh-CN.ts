@@ -226,8 +226,6 @@ const zhCN = {
       deleteAccount: '删除账号',
       deleteAccountConfirm: '此操作不可撤销。你的所有数据将被永久删除。',
       deleteAccountSuccess: '账号已删除。',
-      deleteAccountOwnerForbidden: '所有者账户不能删除自己。',
-      deleteAccountUnavailable: '当前系统策略不允许这个账号自助删除。',
     },
     basic: {
       theme: '主题',
