@@ -34,11 +34,13 @@ func TestCompleteOnlyRunsOnceAndPersistsOwner(t *testing.T) {
 
 	owner, err := service.Complete(context.Background(), CompleteSetupInput{
 		Username: "owner",
-		Email:    new("owner@example.com"),
 		Password: "owner1234",
 	}, identity.ActionAuditContext{})
 	if err != nil {
 		t.Fatalf("failed to complete setup: %v", err)
+	}
+	if owner.Email != nil {
+		t.Fatalf("expected setup owner email to be nil, got %q", *owner.Email)
 	}
 	if got := owner.RoleKeys; len(got) != 1 || got[0] != authorization.RoleOwner {
 		t.Fatalf("expected owner role, got %+v", got)
@@ -46,7 +48,6 @@ func TestCompleteOnlyRunsOnceAndPersistsOwner(t *testing.T) {
 
 	_, err = service.Complete(context.Background(), CompleteSetupInput{
 		Username: "other",
-		Email:    new("other@example.com"),
 		Password: "password123",
 	}, identity.ActionAuditContext{})
 	if err != ErrAlreadyCompleted {

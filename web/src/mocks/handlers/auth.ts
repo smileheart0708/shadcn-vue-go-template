@@ -413,7 +413,6 @@ export const authHandlers = [
     }
 
     const username = payload.username.trim()
-    const email = typeof payload.email === 'string' ? payload.email.trim() || null : null
     if (username === '') {
       return jsonError(400, 'username_required', 'Username is required.')
     }
@@ -423,15 +422,12 @@ export const authHandlers = [
     if (usernameTaken(username)) {
       return jsonError(409, 'username_taken', 'Username is already in use.')
     }
-    if (emailTaken(email)) {
-      return jsonError(409, 'email_taken', 'Email is already in use.')
-    }
 
     const createdAt = nowISO()
     const owner: MockUser = {
       id: state.nextUserId++,
       username,
-      email,
+      email: null,
       avatarUrl: null,
       roleKeys: ['owner'],
       status: 'active',

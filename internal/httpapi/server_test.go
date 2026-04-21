@@ -459,7 +459,7 @@ func (ctx *testContext) authServiceCookieName() string {
 func performSetup(t *testing.T, ctx *testContext) (sessionResponse, *http.Cookie) {
 	t.Helper()
 
-	req := httptest.NewRequest(http.MethodPost, "/api/install/setup", strings.NewReader(`{"username":"owner","email":"owner@example.com","password":"owner1234"}`))
+	req := httptest.NewRequest(http.MethodPost, "/api/install/setup", strings.NewReader(`{"username":"owner","password":"owner1234"}`))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	ctx.handler.ServeHTTP(rec, req)

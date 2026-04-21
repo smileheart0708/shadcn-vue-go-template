@@ -34,7 +34,6 @@ type State struct {
 
 type CompleteSetupInput struct {
 	Username string
-	Email    *string
 	Password string
 }
 
@@ -127,7 +126,7 @@ func (s *Service) Complete(ctx context.Context, input CompleteSetupInput, reques
 				updated_at
 			) VALUES (?, ?, NULL, ?, 1, NULL, ?, ?)`,
 			username,
-			normalizeEmailPointer(input.Email),
+			nil,
 			identity.StatusActive,
 			now.Unix(),
 			now.Unix(),
@@ -224,7 +223,6 @@ func (s *Service) Complete(ctx context.Context, input CompleteSetupInput, reques
 func mapIdentityWriteError(err error) error {
 	switch {
 	case errors.Is(err, identity.ErrUsernameTaken),
-		errors.Is(err, identity.ErrEmailTaken),
 		errors.Is(err, identity.ErrOwnerAlreadyExists):
 		return err
 	}
@@ -233,22 +231,9 @@ func mapIdentityWriteError(err error) error {
 	switch {
 	case strings.Contains(message, "unique constraint failed: users.username"):
 		return identity.ErrUsernameTaken
-	case strings.Contains(message, "unique constraint failed: users.email"):
-		return identity.ErrEmailTaken
 	case strings.Contains(message, "unique constraint failed: user_roles.role_key"):
 		return identity.ErrOwnerAlreadyExists
 	default:
 		return fmt.Errorf("setup: write failed: %w", err)
 	}
-}
-
-func normalizeEmailPointer(email *string) *string {
-	if email == nil {
-		return nil
-	}
-	normalized := strings.ToLower(strings.TrimSpace(*email))
-	if normalized == "" {
-		return nil
-	}
-	return new(normalized)
 }

@@ -256,13 +256,15 @@ const enUS = {
     },
   },
   setup: {
-    title: 'Complete initial setup',
-    description: 'Create the unique owner account for this installation. Setup closes permanently after the first successful run.',
-    emailHint: 'Email is optional.',
+    title: 'Welcome',
     creating: 'Creating owner account...',
-    success: 'Setup completed.',
-    failed: 'Setup failed.',
+    success: 'Setup completed',
+    failed: 'Setup failed',
     submit: 'Finish setup',
+    step1: 'Basic Information',
+    step2: 'Setup Completed',
+    passwordMismatch: 'Password and confirmation must match.',
+    complete: 'Complete',
   },
   auth: {
     signIn: {

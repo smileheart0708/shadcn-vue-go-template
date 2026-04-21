@@ -84,7 +84,6 @@ export interface RegisterInput {
 
 export interface SetupInput {
   username: string
-  email: string | null
   password: string
 }
 

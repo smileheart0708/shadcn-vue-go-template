@@ -12,9 +12,8 @@ import (
 )
 
 type installSetupRequest struct {
-	Username string  `json:"username"`
-	Email    *string `json:"email"`
-	Password string  `json:"password"`
+	Username string `json:"username"`
+	Password string `json:"password"`
 }
 
 type loginRequest struct {
@@ -69,7 +68,6 @@ func (api *API) installSetupHandler(w http.ResponseWriter, r *http.Request) {
 	ip, userAgent := requestMetadata(r)
 	owner, err := api.setup.Complete(r.Context(), setup.CompleteSetupInput{
 		Username: payload.Username,
-		Email:    payload.Email,
 		Password: payload.Password,
 	}, identity.ActionAuditContext{
 		IP:        nullableString(ip),
@@ -81,8 +79,6 @@ func (api *API) installSetupHandler(w http.ResponseWriter, r *http.Request) {
 			writeAPIError(w, http.StatusConflict, "setup_completed", "The application has already been initialized.")
 		case errors.Is(err, identity.ErrUsernameTaken):
 			writeAPIError(w, http.StatusConflict, "username_taken", "Username is already in use.")
-		case errors.Is(err, identity.ErrEmailTaken):
-			writeAPIError(w, http.StatusConflict, "email_taken", "Email is already in use.")
 		default:
 			writeAPIError(w, http.StatusInternalServerError, "setup_failed", "Failed to initialize the application.")
 		}

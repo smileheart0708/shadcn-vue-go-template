@@ -201,12 +201,14 @@ export interface MessageSchema {
   }
   setup: {
     title: string
-    description: string
-    emailHint: string
     creating: string
     success: string
     failed: string
     submit: string
+    step1: string
+    step2: string
+    passwordMismatch: string
+    complete: string
   }
   auth: {
     signIn: {
