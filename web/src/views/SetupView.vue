@@ -14,7 +14,7 @@ const { t } = useI18n()
 const router = useRouter()
 const authStore = useAuthStore()
 
-const username = ref('owner')
+const username = ref('admin')
 const email = ref('')
 const password = ref('')
 const confirmPassword = ref('')

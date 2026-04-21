@@ -258,7 +258,7 @@ const enUS = {
   setup: {
     title: 'Complete initial setup',
     description: 'Create the unique owner account for this installation. Setup closes permanently after the first successful run.',
-    emailHint: 'Email is optional. The owner is the install root account and cannot be transferred in v1.',
+    emailHint: 'Email is optional.',
     creating: 'Creating owner account...',
     success: 'Setup completed.',
     failed: 'Setup failed.',

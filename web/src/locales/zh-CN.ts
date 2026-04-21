@@ -258,7 +258,7 @@ const zhCN = {
   setup: {
     title: '完成系统初始化',
     description: '首次启动时需要创建唯一 owner 账户。完成后系统会进入正式运行状态，并关闭 setup 入口。',
-    emailHint: '邮箱为可选项。owner 是安装根账户，v1 不支持转移。',
+    emailHint: '邮箱为可选项',
     creating: '正在创建 owner 账户...',
     success: '系统初始化完成。',
     failed: '系统初始化失败。',
