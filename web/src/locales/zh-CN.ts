@@ -98,7 +98,7 @@ const zhCN = {
   },
   systemConfig: {
     title: '系统配置',
-    description: '集中管理认证模式、公开注册、自助删除和管理员创建用户等 owner 级系统设置。',
+    description: '集中管理认证模式、公开注册、自助删除和管理员创建用户等所有者级系统设置。',
     badge: '仅所有者',
     updatedAt: '最近更新：{value}',
     registration: {
@@ -134,7 +134,7 @@ const zhCN = {
     fields: {
       authMode: {
         title: '认证模式',
-        description: '单用户模式只保留唯一 owner，多用户模式允许 owner/admin 管理普通用户。',
+        description: '单用户模式只保留唯一所有者，多用户模式允许所有者/管理员管理普通用户。',
       },
       registrationMode: {
         title: '注册模式',
@@ -142,7 +142,7 @@ const zhCN = {
       },
       adminUserCreateEnabled: {
         title: '允许管理员创建普通用户',
-        description: '关闭后只有 owner 能通过管理页创建用户。',
+        description: '关闭后只有所有者能通过管理页创建用户。',
       },
       selfServiceAccountDeletionEnabled: {
         title: '允许用户自助删除账号',
@@ -257,7 +257,7 @@ const zhCN = {
   },
   setup: {
     title: '欢迎使用',
-    creating: '正在创建 owner 账户...',
+    creating: '正在创建所有者账户...',
     success: '初始化完成',
     failed: '初始化失败',
     submit: '完成初始化',
