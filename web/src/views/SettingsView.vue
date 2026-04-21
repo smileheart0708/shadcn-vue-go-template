@@ -24,6 +24,7 @@ import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, Di
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Spinner } from '@/components/ui/spinner'
 import { Slider } from '@/components/ui/slider'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { getAPIErrorMessage } from '@/lib/api/error-messages'
@@ -358,7 +359,7 @@ async function updatePassword() {
 }
 
 async function confirmDelete() {
-  if (!canDeleteAccount.value) {
+  if (!canDeleteAccount.value || isDeletingAccount.value) {
     if (deleteAccountHint.value !== null) {
       toast.error(deleteAccountHint.value)
     }
@@ -369,13 +370,13 @@ async function confirmDelete() {
 
   try {
     await authStore.deleteAccount()
+    deleteDialogOpen.value = false
     toast.success(t('settings.account.deleteAccountSuccess'))
     await router.push({ name: 'login' })
   } catch (error) {
     toast.error(getAPIErrorMessage(t, error, 'apiError.accountDeleteFailed'))
   } finally {
     isDeletingAccount.value = false
-    deleteDialogOpen.value = false
   }
 }
 </script>
@@ -673,13 +674,21 @@ async function confirmDelete() {
                   <AlertDialogDescription>{{ t('settings.account.deleteAccountConfirm') }}</AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogCancel>{{ t('common.action.cancel') }}</AlertDialogCancel>
-                  <AlertDialogAction as-child>
+                  <AlertDialogCancel :disabled="isDeletingAccount">{{ t('common.action.cancel') }}</AlertDialogCancel>
+                  <!-- 让确认动作在对话框自动关闭前先进入提交分支。 -->
+                  <AlertDialogAction
+                    as-child
+                    :disabled="deleteCountdown > 0 || isDeletingAccount"
+                    @click.prevent="confirmDelete"
+                  >
                     <Button
                       variant="destructive"
                       :disabled="deleteCountdown > 0 || isDeletingAccount"
-                      @click="deleteCountdown > 0 ? undefined : confirmDelete"
                     >
+                      <Spinner
+                        v-if="isDeletingAccount"
+                        class="me-2"
+                      />
                       {{ deleteCountdown > 0 ? `${deleteCountdown}s` : t('settings.account.deleteAccount') }}
                     </Button>
                   </AlertDialogAction>
