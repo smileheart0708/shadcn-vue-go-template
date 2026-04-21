@@ -99,11 +99,11 @@ func (api *API) toManagedUserResponse(user identity.UserWithRoles, actions []str
 		Username:  user.Username,
 		Email:     user.Email,
 		AvatarURL: api.toAvatarURL(user.AvatarPath),
-		RoleKeys:  append([]string(nil), user.RoleKeys...),
+		RoleKeys:  cloneStringSlice(user.RoleKeys),
 		Status:    user.Status,
 		CreatedAt: user.CreatedAt,
 		UpdatedAt: user.UpdatedAt,
-		Actions:   append([]string(nil), actions...),
+		Actions:   cloneStringSlice(actions),
 	}
 }
 
@@ -117,4 +117,12 @@ func (api *API) toAvatarURL(avatarPath *string) *string {
 	}
 	url := "/api/avatars/" + filename
 	return &url
+}
+
+func cloneStringSlice(values []string) []string {
+	if len(values) == 0 {
+		return []string{}
+	}
+
+	return append([]string(nil), values...)
 }

@@ -334,6 +334,40 @@ func TestAdminCannotManageOwnerOrOtherAdminsAndOwnerRemainsVisible(t *testing.T)
 	decodeErrorCode(t, createAdminRec.Body.Bytes(), "invalid_role_keys")
 }
 
+func TestManagedUserResponsesEncodeEmptySlicesAsJSONArrays(t *testing.T) {
+	t.Parallel()
+
+	ctx := newTestContext(t)
+	ownerSession, _ := performSetup(t, ctx)
+
+	listReq := httptest.NewRequest(http.MethodGet, "/api/management/users", nil)
+	listReq.Header.Set("Authorization", "Bearer "+ownerSession.AccessToken)
+	listRec := httptest.NewRecorder()
+	ctx.handler.ServeHTTP(listRec, listReq)
+
+	if listRec.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, listRec.Code, listRec.Body.String())
+	}
+	if !strings.Contains(listRec.Body.String(), `"actions":[]`) {
+		t.Fatalf("expected empty actions to encode as JSON array, got %s", listRec.Body.String())
+	}
+
+	updateSystemSettings(t, ctx, ownerSession.AccessToken, `{"authMode":"multi_user","registrationMode":"disabled","adminUserCreateEnabled":true,"selfServiceAccountDeletionEnabled":true}`)
+
+	createReq := httptest.NewRequest(http.MethodPost, "/api/management/users", strings.NewReader(`{"username":"member","password":"member1234","roleKeys":["user"]}`))
+	createReq.Header.Set("Content-Type", "application/json")
+	createReq.Header.Set("Authorization", "Bearer "+ownerSession.AccessToken)
+	createRec := httptest.NewRecorder()
+	ctx.handler.ServeHTTP(createRec, createReq)
+
+	if createRec.Code != http.StatusCreated {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusCreated, createRec.Code, createRec.Body.String())
+	}
+	if !strings.Contains(createRec.Body.String(), `"actions":[]`) {
+		t.Fatalf("expected created user actions to encode as JSON array, got %s", createRec.Body.String())
+	}
+}
+
 func TestAuditLogsEndpointIncludesSecurityEvents(t *testing.T) {
 	t.Parallel()
 
