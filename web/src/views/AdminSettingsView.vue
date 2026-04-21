@@ -229,7 +229,7 @@ async function saveSettings() {
                 <div class="font-medium">{{ t('systemConfig.fields.adminUserCreateEnabled.title') }}</div>
                 <p class="text-sm text-muted-foreground">{{ t('systemConfig.fields.adminUserCreateEnabled.description') }}</p>
               </div>
-              <Switch v-model:checked="form.adminUserCreateEnabled" />
+              <Switch v-model="form.adminUserCreateEnabled" />
             </label>
 
             <label class="flex items-center justify-between gap-4">
@@ -237,7 +237,7 @@ async function saveSettings() {
                 <div class="font-medium">{{ t('systemConfig.fields.selfServiceAccountDeletionEnabled.title') }}</div>
                 <p class="text-sm text-muted-foreground">{{ t('systemConfig.fields.selfServiceAccountDeletionEnabled.description') }}</p>
               </div>
-              <Switch v-model:checked="form.selfServiceAccountDeletionEnabled" />
+              <Switch v-model="form.selfServiceAccountDeletionEnabled" />
             </label>
           </div>
 
