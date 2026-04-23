@@ -29,7 +29,7 @@ export const useAuthStore = defineStore('auth', () => {
   const isSetupComplete = computed(() => installState.value?.setupCompleted === true)
   const isAuthenticated = computed(() => token.value !== null && viewer.value !== null)
   const capabilities = computed(() => viewer.value?.authorization.capabilities ?? [])
-  const roleKeys = computed(() => viewer.value?.authorization.roleKeys ?? [])
+  const currentRole = computed(() => viewer.value?.authorization.role ?? null)
 
   let initializePromise: Promise<void> | null = null
   let boundRouter: Router | null = null
@@ -241,7 +241,7 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   function hasRole(roleKey: RoleKey) {
-    return roleKeys.value.includes(roleKey)
+    return currentRole.value === roleKey
   }
 
   return {
@@ -253,7 +253,7 @@ export const useAuthStore = defineStore('auth', () => {
     installState,
     publicAuthConfig,
     capabilities,
-    roleKeys,
+    currentRole,
     isSetupComplete,
     isAuthenticated,
     bindRouter,

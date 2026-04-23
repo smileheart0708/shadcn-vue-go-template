@@ -96,7 +96,7 @@ func (api *API) installSetupHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (api *API) publicAuthConfigHandler(w http.ResponseWriter, r *http.Request) {
-	config, err := api.settings.PublicConfig(r.Context())
+	config, err := api.policies.PublicAuthConfig(r.Context())
 	if err != nil {
 		writeAPIError(w, http.StatusInternalServerError, "public_auth_config_unavailable", "Failed to load authentication configuration.")
 		return

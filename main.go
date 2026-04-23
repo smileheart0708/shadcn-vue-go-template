@@ -12,6 +12,7 @@ import (
 	"syscall"
 	"time"
 
+	"main/internal/accountpolicies"
 	"main/internal/audit"
 	"main/internal/auth"
 	"main/internal/authorization"
@@ -21,7 +22,6 @@ import (
 	"main/internal/identity"
 	"main/internal/logging"
 	"main/internal/setup"
-	"main/internal/systemsettings"
 )
 
 const shutdownTimeout = 10 * time.Second
@@ -74,13 +74,9 @@ func run() error {
 
 	slog.Info("database ready", "path", dbPath)
 
-	if err := authorization.EnsureCatalog(context.Background(), dbContainer.DB()); err != nil {
-		return fmt.Errorf("seed authorization catalog: %w", err)
-	}
-
 	authorizationService := authorization.NewService()
 	identityService := identity.NewService(dbContainer.DB())
-	systemSettingsService := systemsettings.NewService(dbContainer.DB())
+	accountPoliciesService := accountpolicies.NewService(dbContainer.DB())
 	setupService := setup.NewService(dbContainer.DB(), identityService)
 	auditService := audit.NewService(dbContainer.DB())
 	authService := auth.NewService(auth.Options{
@@ -89,7 +85,7 @@ func run() error {
 		RefreshIdleTTL:     cfg.RefreshIdleTTL,
 		RefreshAbsoluteTTL: cfg.RefreshAbsoluteTTL,
 		RefreshCookieName:  cfg.RefreshCookieName,
-	}, dbContainer.DB(), identityService, authorizationService, systemSettingsService)
+	}, dbContainer.DB(), identityService, authorizationService, accountPoliciesService)
 
 	server := &http.Server{
 		Addr: listenAddr,
@@ -100,7 +96,7 @@ func run() error {
 			Authorization:  authorizationService,
 			Identity:       identityService,
 			Setup:          setupService,
-			SystemSettings: systemSettingsService,
+			AccountPolicies: accountPoliciesService,
 			Audit:          auditService,
 			DataDir:        dataDir,
 			FrontendFS:     frontendAssets,

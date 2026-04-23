@@ -8,7 +8,7 @@ export const managedUserSchema = z.object({
   username: z.string(),
   email: z.email().nullable(),
   avatarUrl: z.string().nullable(),
-  roleKeys: z.array(roleKeySchema),
+  role: roleKeySchema,
   status: z.enum(['active', 'disabled']),
   createdAt: z.string(),
   updatedAt: z.string(),
@@ -19,7 +19,6 @@ export type ManagedUser = z.infer<typeof managedUserSchema>
 
 export interface ListManagedUsersParams {
   q?: string
-  role?: string | null
   status?: 'active' | 'disabled' | null
   page?: number
   pageSize?: number
@@ -28,7 +27,6 @@ export interface ListManagedUsersParams {
 export interface ManagedUserUpsertInput {
   username: string
   email: string | null
-  roleKeys: string[]
 }
 
 export interface ManagedUserCreateInput extends ManagedUserUpsertInput {
@@ -52,9 +50,6 @@ export async function listAdminUsers(params: ListManagedUsersParams = {}) {
     const query = params.q?.trim()
     if (query !== undefined && query !== '') {
       searchParams.set('q', query)
-    }
-    if (params.role !== null && params.role !== undefined && params.role !== '') {
-      searchParams.set('role', params.role)
     }
     if (params.status !== null && params.status !== undefined) {
       searchParams.set('status', params.status)

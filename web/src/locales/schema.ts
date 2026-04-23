@@ -45,7 +45,7 @@ export interface MessageSchema {
       success: string
     }
     text: { yes: string; no: string; none: string; all: string; optional: string; required: string }
-    role: { owner: string; admin: string; user: string }
+    role: { owner: string; user: string }
   }
   apiError: {
     unknown: string
@@ -58,7 +58,6 @@ export interface MessageSchema {
     currentPasswordInvalid: string
     passwordTooShort: string
     registrationDisabled: string
-    invalidRegistrationMode: string
     setupRequired: string
     setupCompleted: string
     avatarRequired: string
@@ -69,7 +68,6 @@ export interface MessageSchema {
     passwordUpdateFailed: string
     accountDeleteFailed: string
     accountDeleteForbidden: string
-    invalidRoleKeys: string
     systemLogStreamFailed: string
   }
   route: {
@@ -88,39 +86,11 @@ export interface MessageSchema {
   systemConfig: {
     title: string
     description: string
-    badge: string
-    updatedAt: string
-    registration: {
-      title: string
-      description: string
-      updatedAt: string
-      options: {
-        disabled: { title: string; description: string }
-        password: { title: string; description: string }
-      }
-    }
-    observability: { title: string; description: string; cta: string }
-    cards: {
-      auth: { title: string; description: string }
-      effectivePolicy: { title: string; description: string }
-    }
+    cardTitle: string
+    cardDescription: string
     fields: {
-      authMode: { title: string; description: string }
-      registrationMode: { title: string; description: string }
-      adminUserCreateEnabled: { title: string; description: string }
+      publicRegistrationEnabled: { title: string; description: string }
       selfServiceAccountDeletionEnabled: { title: string; description: string }
-      passwordLoginEnabled: { title: string; description: string }
-    }
-    options: {
-      authMode: { singleUser: string; multiUser: string }
-      registrationMode: { disabled: string; public: string }
-    }
-    policy: {
-      authMode: string
-      registrationMode: string
-      publicRegistration: string
-      adminUserCreate: string
-      selfServiceAccountDeletion: string
     }
     actions: { retry: string }
     feedback: { loadFailedTitle: string; loadFailed: string; saving: string; saved: string; saveFailed: string }
@@ -228,7 +198,6 @@ export interface MessageSchema {
       description: string
       disabledTitle: string
       disabledDescription: string
-      disabledHint: string
       emailOptional: string
       signIn: string
       usernamePlaceholder: string
@@ -249,10 +218,8 @@ export interface MessageSchema {
   adminUsers: {
     title: string
     description: string
-    badge: string
     actions: {
       createUser: string
-      refresh: string
       retry: string
       disable: string
       enable: string
@@ -260,17 +227,11 @@ export interface MessageSchema {
       nextPage: string
     }
     filters: {
-      title: string
-      description: string
       searchPlaceholder: string
-      rolePlaceholder: string
       statusPlaceholder: string
-      roleAll: string
       statusAll: string
     }
     table: {
-      title: string
-      summary: string
       username: string
       email: string
       role: string
@@ -279,6 +240,7 @@ export interface MessageSchema {
       actions: string
       empty: string
       noEmail: string
+      ownerReadonly: string
       pageSummary: string
     }
     status: { active: string; disabled: string }
@@ -292,7 +254,6 @@ export interface MessageSchema {
       usernamePlaceholder: string
       emailPlaceholder: string
       passwordPlaceholder: string
-      passwordHint: string
     }
     confirm: {
       disableTitle: string
@@ -303,7 +264,6 @@ export interface MessageSchema {
     feedback: {
       loadFailedTitle: string
       loadFailed: string
-      refreshing: string
       creating: string
       createSuccess: string
       createFailed: string

@@ -56,7 +56,7 @@ const enUS = {
       success: 'Success',
     },
     text: { yes: 'Yes', no: 'No', none: 'None', all: 'All', optional: 'Optional', required: 'Required' },
-    role: { owner: 'Owner', admin: 'Admin', user: 'User' },
+    role: { owner: 'Owner', user: 'User' },
   },
   apiError: {
     unknown: 'Something went wrong. Please try again.',
@@ -69,7 +69,6 @@ const enUS = {
     currentPasswordInvalid: 'Current password is incorrect.',
     passwordTooShort: 'New password must be at least 8 characters.',
     registrationDisabled: 'Registration is currently disabled.',
-    invalidRegistrationMode: 'Registration mode is invalid.',
     setupRequired: 'The application has not been initialized yet. Complete setup first.',
     setupCompleted: 'The application has already been initialized.',
     avatarRequired: 'Please choose an avatar image.',
@@ -80,7 +79,6 @@ const enUS = {
     passwordUpdateFailed: 'Failed to update password.',
     accountDeleteFailed: 'Failed to delete account.',
     accountDeleteForbidden: 'This account cannot delete itself.',
-    invalidRoleKeys: 'The requested role assignment is invalid.',
     systemLogStreamFailed: 'Failed to connect to the system log stream.',
   },
   route: {
@@ -98,87 +96,28 @@ const enUS = {
   },
   systemConfig: {
     title: 'System Configuration',
-    description: 'Manage the owner-only auth mode, public registration, self-delete policy, and admin user creation switches.',
-    badge: 'Owner only',
-    updatedAt: 'Last updated: {value}',
-    registration: {
-      title: 'Registration Policy',
-      description: 'Control whether new accounts can be created and which self-service registration flow is currently available.',
-      updatedAt: 'Last updated: {value}',
-      options: {
-        disabled: {
-          title: 'Disable registration',
-          description: 'Hide self-service account creation and reject all new registrations from the public endpoint.',
-        },
-        password: {
-          title: 'Username or email with password',
-          description: 'Allow users to sign up with a username, an optional email address, and a password.',
-        },
-      },
-    },
-    observability: {
-      title: 'Operational Tools',
-      description: 'System Logs remains the reference implementation for admin-only operational surfaces.',
-      cta: 'Open System Logs',
-    },
-    cards: {
-      auth: {
-        title: 'Auth Settings',
-        description: 'These switches define how the single-instance baseline handles setup, public registration, and account lifecycle.',
-      },
-      effectivePolicy: {
-        title: 'Effective Policy',
-        description: 'A quick summary of the policy state that will take effect after saving.',
-      },
-    },
+    description: 'Manage account policies.',
+    cardTitle: 'Account Policies',
+    cardDescription: 'Changes take effect immediately.',
     fields: {
-      authMode: {
-        title: 'Auth mode',
-        description: 'Single user keeps only the unique owner account. Multi user enables owner/admin managed user lifecycle.',
-      },
-      registrationMode: {
-        title: 'Registration mode',
-        description: 'v1 only supports disabled or public registration. Public registration only works in multi-user mode.',
-      },
-      adminUserCreateEnabled: {
-        title: 'Allow admins to create users',
-        description: 'When disabled, only the owner can create users from the management surface.',
+      publicRegistrationEnabled: {
+        title: 'Allow public registration',
+        description: 'When enabled, new users can sign up by themselves.',
       },
       selfServiceAccountDeletionEnabled: {
         title: 'Allow self-service account deletion',
-        description: 'When disabled, users and admins lose self-delete capability. Owner can never self-delete.',
+        description: 'When enabled, regular users can delete their own account. Owners can never self-delete.',
       },
-      passwordLoginEnabled: {
-        title: 'Password login',
-        description: 'v1 only supports local password credentials, so this remains enabled as read-only baseline state.',
-      },
-    },
-    options: {
-      authMode: {
-        singleUser: 'Single user',
-        multiUser: 'Multi user',
-      },
-      registrationMode: {
-        disabled: 'Disabled',
-        public: 'Public',
-      },
-    },
-    policy: {
-      authMode: 'Auth mode: {value}',
-      registrationMode: 'Registration mode: {value}',
-      publicRegistration: 'Public registration: {value}',
-      adminUserCreate: 'Admin user creation: {value}',
-      selfServiceAccountDeletion: 'Self-service deletion: {value}',
     },
     actions: {
       retry: 'Retry',
     },
     feedback: {
-      loadFailedTitle: 'Failed to load system settings',
+      loadFailedTitle: 'Failed to load account policies',
       loadFailed: 'Refresh this page to try again.',
-      saving: 'Saving system settings...',
-      saved: 'System settings saved.',
-      saveFailed: 'Failed to save system settings.',
+      saving: 'Saving account policies...',
+      saved: 'Account policies saved.',
+      saveFailed: 'Failed to save account policies.',
     },
   },
   settings: {
@@ -283,9 +222,8 @@ const enUS = {
       title: 'Create an account',
       description: 'Already have an account?',
       disabledTitle: 'Registration is disabled',
-      disabledDescription: 'This workspace is not accepting new self-service registrations right now.',
-      disabledHint: 'If you need access, contact an administrator or try again later after the registration policy changes.',
-      emailOptional: 'Email is optional for password-based sign up in this MVP.',
+      disabledDescription: 'Self-service registration is unavailable.',
+      emailOptional: 'Email is optional.',
       signIn: 'Sign in',
       usernamePlaceholder: 'Enter your username',
       emailPlaceholder: 'Enter your email',
@@ -304,11 +242,9 @@ const enUS = {
   },
   adminUsers: {
     title: 'User Management',
-    description: 'Create, update, and control access for application users.',
-    badge: 'Admin only',
+    description: 'Manage regular user accounts.',
     actions: {
       createUser: 'Create User',
-      refresh: 'Refresh',
       retry: 'Retry',
       disable: 'Disable',
       enable: 'Enable',
@@ -316,17 +252,11 @@ const enUS = {
       nextPage: 'Next',
     },
     filters: {
-      title: 'Filters',
-      description: 'Search by username or email, then narrow the result set by role and status.',
       searchPlaceholder: 'Search username or email',
-      rolePlaceholder: 'Filter by role',
       statusPlaceholder: 'Filter by status',
-      roleAll: 'All roles',
       statusAll: 'All statuses',
     },
     table: {
-      title: 'Users',
-      summary: '{count} total user(s)',
       username: 'Username',
       email: 'Email',
       role: 'Role',
@@ -335,6 +265,7 @@ const enUS = {
       actions: 'Actions',
       empty: 'No matching users found.',
       noEmail: 'No email',
+      ownerReadonly: 'Owner account is read-only',
       pageSummary: 'Page {page} of {totalPages} · {total} total user(s)',
     },
     status: {
@@ -343,15 +274,14 @@ const enUS = {
     },
     dialog: {
       createTitle: 'Create user',
-      createDescription: 'Create a new account and optionally assign administrator access.',
+      createDescription: 'Create a regular user account.',
       createSubmit: 'Create user',
       editTitle: 'Edit user',
-      editDescription: 'Update the selected user profile and role.',
+      editDescription: 'Update the selected user profile.',
       editSubmit: 'Save changes',
       usernamePlaceholder: 'Enter username',
       emailPlaceholder: 'Enter email (optional)',
       passwordPlaceholder: 'Enter initial password',
-      passwordHint: 'Initial passwords must be at least 8 characters.',
     },
     confirm: {
       disableTitle: 'Disable user',
@@ -362,7 +292,6 @@ const enUS = {
     feedback: {
       loadFailedTitle: 'Failed to load users',
       loadFailed: 'Refresh the page to try again.',
-      refreshing: 'Refreshing users...',
       creating: 'Creating user...',
       createSuccess: 'User created.',
       createFailed: 'Failed to create user.',

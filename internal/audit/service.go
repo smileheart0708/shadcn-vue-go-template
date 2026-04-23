@@ -22,6 +22,7 @@ const (
 	EventPasswordChanged       = "password_changed"
 	EventRoleChanged           = "role_changed"
 	EventUserCreated           = "user_created"
+	EventUserUpdated           = "user_updated"
 	EventUserDisabled          = "user_disabled"
 	EventUserEnabled           = "user_enabled"
 	EventAccountDeleted        = "account_deleted"

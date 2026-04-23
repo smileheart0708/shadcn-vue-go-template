@@ -1,23 +1,16 @@
 import { z } from 'zod'
 import { authApi, normalizeAPIError } from '@/lib/api/client'
 import { successEnvelopeSchema } from '@/lib/api/envelope'
-import { authModeSchema, registrationModeSchema } from '@/lib/api/auth'
 
 export const systemSettingsSchema = z.object({
-  authMode: authModeSchema,
-  registrationMode: registrationModeSchema,
-  passwordLoginEnabled: z.boolean(),
-  adminUserCreateEnabled: z.boolean(),
+  publicRegistrationEnabled: z.boolean(),
   selfServiceAccountDeletionEnabled: z.boolean(),
-  updatedAt: z.string(),
 })
 
 export type SystemSettings = z.infer<typeof systemSettingsSchema>
 
 export interface UpdateSystemSettingsInput {
-  authMode?: z.infer<typeof authModeSchema>
-  registrationMode?: z.infer<typeof registrationModeSchema>
-  adminUserCreateEnabled?: boolean
+  publicRegistrationEnabled?: boolean
   selfServiceAccountDeletionEnabled?: boolean
 }
 

@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"main/internal/accountpolicies"
 	"main/internal/audit"
 	"main/internal/auth"
 	"main/internal/authorization"
@@ -22,14 +23,13 @@ import (
 	"main/internal/identity"
 	"main/internal/logging"
 	"main/internal/setup"
-	"main/internal/systemsettings"
 )
 
 type testContext struct {
 	handler         http.Handler
 	authService     *auth.Service
 	identityService *identity.Service
-	settingsService *systemsettings.Service
+	policiesService *accountpolicies.Service
 	setupService    *setup.Service
 	auditService    *audit.Service
 	logStream       *logging.Stream
@@ -72,8 +72,8 @@ func TestInstallSetupOnlyRunsOnceAndCreatesOwnerSession(t *testing.T) {
 	if refreshCookie == nil {
 		t.Fatal("expected refresh cookie after setup")
 	}
-	if got := session.Viewer.Authorization.RoleKeys; len(got) != 1 || got[0] != authorization.RoleOwner {
-		t.Fatalf("expected owner role after setup, got %+v", got)
+	if session.Viewer.Authorization.Role != authorization.RoleOwner {
+		t.Fatalf("expected owner role after setup, got %+v", session.Viewer.Authorization.Role)
 	}
 
 	secondReq := httptest.NewRequest(http.MethodPost, "/api/install/setup", strings.NewReader(`{"username":"other","password":"password123"}`))
@@ -104,32 +104,69 @@ func TestSetupRequiredBlocksNormalAuthRoutesUntilInitialized(t *testing.T) {
 	decodeErrorCode(t, rec.Body.Bytes(), "setup_required")
 }
 
-func TestSingleUserModeBlocksManagedUserCreationByDefault(t *testing.T) {
+func TestOwnerCanCreateManagedUserByDefault(t *testing.T) {
 	t.Parallel()
 
 	ctx := newTestContext(t)
 	ownerSession, _ := performSetup(t, ctx)
 
-	req := httptest.NewRequest(http.MethodPost, "/api/management/users", strings.NewReader(`{"username":"member","password":"member123","roleKeys":["user"]}`))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+ownerSession.AccessToken)
-	rec := httptest.NewRecorder()
-	ctx.handler.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusForbidden {
-		t.Fatalf("expected status %d, got %d: %s", http.StatusForbidden, rec.Code, rec.Body.String())
+	rec := createManagedUser(t, ctx, ownerSession.AccessToken, `{"username":"member","password":"member1234"}`)
+	if rec.Role != authorization.RoleUser {
+		t.Fatalf("expected created user role %q, got %q", authorization.RoleUser, rec.Role)
 	}
-	decodeErrorCode(t, rec.Body.Bytes(), "forbidden")
 }
 
-func TestMultiUserRegisterRefreshReplayAndLogoutFlow(t *testing.T) {
+func TestDefaultPoliciesClosePublicRegistrationAndSelfDeletion(t *testing.T) {
 	t.Parallel()
 
 	ctx := newTestContext(t)
 	ownerSession, _ := performSetup(t, ctx)
-	updateSystemSettings(t, ctx, ownerSession.AccessToken, `{"authMode":"multi_user","registrationMode":"public","adminUserCreateEnabled":true,"selfServiceAccountDeletionEnabled":true}`)
 
-	_, memberCookie := registerUser(t, ctx, "member", "member@example.com", "member123")
+	settingsReq := httptest.NewRequest(http.MethodGet, "/api/system/settings", nil)
+	settingsReq.Header.Set("Authorization", "Bearer "+ownerSession.AccessToken)
+	settingsRec := httptest.NewRecorder()
+	ctx.handler.ServeHTTP(settingsRec, settingsReq)
+	if settingsRec.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, settingsRec.Code, settingsRec.Body.String())
+	}
+
+	var settingsEnvelope testSuccessEnvelope[accountPoliciesResponse]
+	decodeJSONResponse(t, settingsRec.Body.Bytes(), &settingsEnvelope)
+	if settingsEnvelope.Data.PublicRegistrationEnabled || settingsEnvelope.Data.SelfServiceAccountDeletionEnabled {
+		t.Fatalf("expected both policies disabled by default, got %+v", settingsEnvelope.Data)
+	}
+	if strings.Contains(settingsRec.Body.String(), "authMode") || strings.Contains(settingsRec.Body.String(), "registrationMode") {
+		t.Fatalf("expected legacy settings fields to be removed, got %s", settingsRec.Body.String())
+	}
+
+	publicConfigReq := httptest.NewRequest(http.MethodGet, "/api/auth/public-config", nil)
+	publicConfigRec := httptest.NewRecorder()
+	ctx.handler.ServeHTTP(publicConfigRec, publicConfigReq)
+	if publicConfigRec.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, publicConfigRec.Code)
+	}
+	if !strings.Contains(publicConfigRec.Body.String(), `"registrationEnabled":false`) {
+		t.Fatalf("expected public registration to be disabled, got %s", publicConfigRec.Body.String())
+	}
+
+	registerReq := httptest.NewRequest(http.MethodPost, "/api/auth/register", strings.NewReader(`{"username":"member","email":"member@example.com","password":"member1234"}`))
+	registerReq.Header.Set("Content-Type", "application/json")
+	registerRec := httptest.NewRecorder()
+	ctx.handler.ServeHTTP(registerRec, registerReq)
+	if registerRec.Code != http.StatusForbidden {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusForbidden, registerRec.Code, registerRec.Body.String())
+	}
+	decodeErrorCode(t, registerRec.Body.Bytes(), "registration_disabled")
+}
+
+func TestPublicRegistrationToggleControlsRegisterRefreshReplayAndLogoutFlow(t *testing.T) {
+	t.Parallel()
+
+	ctx := newTestContext(t)
+	ownerSession, _ := performSetup(t, ctx)
+	updateSystemSettings(t, ctx, ownerSession.AccessToken, `{"publicRegistrationEnabled":true}`)
+
+	_, memberCookie := registerUser(t, ctx, "member", "member@example.com", "member1234")
 	if memberCookie == nil {
 		t.Fatal("expected refresh cookie for registered member")
 	}
@@ -144,38 +181,28 @@ func TestMultiUserRegisterRefreshReplayAndLogoutFlow(t *testing.T) {
 	}
 	var refreshedEnvelope testSuccessEnvelope[sessionResponse]
 	decodeJSONResponse(t, refreshRec.Body.Bytes(), &refreshedEnvelope)
+	if refreshedEnvelope.Data.Viewer.Authorization.Role != authorization.RoleUser {
+		t.Fatalf("expected user role after registration, got %+v", refreshedEnvelope.Data.Viewer.Authorization.Role)
+	}
+	if strings.Contains(refreshRec.Body.String(), "roleKeys") {
+		t.Fatalf("expected viewer authorization to use single role field, got %s", refreshRec.Body.String())
+	}
+
 	nextCookie := findCookie(refreshRec.Result().Cookies(), ctx.authServiceCookieName())
 	if nextCookie == nil || nextCookie.Value == memberCookie.Value {
 		t.Fatal("expected rotated refresh cookie")
-	}
-
-	meReq := httptest.NewRequest(http.MethodGet, "/api/auth/me", nil)
-	meReq.Header.Set("Authorization", "Bearer "+refreshedEnvelope.Data.AccessToken)
-	meRec := httptest.NewRecorder()
-	ctx.handler.ServeHTTP(meRec, meReq)
-	if meRec.Code != http.StatusOK {
-		t.Fatalf("expected status %d, got %d", http.StatusOK, meRec.Code)
 	}
 
 	replayReq := httptest.NewRequest(http.MethodPost, "/api/auth/refresh", nil)
 	replayReq.AddCookie(memberCookie)
 	replayRec := httptest.NewRecorder()
 	ctx.handler.ServeHTTP(replayRec, replayReq)
-
 	if replayRec.Code != http.StatusUnauthorized {
 		t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, replayRec.Code)
 	}
 	decodeErrorCode(t, replayRec.Body.Bytes(), "invalid_refresh_token")
 
-	postReplayRefreshReq := httptest.NewRequest(http.MethodPost, "/api/auth/refresh", nil)
-	postReplayRefreshReq.AddCookie(nextCookie)
-	postReplayRefreshRec := httptest.NewRecorder()
-	ctx.handler.ServeHTTP(postReplayRefreshRec, postReplayRefreshReq)
-	if postReplayRefreshRec.Code != http.StatusUnauthorized {
-		t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, postReplayRefreshRec.Code)
-	}
-
-	_, latestSessionCookie := loginUser(t, ctx, "member", "member123")
+	_, latestSessionCookie := loginUser(t, ctx, "member", "member1234")
 	logoutReq := httptest.NewRequest(http.MethodPost, "/api/auth/logout", nil)
 	logoutReq.AddCookie(latestSessionCookie)
 	logoutRec := httptest.NewRecorder()
@@ -193,65 +220,56 @@ func TestMultiUserRegisterRefreshReplayAndLogoutFlow(t *testing.T) {
 	}
 }
 
-func TestPasswordChangeInvalidatesOldAccessAndRefreshTokens(t *testing.T) {
+func TestSelfServiceDeletionToggleControlsDeleteFlow(t *testing.T) {
 	t.Parallel()
 
 	ctx := newTestContext(t)
-	ownerSession, _ := performSetup(t, ctx)
-	updateSystemSettings(t, ctx, ownerSession.AccessToken, `{"authMode":"multi_user","registrationMode":"public","adminUserCreateEnabled":true,"selfServiceAccountDeletionEnabled":true}`)
-	memberSession, memberCookie := registerUser(t, ctx, "member", "member@example.com", "member123")
+	ownerSession, ownerCookie := performSetup(t, ctx)
+	updateSystemSettings(t, ctx, ownerSession.AccessToken, `{"publicRegistrationEnabled":true}`)
 
-	changeReq := httptest.NewRequest(http.MethodPost, "/api/account/password", strings.NewReader(`{"currentPassword":"member123","newPassword":"member456"}`))
-	changeReq.Header.Set("Content-Type", "application/json")
-	changeReq.Header.Set("Authorization", "Bearer "+memberSession.AccessToken)
-	changeReq.AddCookie(memberCookie)
-	changeRec := httptest.NewRecorder()
-	ctx.handler.ServeHTTP(changeRec, changeReq)
+	memberSession, memberCookie := registerUser(t, ctx, "member", "member@example.com", "member1234")
 
-	if changeRec.Code != http.StatusOK {
-		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, changeRec.Code, changeRec.Body.String())
+	deleteReq := httptest.NewRequest(http.MethodDelete, "/api/account", nil)
+	deleteReq.Header.Set("Authorization", "Bearer "+memberSession.AccessToken)
+	deleteReq.AddCookie(memberCookie)
+	deleteRec := httptest.NewRecorder()
+	ctx.handler.ServeHTTP(deleteRec, deleteReq)
+	if deleteRec.Code != http.StatusForbidden {
+		t.Fatalf("expected status %d, got %d", http.StatusForbidden, deleteRec.Code)
+	}
+	decodeErrorCode(t, deleteRec.Body.Bytes(), "account_delete_forbidden")
+
+	updateSystemSettings(t, ctx, ownerSession.AccessToken, `{"selfServiceAccountDeletionEnabled":true}`)
+
+	ownerDeleteReq := httptest.NewRequest(http.MethodDelete, "/api/account", nil)
+	ownerDeleteReq.Header.Set("Authorization", "Bearer "+ownerSession.AccessToken)
+	ownerDeleteReq.AddCookie(ownerCookie)
+	ownerDeleteRec := httptest.NewRecorder()
+	ctx.handler.ServeHTTP(ownerDeleteRec, ownerDeleteReq)
+	if ownerDeleteRec.Code != http.StatusForbidden {
+		t.Fatalf("expected status %d, got %d", http.StatusForbidden, ownerDeleteRec.Code)
 	}
 
-	meReq := httptest.NewRequest(http.MethodGet, "/api/auth/me", nil)
-	meReq.Header.Set("Authorization", "Bearer "+memberSession.AccessToken)
-	meRec := httptest.NewRecorder()
-	ctx.handler.ServeHTTP(meRec, meReq)
-	if meRec.Code != http.StatusUnauthorized {
-		t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, meRec.Code)
-	}
-
-	refreshReq := httptest.NewRequest(http.MethodPost, "/api/auth/refresh", nil)
-	refreshReq.AddCookie(memberCookie)
-	refreshRec := httptest.NewRecorder()
-	ctx.handler.ServeHTTP(refreshRec, refreshReq)
-	if refreshRec.Code != http.StatusUnauthorized {
-		t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, refreshRec.Code)
+	memberDeleteReq := httptest.NewRequest(http.MethodDelete, "/api/account", nil)
+	memberDeleteReq.Header.Set("Authorization", "Bearer "+memberSession.AccessToken)
+	memberDeleteReq.AddCookie(memberCookie)
+	memberDeleteRec := httptest.NewRecorder()
+	ctx.handler.ServeHTTP(memberDeleteRec, memberDeleteReq)
+	if memberDeleteRec.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, memberDeleteRec.Code, memberDeleteRec.Body.String())
 	}
 }
 
-func TestRoleChangeAndDisableInvalidateExistingSessions(t *testing.T) {
+func TestOwnerCanDisableUserAndInvalidateSessions(t *testing.T) {
 	t.Parallel()
 
 	ctx := newTestContext(t)
 	ownerSession, _ := performSetup(t, ctx)
-	updateSystemSettings(t, ctx, ownerSession.AccessToken, `{"authMode":"multi_user","registrationMode":"public","adminUserCreateEnabled":true,"selfServiceAccountDeletionEnabled":true}`)
+	updateSystemSettings(t, ctx, ownerSession.AccessToken, `{"publicRegistrationEnabled":true}`)
 
-	memberSession, memberCookie := registerUser(t, ctx, "member", "member@example.com", "member123")
+	memberSession, memberCookie := registerUser(t, ctx, "member", "member@example.com", "member1234")
 	member := findUserByUsername(t, ctx, "member")
 
-	updateReq := httptest.NewRequest(http.MethodPatch, "/api/management/users/"+strconv.FormatInt(member.ID, 10), strings.NewReader(`{"username":"member","email":"member@example.com","roleKeys":["admin"]}`))
-	updateReq.Header.Set("Content-Type", "application/json")
-	updateReq.Header.Set("Authorization", "Bearer "+ownerSession.AccessToken)
-	updateRec := httptest.NewRecorder()
-	ctx.handler.ServeHTTP(updateRec, updateReq)
-
-	if updateRec.Code != http.StatusOK {
-		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, updateRec.Code, updateRec.Body.String())
-	}
-
-	assertUnauthorizedMeAndRefresh(t, ctx, memberSession.AccessToken, memberCookie)
-
-	adminSession, adminCookie := loginUser(t, ctx, "member", "member123")
 	disableReq := httptest.NewRequest(http.MethodPost, "/api/management/users/"+strconv.FormatInt(member.ID, 10)+"/disable", nil)
 	disableReq.Header.Set("Authorization", "Bearer "+ownerSession.AccessToken)
 	disableRec := httptest.NewRecorder()
@@ -261,77 +279,33 @@ func TestRoleChangeAndDisableInvalidateExistingSessions(t *testing.T) {
 		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, disableRec.Code, disableRec.Body.String())
 	}
 
-	assertUnauthorizedMeAndRefresh(t, ctx, adminSession.AccessToken, adminCookie)
+	assertUnauthorizedMeAndRefresh(t, ctx, memberSession.AccessToken, memberCookie)
 }
 
-func TestAdminCannotManageOwnerOrOtherAdminsAndOwnerRemainsVisible(t *testing.T) {
+func TestRegularUserCannotAccessManagementSurfaces(t *testing.T) {
 	t.Parallel()
 
 	ctx := newTestContext(t)
 	ownerSession, _ := performSetup(t, ctx)
-	updateSystemSettings(t, ctx, ownerSession.AccessToken, `{"authMode":"multi_user","registrationMode":"disabled","adminUserCreateEnabled":true,"selfServiceAccountDeletionEnabled":true}`)
+	updateSystemSettings(t, ctx, ownerSession.AccessToken, `{"publicRegistrationEnabled":true}`)
+	memberSession, _ := registerUser(t, ctx, "member", "member@example.com", "member1234")
 
-	createManagedUser(t, ctx, ownerSession.AccessToken, `{"username":"admin-one","email":"admin-one@example.com","password":"admin1234","roleKeys":["admin"]}`)
-	createManagedUser(t, ctx, ownerSession.AccessToken, `{"username":"member-one","email":"member-one@example.com","password":"member1234","roleKeys":["user"]}`)
-
-	adminSession, _ := loginUser(t, ctx, "admin-one", "admin1234")
-	listReq := httptest.NewRequest(http.MethodGet, "/api/management/users", nil)
-	listReq.Header.Set("Authorization", "Bearer "+adminSession.AccessToken)
-	listRec := httptest.NewRecorder()
-	ctx.handler.ServeHTTP(listRec, listReq)
-
-	if listRec.Code != http.StatusOK {
-		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, listRec.Code, listRec.Body.String())
-	}
-
-	var listEnvelope testSuccessEnvelope[managementUsersPageResponse]
-	decodeJSONResponse(t, listRec.Body.Bytes(), &listEnvelope)
-
-	var ownerActions []string
-	var adminActions []string
-	var memberActions []string
-	for _, item := range listEnvelope.Data.Items {
-		switch item.Username {
-		case "owner":
-			ownerActions = item.Actions
-		case "admin-one":
-			adminActions = item.Actions
-		case "member-one":
-			memberActions = item.Actions
+	for _, tc := range []struct {
+		method string
+		path   string
+	}{
+		{method: http.MethodGet, path: "/api/system/settings"},
+		{method: http.MethodGet, path: "/api/management/users"},
+		{method: http.MethodGet, path: "/api/management/system-logs/stream"},
+	} {
+		req := httptest.NewRequest(tc.method, tc.path, nil)
+		req.Header.Set("Authorization", "Bearer "+memberSession.AccessToken)
+		rec := httptest.NewRecorder()
+		ctx.handler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusForbidden {
+			t.Fatalf("expected status %d for %s %s, got %d", http.StatusForbidden, tc.method, tc.path, rec.Code)
 		}
 	}
-
-	if len(ownerActions) != 0 {
-		t.Fatalf("expected owner to be visible but not actionable for admin, got %+v", ownerActions)
-	}
-	if len(adminActions) != 0 {
-		t.Fatalf("expected admin self row to be non-actionable, got %+v", adminActions)
-	}
-	if len(memberActions) == 0 {
-		t.Fatalf("expected member row to remain actionable for admin, got %+v", memberActions)
-	}
-
-	owner := findUserByUsername(t, ctx, "owner")
-	updateOwnerReq := httptest.NewRequest(http.MethodPatch, "/api/management/users/"+strconv.FormatInt(owner.ID, 10), strings.NewReader(`{"username":"owner","roleKeys":["user"]}`))
-	updateOwnerReq.Header.Set("Content-Type", "application/json")
-	updateOwnerReq.Header.Set("Authorization", "Bearer "+adminSession.AccessToken)
-	updateOwnerRec := httptest.NewRecorder()
-	ctx.handler.ServeHTTP(updateOwnerRec, updateOwnerReq)
-
-	if updateOwnerRec.Code != http.StatusForbidden {
-		t.Fatalf("expected status %d, got %d", http.StatusForbidden, updateOwnerRec.Code)
-	}
-
-	createAdminReq := httptest.NewRequest(http.MethodPost, "/api/management/users", strings.NewReader(`{"username":"admin-two","password":"admin1234","roleKeys":["admin"]}`))
-	createAdminReq.Header.Set("Content-Type", "application/json")
-	createAdminReq.Header.Set("Authorization", "Bearer "+adminSession.AccessToken)
-	createAdminRec := httptest.NewRecorder()
-	ctx.handler.ServeHTTP(createAdminRec, createAdminReq)
-
-	if createAdminRec.Code != http.StatusBadRequest {
-		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, createAdminRec.Code)
-	}
-	decodeErrorCode(t, createAdminRec.Body.Bytes(), "invalid_role_keys")
 }
 
 func TestManagedUserResponsesEncodeEmptySlicesAsJSONArrays(t *testing.T) {
@@ -351,20 +325,13 @@ func TestManagedUserResponsesEncodeEmptySlicesAsJSONArrays(t *testing.T) {
 	if !strings.Contains(listRec.Body.String(), `"actions":[]`) {
 		t.Fatalf("expected empty actions to encode as JSON array, got %s", listRec.Body.String())
 	}
-
-	updateSystemSettings(t, ctx, ownerSession.AccessToken, `{"authMode":"multi_user","registrationMode":"disabled","adminUserCreateEnabled":true,"selfServiceAccountDeletionEnabled":true}`)
-
-	createReq := httptest.NewRequest(http.MethodPost, "/api/management/users", strings.NewReader(`{"username":"member","password":"member1234","roleKeys":["user"]}`))
-	createReq.Header.Set("Content-Type", "application/json")
-	createReq.Header.Set("Authorization", "Bearer "+ownerSession.AccessToken)
-	createRec := httptest.NewRecorder()
-	ctx.handler.ServeHTTP(createRec, createReq)
-
-	if createRec.Code != http.StatusCreated {
-		t.Fatalf("expected status %d, got %d: %s", http.StatusCreated, createRec.Code, createRec.Body.String())
+	if strings.Contains(listRec.Body.String(), "roleKeys") {
+		t.Fatalf("expected managed users response to omit roleKeys, got %s", listRec.Body.String())
 	}
-	if !strings.Contains(createRec.Body.String(), `"actions":[]`) {
-		t.Fatalf("expected created user actions to encode as JSON array, got %s", createRec.Body.String())
+
+	createRec := createManagedUser(t, ctx, ownerSession.AccessToken, `{"username":"member","password":"member1234"}`)
+	if createRec.Actions == nil || len(createRec.Actions) != 0 {
+		t.Fatalf("expected created user actions to encode as empty array, got %+v", createRec.Actions)
 	}
 }
 
@@ -437,10 +404,6 @@ func newTestContext(t *testing.T) *testContext {
 		}
 	})
 
-	if err := authorization.EnsureCatalog(context.Background(), dbContainer.DB()); err != nil {
-		t.Fatalf("failed to seed authorization catalog: %v", err)
-	}
-
 	logStream := logging.NewStream(logging.StreamOptions{
 		Capacity:  logging.DefaultStreamCapacity,
 		Retention: 3650 * 24 * time.Hour,
@@ -448,7 +411,7 @@ func newTestContext(t *testing.T) *testContext {
 
 	authzService := authorization.NewService()
 	identityService := identity.NewService(dbContainer.DB())
-	settingsService := systemsettings.NewService(dbContainer.DB())
+	policiesService := accountpolicies.NewService(dbContainer.DB())
 	setupService := setup.NewService(dbContainer.DB(), identityService)
 	auditService := audit.NewService(dbContainer.DB())
 	authService := auth.NewService(auth.Options{
@@ -457,28 +420,28 @@ func newTestContext(t *testing.T) *testContext {
 		TTL:                time.Hour,
 		RefreshIdleTTL:     7 * 24 * time.Hour,
 		RefreshAbsoluteTTL: 30 * 24 * time.Hour,
-	}, dbContainer.DB(), identityService, authzService, settingsService)
+	}, dbContainer.DB(), identityService, authzService, policiesService)
 	logger := logging.New()
 
 	handler := NewHandlerWithOptions(HandlerOptions{
-		Logger:         logger,
-		LogStream:      logStream,
-		Auth:           authService,
-		Authorization:  authzService,
-		Identity:       identityService,
-		Setup:          setupService,
-		SystemSettings: settingsService,
-		Audit:          auditService,
-		DataDir:        dataDir,
-		FrontendFS:     os.DirFS(distDir),
-		LogAPIRequests: false,
+		Logger:          logger,
+		LogStream:       logStream,
+		Auth:            authService,
+		Authorization:   authzService,
+		Identity:        identityService,
+		Setup:           setupService,
+		AccountPolicies: policiesService,
+		Audit:           auditService,
+		DataDir:         dataDir,
+		FrontendFS:      os.DirFS(distDir),
+		LogAPIRequests:  false,
 	})
 
 	return &testContext{
 		handler:         handler,
 		authService:     authService,
 		identityService: identityService,
-		settingsService: settingsService,
+		policiesService: policiesService,
 		setupService:    setupService,
 		auditService:    auditService,
 		logStream:       logStream,
@@ -555,7 +518,7 @@ func loginUser(t *testing.T, ctx *testContext, identifier string, password strin
 	return envelope.Data, findCookie(rec.Result().Cookies(), ctx.authServiceCookieName())
 }
 
-func createManagedUser(t *testing.T, ctx *testContext, token string, payload string) {
+func createManagedUser(t *testing.T, ctx *testContext, token string, payload string) managedUserResponse {
 	t.Helper()
 
 	req := httptest.NewRequest(http.MethodPost, "/api/management/users", strings.NewReader(payload))
@@ -567,9 +530,13 @@ func createManagedUser(t *testing.T, ctx *testContext, token string, payload str
 	if rec.Code != http.StatusCreated {
 		t.Fatalf("expected status %d, got %d: %s", http.StatusCreated, rec.Code, rec.Body.String())
 	}
+
+	var envelope testSuccessEnvelope[managedUserResponse]
+	decodeJSONResponse(t, rec.Body.Bytes(), &envelope)
+	return envelope.Data
 }
 
-func findUserByUsername(t *testing.T, ctx *testContext, username string) identity.UserWithRoles {
+func findUserByUsername(t *testing.T, ctx *testContext, username string) identity.User {
 	t.Helper()
 
 	list, err := ctx.identityService.ListUsers(context.Background(), identity.ListUsersParams{Query: username, Page: 1, PageSize: 20})
@@ -582,7 +549,7 @@ func findUserByUsername(t *testing.T, ctx *testContext, username string) identit
 		}
 	}
 	t.Fatalf("user %q not found", username)
-	return identity.UserWithRoles{}
+	return identity.User{}
 }
 
 func assertUnauthorizedMeAndRefresh(t *testing.T, ctx *testContext, accessToken string, refreshCookie *http.Cookie) {

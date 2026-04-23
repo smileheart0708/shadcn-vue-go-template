@@ -12,13 +12,13 @@ import (
 	"strings"
 	"time"
 
+	"main/internal/accountpolicies"
 	"main/internal/audit"
 	"main/internal/auth"
 	"main/internal/authorization"
 	"main/internal/identity"
 	"main/internal/logging"
 	"main/internal/setup"
-	"main/internal/systemsettings"
 )
 
 type HandlerOptions struct {
@@ -28,7 +28,7 @@ type HandlerOptions struct {
 	Authorization  *authorization.Service
 	Identity       *identity.Service
 	Setup          *setup.Service
-	SystemSettings *systemsettings.Service
+	AccountPolicies *accountpolicies.Service
 	Audit          *audit.Service
 	DataDir        string
 	FrontendFS     fs.FS
@@ -46,7 +46,7 @@ func NewHandlerWithOptions(options HandlerOptions) http.Handler {
 		authorization: options.Authorization,
 		identities:    options.Identity,
 		setup:         options.Setup,
-		settings:      options.SystemSettings,
+		policies:      options.AccountPolicies,
 		audit:         options.Audit,
 		dataDir:       options.DataDir,
 		logger:        logger,
@@ -89,7 +89,7 @@ func newAPIMux(api *API) http.Handler {
 	mux.Handle(
 		"GET /api/system/settings",
 		Chain(
-			http.HandlerFunc(api.getSystemSettingsHandler),
+			http.HandlerFunc(api.getAccountPoliciesHandler),
 			RequireSetupCompleted(api.setup),
 			RequireAuth(api.auth),
 			RequireCapability(authorization.CapabilitySystemSettingsRead),
@@ -98,7 +98,7 @@ func newAPIMux(api *API) http.Handler {
 	mux.Handle(
 		"PATCH /api/system/settings",
 		Chain(
-			http.HandlerFunc(api.updateSystemSettingsHandler),
+			http.HandlerFunc(api.updateAccountPoliciesHandler),
 			RequireSetupCompleted(api.setup),
 			RequireAuth(api.auth),
 			RequireCapability(authorization.CapabilitySystemSettingsUpdate),

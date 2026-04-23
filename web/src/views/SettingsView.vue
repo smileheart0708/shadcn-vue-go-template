@@ -28,7 +28,7 @@ import { Spinner } from '@/components/ui/spinner'
 import { Slider } from '@/components/ui/slider'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { getAPIErrorMessage } from '@/lib/api/error-messages'
-import { CAPABILITY, getPrimaryRoleKey, getUserRoleBadgeVariant, getUserRoleLabelKey } from '@/lib/auth/roles'
+import { CAPABILITY, getUserRoleBadgeVariant, getUserRoleLabelKey } from '@/lib/auth/roles'
 import { MAX_AVATAR_FILE_SIZE_BYTES, getAvatarFallbackText } from '@/lib/avatar'
 import { usePollingTask } from '@/composables/usePollingTask'
 import { localeNames, type AppLocale } from '@/plugins/i18n/locales'
@@ -70,7 +70,7 @@ const avatarInput = useTemplateRef<HTMLInputElement>('avatarInput')
 let deleteCountdownTimer: ReturnType<typeof setInterval> | null = null
 
 const currentIdentity = computed(() => authStore.viewer?.identity ?? null)
-const currentRoleKey = computed(() => getPrimaryRoleKey(authStore.viewer?.authorization.roleKeys))
+const currentRoleKey = computed(() => authStore.viewer?.authorization.role ?? null)
 const avatarFallbackText = computed(() => getAvatarFallbackText(currentIdentity.value?.username))
 const avatarImageSrc = computed(() => currentIdentity.value?.avatarUrl ?? null)
 const editAvatarFallbackText = computed(() => {

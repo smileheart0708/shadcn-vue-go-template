@@ -32,19 +32,17 @@ type User struct {
 	Email           *string
 	AvatarPath      *string
 	Status          string
+	Role            string
 	SecurityVersion int64
 	DisabledAt      *time.Time
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
 }
 
-type UserWithRoles struct {
-	User
-	RoleKeys []string
-}
+type UserWithRoles = User
 
 type AuthRecord struct {
-	UserWithRoles
+	User
 	PasswordHash      string
 	PasswordChangedAt *time.Time
 }
@@ -53,26 +51,24 @@ type CreateUserParams struct {
 	Username         string
 	Email            *string
 	PasswordHash     string
-	RoleKey          string
+	Role             string
 	AssignedByUserID *int64
 }
 
 type UpdateManagedUserParams struct {
 	Username string
 	Email    *string
-	RoleKey  string
 }
 
 type ListUsersParams struct {
 	Query    string
-	RoleKey  string
 	Status   string
 	Page     int
 	PageSize int
 }
 
 type ListUsersResult struct {
-	Items    []UserWithRoles
+	Items    []User
 	Page     int
 	PageSize int
 	Total    int
@@ -100,25 +96,25 @@ func (s *Service) DB() *sql.DB {
 	return s.db
 }
 
-func (s *Service) CreateUser(ctx context.Context, params CreateUserParams, action ActionAuditContext) (UserWithRoles, error) {
+func (s *Service) CreateUser(ctx context.Context, params CreateUserParams, action ActionAuditContext) (User, error) {
 	if s == nil || s.db == nil {
-		return UserWithRoles{}, errors.New("identity: nil service")
+		return User{}, errors.New("identity: nil service")
 	}
 
 	username := normalizeUsername(params.Username)
 	if username == "" {
-		return UserWithRoles{}, fmt.Errorf("identity: username is required")
+		return User{}, fmt.Errorf("identity: username is required")
 	}
-	roleKey := strings.TrimSpace(params.RoleKey)
-	if roleKey == "" {
-		return UserWithRoles{}, fmt.Errorf("identity: role key is required")
+	role := normalizeRole(params.Role)
+	if role == "" {
+		return User{}, fmt.Errorf("identity: role is required")
 	}
 	passwordHash := strings.TrimSpace(params.PasswordHash)
 	if passwordHash == "" {
-		return UserWithRoles{}, fmt.Errorf("identity: password hash is required")
+		return User{}, fmt.Errorf("identity: password hash is required")
 	}
 
-	var created UserWithRoles
+	var created User
 	err := database.WithTx(ctx, s.db, func(tx *sql.Tx) error {
 		now := time.Now().UTC()
 		result, err := tx.ExecContext(
@@ -128,14 +124,16 @@ func (s *Service) CreateUser(ctx context.Context, params CreateUserParams, actio
 				email,
 				avatar_path,
 				status,
+				role,
 				security_version,
 				disabled_at,
 				created_at,
 				updated_at
-			) VALUES (?, ?, NULL, ?, 1, NULL, ?, ?)`,
+			) VALUES (?, ?, NULL, ?, ?, 1, NULL, ?, ?)`,
 			username,
 			normalizeEmailPointer(params.Email),
 			StatusActive,
+			role,
 			now.Unix(),
 			now.Unix(),
 		)
@@ -166,18 +164,6 @@ func (s *Service) CreateUser(ctx context.Context, params CreateUserParams, actio
 			return fmt.Errorf("identity: insert credential: %w", err)
 		}
 
-		if _, err := tx.ExecContext(
-			ctx,
-			`INSERT INTO user_roles (user_id, role_key, assigned_at, assigned_by_user_id)
-			VALUES (?, ?, ?, ?)`,
-			userID,
-			roleKey,
-			now.Unix(),
-			params.AssignedByUserID,
-		); err != nil {
-			return mapWriteError(err)
-		}
-
 		if action.ActorUserID != nil {
 			if err := audit.NewService(tx).Log(ctx, audit.Entry{
 				ActorUserID:   action.ActorUserID,
@@ -188,7 +174,7 @@ func (s *Service) CreateUser(ctx context.Context, params CreateUserParams, actio
 				IP:            action.IP,
 				UserAgent:     action.UserAgent,
 				Metadata: map[string]any{
-					"roleKeys": []string{roleKey},
+					"role": role,
 				},
 				OccurredAt: now,
 			}); err != nil {
@@ -196,21 +182,21 @@ func (s *Service) CreateUser(ctx context.Context, params CreateUserParams, actio
 			}
 		}
 
-		created, err = s.getUserWithRolesQuerier(ctx, tx, userID)
+		created, err = s.getUserQuerier(ctx, tx, userID)
 		return err
 	})
 	if err != nil {
-		return UserWithRoles{}, err
+		return User{}, err
 	}
 
 	return created, nil
 }
 
-func (s *Service) GetUserByID(ctx context.Context, userID int64) (UserWithRoles, error) {
+func (s *Service) GetUserByID(ctx context.Context, userID int64) (User, error) {
 	if s == nil || s.db == nil {
-		return UserWithRoles{}, errors.New("identity: nil service")
+		return User{}, errors.New("identity: nil service")
 	}
-	return s.getUserWithRolesQuerier(ctx, s.db, userID)
+	return s.getUserQuerier(ctx, s.db, userID)
 }
 
 func (s *Service) GetAuthRecordByID(ctx context.Context, userID int64) (AuthRecord, error) {
@@ -239,16 +225,15 @@ func (s *Service) GetAuthRecordByIdentifier(ctx context.Context, identifier stri
 			u.email,
 			u.avatar_path,
 			u.status,
+			u.role,
 			u.security_version,
 			u.disabled_at,
 			u.created_at,
 			u.updated_at,
 			c.password_hash,
-			c.password_changed_at,
-			ur.role_key
+			c.password_changed_at
 		FROM users u
 		INNER JOIN credentials c ON c.user_id = u.id
-		INNER JOIN user_roles ur ON ur.user_id = u.id
 		WHERE u.username = ? COLLATE NOCASE OR u.email = ? COLLATE NOCASE
 		ORDER BY u.id
 		LIMIT 1`,
@@ -257,9 +242,9 @@ func (s *Service) GetAuthRecordByIdentifier(ctx context.Context, identifier stri
 	)
 }
 
-func (s *Service) UpdateProfile(ctx context.Context, userID int64, username string, email *string) (UserWithRoles, error) {
+func (s *Service) UpdateProfile(ctx context.Context, userID int64, username string, email *string) (User, error) {
 	if s == nil || s.db == nil {
-		return UserWithRoles{}, errors.New("identity: nil service")
+		return User{}, errors.New("identity: nil service")
 	}
 
 	result, err := s.db.ExecContext(
@@ -273,18 +258,18 @@ func (s *Service) UpdateProfile(ctx context.Context, userID int64, username stri
 		userID,
 	)
 	if err != nil {
-		return UserWithRoles{}, mapWriteError(err)
+		return User{}, mapWriteError(err)
 	}
 	if err := ensureRowsAffected(result); err != nil {
-		return UserWithRoles{}, err
+		return User{}, err
 	}
 
 	return s.GetUserByID(ctx, userID)
 }
 
-func (s *Service) UpdateAvatar(ctx context.Context, userID int64, avatarPath *string) (UserWithRoles, error) {
+func (s *Service) UpdateAvatar(ctx context.Context, userID int64, avatarPath *string) (User, error) {
 	if s == nil || s.db == nil {
-		return UserWithRoles{}, errors.New("identity: nil service")
+		return User{}, errors.New("identity: nil service")
 	}
 
 	result, err := s.db.ExecContext(
@@ -297,43 +282,34 @@ func (s *Service) UpdateAvatar(ctx context.Context, userID int64, avatarPath *st
 		userID,
 	)
 	if err != nil {
-		return UserWithRoles{}, fmt.Errorf("identity: update avatar: %w", err)
+		return User{}, fmt.Errorf("identity: update avatar: %w", err)
 	}
 	if err := ensureRowsAffected(result); err != nil {
-		return UserWithRoles{}, err
+		return User{}, err
 	}
 
 	return s.GetUserByID(ctx, userID)
 }
 
-func (s *Service) UpdateManagedUser(ctx context.Context, userID int64, params UpdateManagedUserParams, action ActionAuditContext) (UserWithRoles, error) {
+func (s *Service) UpdateManagedUser(ctx context.Context, userID int64, params UpdateManagedUserParams, action ActionAuditContext) (User, error) {
 	if s == nil || s.db == nil {
-		return UserWithRoles{}, errors.New("identity: nil service")
+		return User{}, errors.New("identity: nil service")
 	}
 
-	current, err := s.GetUserByID(ctx, userID)
-	if err != nil {
-		return UserWithRoles{}, err
+	if _, err := s.GetUserByID(ctx, userID); err != nil {
+		return User{}, err
 	}
 
-	nextRoleKey := strings.TrimSpace(params.RoleKey)
-	if nextRoleKey == "" {
-		nextRoleKey = firstRoleKey(current.RoleKeys)
-	}
-
-	var updated UserWithRoles
-	err = database.WithTx(ctx, s.db, func(tx *sql.Tx) error {
+	var updated User
+	err := database.WithTx(ctx, s.db, func(tx *sql.Tx) error {
 		now := time.Now().UTC()
-		roleChanged := nextRoleKey != firstRoleKey(current.RoleKeys)
-
 		result, err := tx.ExecContext(
 			ctx,
 			`UPDATE users
-			SET username = ?, email = ?, security_version = security_version + ?, updated_at = ?
+			SET username = ?, email = ?, updated_at = ?
 			WHERE id = ?`,
 			normalizeUsername(params.Username),
 			normalizeEmailPointer(params.Email),
-			boolToInt(roleChanged),
 			now.Unix(),
 			userID,
 		)
@@ -344,71 +320,50 @@ func (s *Service) UpdateManagedUser(ctx context.Context, userID int64, params Up
 			return err
 		}
 
-		if roleChanged {
-			if _, err := tx.ExecContext(
-				ctx,
-				`UPDATE user_roles
-				SET role_key = ?, assigned_at = ?, assigned_by_user_id = ?
-				WHERE user_id = ?`,
-				nextRoleKey,
-				now.Unix(),
-				action.ActorUserID,
-				userID,
-			); err != nil {
-				return mapWriteError(err)
-			}
-
-			if err := revokeUserSessionsTx(ctx, tx, userID, "role_changed", now); err != nil {
-				return err
-			}
-
+		if action.ActorUserID != nil {
 			if err := audit.NewService(tx).Log(ctx, audit.Entry{
 				ActorUserID:   action.ActorUserID,
 				SubjectUserID: new(userID),
 				AuthSessionID: action.AuthSessionID,
-				EventType:     audit.EventRoleChanged,
+				EventType:     audit.EventUserUpdated,
 				Outcome:       audit.OutcomeSuccess,
 				IP:            action.IP,
 				UserAgent:     action.UserAgent,
-				Metadata: map[string]any{
-					"previousRoleKeys": current.RoleKeys,
-					"roleKeys":         []string{nextRoleKey},
-				},
-				OccurredAt: now,
+				OccurredAt:    now,
 			}); err != nil {
 				return err
 			}
 		}
 
-		updated, err = s.getUserWithRolesQuerier(ctx, tx, userID)
+		updated, err = s.getUserQuerier(ctx, tx, userID)
 		return err
 	})
 	if err != nil {
-		return UserWithRoles{}, err
+		return User{}, err
 	}
 
 	return updated, nil
 }
 
-func (s *Service) SetUserStatus(ctx context.Context, userID int64, status string, action ActionAuditContext) (UserWithRoles, error) {
+func (s *Service) SetUserStatus(ctx context.Context, userID int64, status string, action ActionAuditContext) (User, error) {
 	if s == nil || s.db == nil {
-		return UserWithRoles{}, errors.New("identity: nil service")
+		return User{}, errors.New("identity: nil service")
 	}
 
 	current, err := s.GetUserByID(ctx, userID)
 	if err != nil {
-		return UserWithRoles{}, err
+		return User{}, err
 	}
 
 	status = normalizeStatus(status)
 	if status == "" {
-		return UserWithRoles{}, fmt.Errorf("identity: invalid status")
+		return User{}, fmt.Errorf("identity: invalid status")
 	}
 	if current.Status == status {
 		return current, nil
 	}
 
-	var updated UserWithRoles
+	var updated User
 	err = database.WithTx(ctx, s.db, func(tx *sql.Tx) error {
 		now := time.Now().UTC()
 		var disabledAt any
@@ -458,11 +413,11 @@ func (s *Service) SetUserStatus(ctx context.Context, userID int64, status string
 			return err
 		}
 
-		updated, err = s.getUserWithRolesQuerier(ctx, tx, userID)
+		updated, err = s.getUserQuerier(ctx, tx, userID)
 		return err
 	})
 	if err != nil {
-		return UserWithRoles{}, err
+		return User{}, err
 	}
 
 	return updated, nil
@@ -513,8 +468,7 @@ func (s *Service) ListUsers(ctx context.Context, params ListUsersParams) (ListUs
 	if err := s.db.QueryRowContext(
 		ctx,
 		`SELECT COUNT(*)
-		FROM users u
-		INNER JOIN user_roles ur ON ur.user_id = u.id`+whereClause,
+		FROM users u`+whereClause,
 		args...,
 	).Scan(&total); err != nil {
 		return ListUsersResult{}, fmt.Errorf("identity: count users: %w", err)
@@ -529,13 +483,12 @@ func (s *Service) ListUsers(ctx context.Context, params ListUsersParams) (ListUs
 			u.email,
 			u.avatar_path,
 			u.status,
+			u.role,
 			u.security_version,
 			u.disabled_at,
 			u.created_at,
-			u.updated_at,
-			ur.role_key
-		FROM users u
-		INNER JOIN user_roles ur ON ur.user_id = u.id`+whereClause+`
+			u.updated_at
+		FROM users u`+whereClause+`
 		ORDER BY u.created_at DESC, u.id DESC
 		LIMIT ? OFFSET ?`,
 		queryArgs...,
@@ -545,9 +498,9 @@ func (s *Service) ListUsers(ctx context.Context, params ListUsersParams) (ListUs
 	}
 	defer rows.Close()
 
-	items := make([]UserWithRoles, 0, params.PageSize)
+	items := make([]User, 0, params.PageSize)
 	for rows.Next() {
-		item, err := scanUserWithRole(rows)
+		item, err := scanUser(rows)
 		if err != nil {
 			return ListUsersResult{}, err
 		}
@@ -565,7 +518,7 @@ func (s *Service) ListUsers(ctx context.Context, params ListUsersParams) (ListUs
 	}, nil
 }
 
-func (s *Service) getUserWithRolesQuerier(ctx context.Context, db database.DBTX, userID int64) (UserWithRoles, error) {
+func (s *Service) getUserQuerier(ctx context.Context, db database.DBTX, userID int64) (User, error) {
 	row := db.QueryRowContext(
 		ctx,
 		`SELECT
@@ -574,17 +527,16 @@ func (s *Service) getUserWithRolesQuerier(ctx context.Context, db database.DBTX,
 			u.email,
 			u.avatar_path,
 			u.status,
+			u.role,
 			u.security_version,
 			u.disabled_at,
 			u.created_at,
-			u.updated_at,
-			ur.role_key
+			u.updated_at
 		FROM users u
-		INNER JOIN user_roles ur ON ur.user_id = u.id
 		WHERE u.id = ?`,
 		userID,
 	)
-	return scanUserWithRole(row)
+	return scanUser(row)
 }
 
 func getAuthRecord(ctx context.Context, db database.DBTX, query string, args ...any) (AuthRecord, error) {
@@ -595,7 +547,6 @@ func getAuthRecord(ctx context.Context, db database.DBTX, query string, args ...
 	var passwordChangedAt sql.NullInt64
 	var createdAt int64
 	var updatedAt int64
-	var roleKey string
 
 	err := db.QueryRowContext(ctx, query, args...).Scan(
 		&record.ID,
@@ -603,13 +554,13 @@ func getAuthRecord(ctx context.Context, db database.DBTX, query string, args ...
 		&email,
 		&avatarPath,
 		&record.Status,
+		&record.Role,
 		&record.SecurityVersion,
 		&disabledAt,
 		&createdAt,
 		&updatedAt,
 		&record.PasswordHash,
 		&passwordChangedAt,
-		&roleKey,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
 		return AuthRecord{}, ErrUserNotFound
@@ -624,7 +575,6 @@ func getAuthRecord(ctx context.Context, db database.DBTX, query string, args ...
 	record.PasswordChangedAt = nullableUnixTimePointer(passwordChangedAt)
 	record.CreatedAt = time.Unix(createdAt, 0).UTC()
 	record.UpdatedAt = time.Unix(updatedAt, 0).UTC()
-	record.RoleKeys = []string{roleKey}
 	return record, nil
 }
 
@@ -635,27 +585,25 @@ func userIDSelectQuery() string {
 		u.email,
 		u.avatar_path,
 		u.status,
+		u.role,
 		u.security_version,
 		u.disabled_at,
 		u.created_at,
 		u.updated_at,
 		c.password_hash,
-		c.password_changed_at,
-		ur.role_key
+		c.password_changed_at
 	FROM users u
 	INNER JOIN credentials c ON c.user_id = u.id
-	INNER JOIN user_roles ur ON ur.user_id = u.id
 	WHERE u.id = ?`
 }
 
-func scanUserWithRole(scanner interface{ Scan(dest ...any) error }) (UserWithRoles, error) {
-	var user UserWithRoles
+func scanUser(scanner interface{ Scan(dest ...any) error }) (User, error) {
+	var user User
 	var email sql.NullString
 	var avatarPath sql.NullString
 	var disabledAt sql.NullInt64
 	var createdAt int64
 	var updatedAt int64
-	var roleKey string
 
 	err := scanner.Scan(
 		&user.ID,
@@ -663,17 +611,17 @@ func scanUserWithRole(scanner interface{ Scan(dest ...any) error }) (UserWithRol
 		&email,
 		&avatarPath,
 		&user.Status,
+		&user.Role,
 		&user.SecurityVersion,
 		&disabledAt,
 		&createdAt,
 		&updatedAt,
-		&roleKey,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
-		return UserWithRoles{}, ErrUserNotFound
+		return User{}, ErrUserNotFound
 	}
 	if err != nil {
-		return UserWithRoles{}, fmt.Errorf("identity: scan user: %w", err)
+		return User{}, fmt.Errorf("identity: scan user: %w", err)
 	}
 
 	user.Email = nullableStringPointer(email)
@@ -681,7 +629,6 @@ func scanUserWithRole(scanner interface{ Scan(dest ...any) error }) (UserWithRol
 	user.DisabledAt = nullableUnixTimePointer(disabledAt)
 	user.CreatedAt = time.Unix(createdAt, 0).UTC()
 	user.UpdatedAt = time.Unix(updatedAt, 0).UTC()
-	user.RoleKeys = []string{roleKey}
 	return user, nil
 }
 
@@ -702,17 +649,13 @@ func revokeUserSessionsTx(ctx context.Context, tx *sql.Tx, userID int64, reason 
 }
 
 func buildListWhere(params ListUsersParams) (string, []any) {
-	clauses := make([]string, 0, 3)
-	args := make([]any, 0, 4)
+	clauses := make([]string, 0, 2)
+	args := make([]any, 0, 3)
 
 	if params.Query != "" {
 		pattern := "%" + params.Query + "%"
 		clauses = append(clauses, "(u.username LIKE ? COLLATE NOCASE OR u.email LIKE ? COLLATE NOCASE)")
 		args = append(args, pattern, pattern)
-	}
-	if params.RoleKey != "" {
-		clauses = append(clauses, "ur.role_key = ?")
-		args = append(args, params.RoleKey)
 	}
 	if params.Status != "" {
 		clauses = append(clauses, "u.status = ?")
@@ -727,7 +670,6 @@ func buildListWhere(params ListUsersParams) (string, []any) {
 
 func normalizeListParams(params ListUsersParams) ListUsersParams {
 	params.Query = strings.TrimSpace(params.Query)
-	params.RoleKey = strings.TrimSpace(params.RoleKey)
 	params.Status = normalizeStatus(params.Status)
 	if params.Page <= 0 {
 		params.Page = 1
@@ -747,6 +689,17 @@ func normalizeStatus(status string) string {
 		return StatusActive
 	case StatusDisabled:
 		return StatusDisabled
+	default:
+		return ""
+	}
+}
+
+func normalizeRole(role string) string {
+	switch strings.TrimSpace(role) {
+	case authorization.RoleOwner:
+		return authorization.RoleOwner
+	case authorization.RoleUser:
+		return authorization.RoleUser
 	default:
 		return ""
 	}
@@ -805,25 +758,11 @@ func mapWriteError(err error) error {
 		return ErrUsernameTaken
 	case strings.Contains(message, "unique constraint failed: users.email"):
 		return ErrEmailTaken
-	case strings.Contains(message, "unique constraint failed: user_roles.role_key"):
+	case strings.Contains(message, "unique constraint failed: users.role"):
 		return ErrOwnerAlreadyExists
 	default:
 		return fmt.Errorf("identity: write failed: %w", err)
 	}
-}
-
-func firstRoleKey(roleKeys []string) string {
-	if len(roleKeys) == 0 {
-		return ""
-	}
-	return roleKeys[0]
-}
-
-func boolToInt(value bool) int {
-	if value {
-		return 1
-	}
-	return 0
 }
 
 func stringPointerOrNil(value string) *string {
@@ -836,13 +775,4 @@ func stringPointerOrNil(value string) *string {
 
 func AvatarDir(dataDir string) string {
 	return filepath.Join(dataDir, "avatars")
-}
-
-func IsManageableRoleKey(roleKey string) bool {
-	switch roleKey {
-	case authorization.RoleAdmin, authorization.RoleUser:
-		return true
-	default:
-		return false
-	}
 }

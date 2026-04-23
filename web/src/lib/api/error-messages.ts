@@ -11,7 +11,6 @@ const API_ERROR_MESSAGE_KEYS = {
   current_password_invalid: 'apiError.currentPasswordInvalid',
   password_too_short: 'apiError.passwordTooShort',
   registration_disabled: 'apiError.registrationDisabled',
-  invalid_registration_mode: 'apiError.invalidRegistrationMode',
   setup_required: 'apiError.setupRequired',
   setup_completed: 'apiError.setupCompleted',
   avatar_required: 'apiError.avatarRequired',
@@ -23,7 +22,6 @@ const API_ERROR_MESSAGE_KEYS = {
   password_update_failed: 'apiError.passwordUpdateFailed',
   account_delete_failed: 'apiError.accountDeleteFailed',
   account_delete_forbidden: 'apiError.accountDeleteForbidden',
-  invalid_role_keys: 'apiError.invalidRoleKeys',
   system_log_stream_unavailable: 'apiError.systemLogStreamFailed',
 } as const
 

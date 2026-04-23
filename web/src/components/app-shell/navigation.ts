@@ -37,7 +37,7 @@ export function useAppShellNavigation(): ComputedRef<AppShellNavigation> {
     ],
     management: [
       ...(canReadSystemSettings.value ? [{ title: t('nav.management.systemConfig'), icon: Cog, to: { name: 'system-config' } }] : []),
-      ...(canReadUsers.value ? [{ title: t('nav.management.users'), icon: Users, to: { name: 'admin-users' } }] : []),
+      ...(canReadUsers.value ? [{ title: t('nav.management.users'), icon: Users, to: { name: 'users' } }] : []),
       ...(canReadSystemLogs.value ? [{ title: t('nav.management.systemLogs'), icon: Logs, to: { name: 'system-logs' } }] : []),
     ],
     secondary: [

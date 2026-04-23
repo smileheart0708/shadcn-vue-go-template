@@ -3,32 +3,24 @@ package httpapi
 import (
 	"errors"
 	"net/http"
-	"slices"
 	"strconv"
 	"strings"
-	"time"
 
+	"main/internal/accountpolicies"
 	"main/internal/audit"
 	"main/internal/auth"
 	"main/internal/authorization"
 	"main/internal/identity"
-	"main/internal/systemsettings"
 )
 
-type systemSettingsResponse struct {
-	AuthMode                          systemsettings.AuthMode         `json:"authMode"`
-	RegistrationMode                  systemsettings.RegistrationMode `json:"registrationMode"`
-	PasswordLoginEnabled              bool                            `json:"passwordLoginEnabled"`
-	AdminUserCreateEnabled            bool                            `json:"adminUserCreateEnabled"`
-	SelfServiceAccountDeletionEnabled bool                            `json:"selfServiceAccountDeletionEnabled"`
-	UpdatedAt                         string                          `json:"updatedAt"`
+type accountPoliciesResponse struct {
+	PublicRegistrationEnabled         bool `json:"publicRegistrationEnabled"`
+	SelfServiceAccountDeletionEnabled bool `json:"selfServiceAccountDeletionEnabled"`
 }
 
-type updateSystemSettingsRequest struct {
-	AuthMode                          *systemsettings.AuthMode         `json:"authMode"`
-	RegistrationMode                  *systemsettings.RegistrationMode `json:"registrationMode"`
-	AdminUserCreateEnabled            *bool                            `json:"adminUserCreateEnabled"`
-	SelfServiceAccountDeletionEnabled *bool                            `json:"selfServiceAccountDeletionEnabled"`
+type updateAccountPoliciesRequest struct {
+	PublicRegistrationEnabled         *bool `json:"publicRegistrationEnabled"`
+	SelfServiceAccountDeletionEnabled *bool `json:"selfServiceAccountDeletionEnabled"`
 }
 
 type managementUsersPageResponse struct {
@@ -38,48 +30,43 @@ type managementUsersPageResponse struct {
 	Total    int                   `json:"total"`
 }
 
-type managementUserUpsertRequest struct {
-	Username string   `json:"username"`
-	Email    *string  `json:"email"`
-	Password string   `json:"password,omitempty"`
-	RoleKeys []string `json:"roleKeys"`
+type createManagementUserRequest struct {
+	Username string  `json:"username"`
+	Email    *string `json:"email"`
+	Password string  `json:"password"`
 }
 
-func (api *API) getSystemSettingsHandler(w http.ResponseWriter, r *http.Request) {
-	settings, err := api.settings.Get(r.Context())
+type updateManagementUserRequest struct {
+	Username string  `json:"username"`
+	Email    *string `json:"email"`
+}
+
+func (api *API) getAccountPoliciesHandler(w http.ResponseWriter, r *http.Request) {
+	policies, err := api.policies.Get(r.Context())
 	if err != nil {
-		writeAPIError(w, http.StatusInternalServerError, "system_settings_unavailable", "Failed to load system settings.")
+		writeAPIError(w, http.StatusInternalServerError, "account_policies_unavailable", "Failed to load account policies.")
 		return
 	}
-	writeSuccessJSON(w, http.StatusOK, toSystemSettingsResponse(settings))
+	writeSuccessJSON(w, http.StatusOK, toAccountPoliciesResponse(policies))
 }
 
-func (api *API) updateSystemSettingsHandler(w http.ResponseWriter, r *http.Request) {
-	var payload updateSystemSettingsRequest
+func (api *API) updateAccountPoliciesHandler(w http.ResponseWriter, r *http.Request) {
+	var payload updateAccountPoliciesRequest
 	if err := decodeJSON(w, r, &payload); err != nil {
 		writeAPIError(w, http.StatusBadRequest, "invalid_request", describeJSONDecodeError(err))
 		return
 	}
 
-	settings, err := api.settings.Update(r.Context(), systemsettings.UpdateInput{
-		AuthMode:                          payload.AuthMode,
-		RegistrationMode:                  payload.RegistrationMode,
-		AdminUserCreateEnabled:            payload.AdminUserCreateEnabled,
+	policies, err := api.policies.Update(r.Context(), accountpolicies.UpdateInput{
+		PublicRegistrationEnabled:         payload.PublicRegistrationEnabled,
 		SelfServiceAccountDeletionEnabled: payload.SelfServiceAccountDeletionEnabled,
 	})
 	if err != nil {
-		switch {
-		case errors.Is(err, systemsettings.ErrInvalidAuthMode):
-			writeAPIError(w, http.StatusBadRequest, "invalid_auth_mode", "Invalid auth mode.")
-		case errors.Is(err, systemsettings.ErrInvalidRegistrationMode):
-			writeAPIError(w, http.StatusBadRequest, "invalid_registration_mode", "Invalid registration mode.")
-		default:
-			writeAPIError(w, http.StatusInternalServerError, "system_settings_update_failed", "Failed to update system settings.")
-		}
+		writeAPIError(w, http.StatusInternalServerError, "account_policies_update_failed", "Failed to update account policies.")
 		return
 	}
 
-	writeSuccessJSON(w, http.StatusOK, toSystemSettingsResponse(settings))
+	writeSuccessJSON(w, http.StatusOK, toAccountPoliciesResponse(policies))
 }
 
 func (api *API) listManagementUsersHandler(w http.ResponseWriter, r *http.Request) {
@@ -91,7 +78,6 @@ func (api *API) listManagementUsersHandler(w http.ResponseWriter, r *http.Reques
 
 	result, err := api.identities.ListUsers(r.Context(), identity.ListUsersParams{
 		Query:    r.URL.Query().Get("q"),
-		RoleKey:  r.URL.Query().Get("role"),
 		Status:   r.URL.Query().Get("status"),
 		Page:     parsePositiveIntQuery(r, "page", 1),
 		PageSize: parsePositiveIntQuery(r, "pageSize", 20),
@@ -102,17 +88,17 @@ func (api *API) listManagementUsersHandler(w http.ResponseWriter, r *http.Reques
 	}
 
 	actorTarget := authorization.UserTarget{
-		UserID:   actor.User.ID,
-		RoleKeys: actor.User.RoleKeys,
-		Status:   actor.User.Status,
+		UserID: actor.User.ID,
+		Role:   actor.User.Role,
+		Status: actor.User.Status,
 	}
 
 	items := make([]managedUserResponse, 0, len(result.Items))
 	for _, item := range result.Items {
 		target := authorization.UserTarget{
-			UserID:   item.ID,
-			RoleKeys: item.RoleKeys,
-			Status:   item.Status,
+			UserID: item.ID,
+			Role:   item.Role,
+			Status: item.Status,
 		}
 		items = append(items, api.toManagedUserResponse(item, api.authorization.ManagedUserActions(actorTarget, target)))
 	}
@@ -132,7 +118,7 @@ func (api *API) createManagementUserHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	var payload managementUserUpsertRequest
+	var payload createManagementUserRequest
 	if err := decodeJSON(w, r, &payload); err != nil {
 		writeAPIError(w, http.StatusBadRequest, "invalid_request", describeJSONDecodeError(err))
 		return
@@ -146,13 +132,6 @@ func (api *API) createManagementUserHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	roleKey, allowedRoleKeys, ok := validateManagedRoleKeys(payload.RoleKeys, api.authorization.AllowedManagedRoleKeys(actor.User.RoleKeys, api.authorization.HasCapability(actor.Authorization.Capabilities, authorization.CapabilityManagementUsersCreate)))
-	if !ok {
-		writeAPIError(w, http.StatusBadRequest, "invalid_role_keys", "Invalid role assignment.")
-		return
-	}
-	_ = allowedRoleKeys
-
 	passwordHash, err := auth.HashPassword(payload.Password)
 	if err != nil {
 		writeAPIError(w, http.StatusInternalServerError, "user_create_failed", "Failed to create user.")
@@ -164,7 +143,7 @@ func (api *API) createManagementUserHandler(w http.ResponseWriter, r *http.Reque
 		Username:         payload.Username,
 		Email:            payload.Email,
 		PasswordHash:     passwordHash,
-		RoleKey:          roleKey,
+		Role:             authorization.RoleUser,
 		AssignedByUserID: new(actor.User.ID),
 	}, identity.ActionAuditContext{
 		ActorUserID:   new(actor.User.ID),
@@ -184,7 +163,7 @@ func (api *API) createManagementUserHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	writeSuccessJSON(w, http.StatusCreated, api.toManagedUserResponse(created, nil))
+	writeSuccessJSON(w, http.StatusCreated, api.toManagedUserResponse(created, []string{}))
 }
 
 func (api *API) updateManagementUserHandler(w http.ResponseWriter, r *http.Request) {
@@ -208,7 +187,7 @@ func (api *API) updateManagementUserHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	var payload managementUserUpsertRequest
+	var payload updateManagementUserRequest
 	if err := decodeJSON(w, r, &payload); err != nil {
 		writeAPIError(w, http.StatusBadRequest, "invalid_request", describeJSONDecodeError(err))
 		return
@@ -218,17 +197,10 @@ func (api *API) updateManagementUserHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	roleKey, _, valid := validateManagedRoleKeys(payload.RoleKeys, api.authorization.AllowedManagedRoleKeys(actor.User.RoleKeys, true))
-	if !valid {
-		writeAPIError(w, http.StatusBadRequest, "invalid_role_keys", "Invalid role assignment.")
-		return
-	}
-
 	ip, userAgent := requestMetadata(r)
 	updated, err := api.identities.UpdateManagedUser(r.Context(), targetUser.ID, identity.UpdateManagedUserParams{
 		Username: payload.Username,
 		Email:    payload.Email,
-		RoleKey:  roleKey,
 	}, identity.ActionAuditContext{
 		ActorUserID:   new(actor.User.ID),
 		AuthSessionID: new(actor.SessionID),
@@ -248,9 +220,9 @@ func (api *API) updateManagementUserHandler(w http.ResponseWriter, r *http.Reque
 	}
 
 	writeSuccessJSON(w, http.StatusOK, api.toManagedUserResponse(updated, api.authorization.ManagedUserActions(actorTarget, authorization.UserTarget{
-		UserID:   updated.ID,
-		RoleKeys: updated.RoleKeys,
-		Status:   updated.Status,
+		UserID: updated.ID,
+		Role:   updated.Role,
+		Status: updated.Status,
 	})))
 }
 
@@ -296,9 +268,9 @@ func (api *API) setManagementUserStatusHandler(w http.ResponseWriter, r *http.Re
 	}
 
 	writeSuccessJSON(w, http.StatusOK, api.toManagedUserResponse(updated, api.authorization.ManagedUserActions(actorTarget, authorization.UserTarget{
-		UserID:   updated.ID,
-		RoleKeys: updated.RoleKeys,
-		Status:   updated.Status,
+		UserID: updated.ID,
+		Role:   updated.Role,
+		Status: updated.Status,
 	})))
 }
 
@@ -314,7 +286,7 @@ func (api *API) listAuditLogsHandler(w http.ResponseWriter, r *http.Request) {
 	writeSuccessJSON(w, http.StatusOK, result)
 }
 
-func (api *API) loadManagedUserTargets(w http.ResponseWriter, r *http.Request, actor auth.Actor, targetID int64) (identity.UserWithRoles, authorization.UserTarget, authorization.UserTarget, bool) {
+func (api *API) loadManagedUserTargets(w http.ResponseWriter, r *http.Request, actor auth.Actor, targetID int64) (identity.User, authorization.UserTarget, authorization.UserTarget, bool) {
 	targetUser, err := api.identities.GetUserByID(r.Context(), targetID)
 	if err != nil {
 		if errors.Is(err, identity.ErrUserNotFound) {
@@ -322,30 +294,26 @@ func (api *API) loadManagedUserTargets(w http.ResponseWriter, r *http.Request, a
 		} else {
 			writeAPIError(w, http.StatusInternalServerError, "user_unavailable", "Failed to load user.")
 		}
-		return identity.UserWithRoles{}, authorization.UserTarget{}, authorization.UserTarget{}, false
+		return identity.User{}, authorization.UserTarget{}, authorization.UserTarget{}, false
 	}
 
 	actorTarget := authorization.UserTarget{
-		UserID:   actor.User.ID,
-		RoleKeys: actor.User.RoleKeys,
-		Status:   actor.User.Status,
+		UserID: actor.User.ID,
+		Role:   actor.User.Role,
+		Status: actor.User.Status,
 	}
 	targetTarget := authorization.UserTarget{
-		UserID:   targetUser.ID,
-		RoleKeys: targetUser.RoleKeys,
-		Status:   targetUser.Status,
+		UserID: targetUser.ID,
+		Role:   targetUser.Role,
+		Status: targetUser.Status,
 	}
 	return targetUser, actorTarget, targetTarget, true
 }
 
-func toSystemSettingsResponse(settings systemsettings.Settings) systemSettingsResponse {
-	return systemSettingsResponse{
-		AuthMode:                          settings.AuthMode,
-		RegistrationMode:                  settings.RegistrationMode,
-		PasswordLoginEnabled:              settings.PasswordLoginEnabled,
-		AdminUserCreateEnabled:            settings.AdminUserCreateEnabled,
-		SelfServiceAccountDeletionEnabled: settings.SelfServiceAccountDeletionEnabled,
-		UpdatedAt:                         settings.UpdatedAt.Format(time.RFC3339),
+func toAccountPoliciesResponse(policies accountpolicies.Policies) accountPoliciesResponse {
+	return accountPoliciesResponse{
+		PublicRegistrationEnabled:         policies.PublicRegistrationEnabled,
+		SelfServiceAccountDeletionEnabled: policies.SelfServiceAccountDeletionEnabled,
 	}
 }
 
@@ -370,19 +338,4 @@ func parseInt64PathValue(w http.ResponseWriter, r *http.Request, key string) (in
 		return 0, false
 	}
 	return parsed, true
-}
-
-func validateManagedRoleKeys(roleKeys []string, allowedRoleKeys []string) (string, []string, bool) {
-	if len(roleKeys) != 1 {
-		return "", allowedRoleKeys, false
-	}
-	roleKey := strings.TrimSpace(roleKeys[0])
-	if roleKey == "" {
-		return "", allowedRoleKeys, false
-	}
-
-	if slices.Contains(allowedRoleKeys, roleKey) {
-		return roleKey, allowedRoleKeys, true
-	}
-	return "", allowedRoleKeys, false
 }

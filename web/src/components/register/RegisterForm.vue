@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { HTMLAttributes } from 'vue'
-import { CircleOff } from 'lucide-vue-next'
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -8,7 +7,7 @@ import { toast } from 'vue-sonner'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
+import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty'
 import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -113,29 +112,15 @@ async function handleSubmit() {
       </CardContent>
     </Card>
 
-    <Card
-      v-else-if="!registrationEnabled"
-      class="border-border/60 shadow-sm"
-    >
-      <CardContent class="p-6 sm:p-8">
-        <Empty class="gap-8 border-none px-0 py-4">
+    <Card v-else-if="!registrationEnabled">
+      <CardContent class="p-6">
+        <Empty>
           <EmptyHeader>
-            <EmptyMedia
-              variant="icon"
-              class="size-14 rounded-full border border-border bg-muted/50 text-muted-foreground"
-            >
-              <CircleOff class="size-7" />
-            </EmptyMedia>
             <EmptyTitle>{{ t('auth.signUp.disabledTitle') }}</EmptyTitle>
-            <EmptyDescription class="max-w-xs text-sm/6 text-muted-foreground">
-              {{ t('auth.signUp.disabledDescription') }}
-            </EmptyDescription>
+            <EmptyDescription>{{ t('auth.signUp.disabledDescription') }}</EmptyDescription>
           </EmptyHeader>
-          <EmptyContent class="max-w-none">
-            <Button
-              as-child
-              class="min-w-28"
-            >
+          <EmptyContent>
+            <Button as-child>
               <RouterLink :to="{ name: 'login' }">{{ t('auth.signUp.signIn') }}</RouterLink>
             </Button>
           </EmptyContent>

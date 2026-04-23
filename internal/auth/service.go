@@ -6,18 +6,17 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 
+	"main/internal/accountpolicies"
 	"main/internal/audit"
 	"main/internal/authorization"
 	"main/internal/database"
 	"main/internal/identity"
-	"main/internal/systemsettings"
 )
 
 const (
@@ -60,7 +59,7 @@ type Service struct {
 	db                 *sql.DB
 	identities         *identity.Service
 	authorization      *authorization.Service
-	settings           *systemsettings.Service
+	policies           *accountpolicies.Service
 	audit              *audit.Service
 }
 
@@ -72,12 +71,12 @@ type Principal struct {
 
 type Actor struct {
 	Principal
-	User          identity.UserWithRoles
+	User          identity.User
 	Authorization authorization.ViewerAuthorization
 }
 
 type Viewer struct {
-	User          identity.UserWithRoles
+	User          identity.User
 	Authorization authorization.ViewerAuthorization
 }
 
@@ -114,7 +113,7 @@ type sessionRow struct {
 	RevokeReason     *string
 }
 
-func NewService(options Options, db *sql.DB, identities *identity.Service, authorizationService *authorization.Service, settings *systemsettings.Service) *Service {
+func NewService(options Options, db *sql.DB, identities *identity.Service, authorizationService *authorization.Service, policies *accountpolicies.Service) *Service {
 	if options.Issuer == "" {
 		options.Issuer = defaultIssuer
 	}
@@ -138,7 +137,7 @@ func NewService(options Options, db *sql.DB, identities *identity.Service, autho
 		db:                 db,
 		identities:         identities,
 		authorization:      authorizationService,
-		settings:           settings,
+		policies:           policies,
 		audit:              audit.NewService(db),
 	}
 }
@@ -163,7 +162,7 @@ func (s *Service) BuildViewer(ctx context.Context, userID int64) (Viewer, error)
 		return Viewer{}, err
 	}
 
-	viewerAuthorization, err := s.buildViewerAuthorization(ctx, user.RoleKeys)
+	viewerAuthorization, err := s.buildViewerAuthorization(ctx, user.Role)
 	if err != nil {
 		return Viewer{}, err
 	}
@@ -217,7 +216,7 @@ func (s *Service) Login(ctx context.Context, identifier string, password string,
 		return SessionResult{}, ErrAccountDisabled
 	}
 
-	result, err := s.IssueSessionForUser(ctx, record.UserWithRoles, ip, userAgent)
+	result, err := s.IssueSessionForUser(ctx, record.User, ip, userAgent)
 	if err != nil {
 		return SessionResult{}, err
 	}
@@ -235,11 +234,11 @@ func (s *Service) Login(ctx context.Context, identifier string, password string,
 }
 
 func (s *Service) Register(ctx context.Context, params RegisterParams, ip string, userAgent string) (SessionResult, error) {
-	settings, err := s.settings.Get(ctx)
+	policies, err := s.policies.Get(ctx)
 	if err != nil {
 		return SessionResult{}, err
 	}
-	if !settings.CanPublicRegister() {
+	if !policies.PublicRegistrationEnabled {
 		return SessionResult{}, ErrRegistrationDisabled
 	}
 
@@ -256,7 +255,7 @@ func (s *Service) Register(ctx context.Context, params RegisterParams, ip string
 		Username:     params.Username,
 		Email:        params.Email,
 		PasswordHash: passwordHash,
-		RoleKey:      authorization.RoleUser,
+		Role:         authorization.RoleUser,
 	}, identity.ActionAuditContext{})
 	if err != nil {
 		return SessionResult{}, err
@@ -455,7 +454,7 @@ func (s *Service) Refresh(ctx context.Context, rawToken string, ip string, userA
 		return SessionResult{}, err
 	}
 
-	viewerAuthorization, err := s.buildViewerAuthorization(ctx, user.RoleKeys)
+	viewerAuthorization, err := s.buildViewerAuthorization(ctx, user.Role)
 	if err != nil {
 		return SessionResult{}, err
 	}
@@ -585,7 +584,7 @@ func (s *Service) ChangePassword(ctx context.Context, actor Actor, currentPasswo
 	})
 }
 
-func (s *Service) IssueSessionForUser(ctx context.Context, user identity.UserWithRoles, ip string, userAgent string) (SessionResult, error) {
+func (s *Service) IssueSessionForUser(ctx context.Context, user identity.User, ip string, userAgent string) (SessionResult, error) {
 	if user.Status != identity.StatusActive {
 		return SessionResult{}, ErrAccountDisabled
 	}
@@ -636,7 +635,7 @@ func (s *Service) IssueSessionForUser(ctx context.Context, user identity.UserWit
 		return SessionResult{}, err
 	}
 
-	viewerAuthorization, err := s.buildViewerAuthorization(ctx, user.RoleKeys)
+	viewerAuthorization, err := s.buildViewerAuthorization(ctx, user.Role)
 	if err != nil {
 		return SessionResult{}, err
 	}
@@ -707,7 +706,7 @@ func (s *Service) actorForPrincipal(ctx context.Context, principal Principal) (A
 		return Actor{}, ErrInvalidToken
 	}
 
-	viewerAuthorization, err := s.buildViewerAuthorization(ctx, user.RoleKeys)
+	viewerAuthorization, err := s.buildViewerAuthorization(ctx, user.Role)
 	if err != nil {
 		return Actor{}, err
 	}
@@ -719,22 +718,20 @@ func (s *Service) actorForPrincipal(ctx context.Context, principal Principal) (A
 	}, nil
 }
 
-func (s *Service) buildViewerAuthorization(ctx context.Context, roleKeys []string) (authorization.ViewerAuthorization, error) {
-	settings, err := s.settings.Get(ctx)
+func (s *Service) buildViewerAuthorization(ctx context.Context, role string) (authorization.ViewerAuthorization, error) {
+	policies, err := s.policies.Get(ctx)
 	if err != nil {
 		return authorization.ViewerAuthorization{}, err
 	}
 
-	allowUserCreate := settings.AuthMode == systemsettings.AuthModeMultiUser && (containsRole(roleKeys, authorization.RoleOwner) || (containsRole(roleKeys, authorization.RoleAdmin) && settings.AdminUserCreateEnabled))
-	allowSelfDelete := settings.SelfServiceAccountDeletionEnabled && !containsRole(roleKeys, authorization.RoleOwner)
+	allowSelfDelete := policies.SelfServiceAccountDeletionEnabled && role != authorization.RoleOwner
 
-	return s.authorization.ViewerAuthorization(roleKeys, authorization.ViewerOptions{
-		AllowUserCreate: allowUserCreate,
+	return s.authorization.ViewerAuthorization(role, authorization.ViewerOptions{
 		AllowSelfDelete: allowSelfDelete,
 	}), nil
 }
 
-func (s *Service) issueAccessToken(user identity.UserWithRoles, sessionID string) (string, time.Time, error) {
+func (s *Service) issueAccessToken(user identity.User, sessionID string) (string, time.Time, error) {
 	now := time.Now().UTC()
 	expiresAt := now.Add(s.ttl)
 
@@ -839,10 +836,6 @@ func (s *Service) logAudit(ctx context.Context, entry audit.Entry) {
 		return
 	}
 	_ = s.audit.Log(ctx, entry)
-}
-
-func containsRole(roleKeys []string, roleKey string) bool {
-	return slices.Contains(roleKeys, roleKey)
 }
 
 func stringPointerOrNil(value string) *string {

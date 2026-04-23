@@ -5,7 +5,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"main/internal/authorization"
 	"main/internal/database"
 	"main/internal/identity"
 )
@@ -25,10 +24,6 @@ func TestCompleteOnlyRunsOnceAndPersistsOwner(t *testing.T) {
 		}
 	})
 
-	if err := authorization.EnsureCatalog(context.Background(), container.DB()); err != nil {
-		t.Fatalf("failed to seed authorization catalog: %v", err)
-	}
-
 	identities := identity.NewService(container.DB())
 	service := NewService(container.DB(), identities)
 
@@ -42,8 +37,8 @@ func TestCompleteOnlyRunsOnceAndPersistsOwner(t *testing.T) {
 	if owner.Email != nil {
 		t.Fatalf("expected setup owner email to be nil, got %q", *owner.Email)
 	}
-	if got := owner.RoleKeys; len(got) != 1 || got[0] != authorization.RoleOwner {
-		t.Fatalf("expected owner role, got %+v", got)
+	if owner.Role != "owner" {
+		t.Fatalf("expected owner role, got %+v", owner.Role)
 	}
 
 	_, err = service.Complete(context.Background(), CompleteSetupInput{
@@ -63,7 +58,7 @@ func TestCompleteOnlyRunsOnceAndPersistsOwner(t *testing.T) {
 	}
 
 	var ownerCount int
-	if err := container.DB().QueryRow(`SELECT COUNT(*) FROM user_roles WHERE role_key = ?`, authorization.RoleOwner).Scan(&ownerCount); err != nil {
+	if err := container.DB().QueryRow(`SELECT COUNT(*) FROM users WHERE role = 'owner'`).Scan(&ownerCount); err != nil {
 		t.Fatalf("failed to count owners: %v", err)
 	}
 	if ownerCount != 1 {

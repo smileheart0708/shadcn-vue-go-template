@@ -32,7 +32,7 @@ const steps: SetupStep[] = [
 
 const totalSteps = steps.length
 
-const username = ref('admin')
+const username = ref('owner')
 const password = ref('')
 const confirmPassword = ref('')
 const submitting = ref(false)

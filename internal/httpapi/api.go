@@ -7,13 +7,13 @@ import (
 	"strings"
 	"time"
 
+	"main/internal/accountpolicies"
 	"main/internal/audit"
 	"main/internal/auth"
 	"main/internal/authorization"
 	"main/internal/identity"
 	"main/internal/logging"
 	"main/internal/setup"
-	"main/internal/systemsettings"
 )
 
 type API struct {
@@ -21,7 +21,7 @@ type API struct {
 	authorization *authorization.Service
 	identities    *identity.Service
 	setup         *setup.Service
-	settings      *systemsettings.Service
+	policies      *accountpolicies.Service
 	audit         *audit.Service
 	dataDir       string
 	logger        *slog.Logger
@@ -53,7 +53,7 @@ type managedUserResponse struct {
 	Username  string    `json:"username"`
 	Email     *string   `json:"email"`
 	AvatarURL *string   `json:"avatarUrl"`
-	RoleKeys  []string  `json:"roleKeys"`
+	Role      string    `json:"role"`
 	Status    string    `json:"status"`
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
@@ -93,13 +93,13 @@ func (api *API) toSessionResponse(result auth.SessionResult) sessionResponse {
 	}
 }
 
-func (api *API) toManagedUserResponse(user identity.UserWithRoles, actions []string) managedUserResponse {
+func (api *API) toManagedUserResponse(user identity.User, actions []string) managedUserResponse {
 	return managedUserResponse{
 		ID:        user.ID,
 		Username:  user.Username,
 		Email:     user.Email,
 		AvatarURL: api.toAvatarURL(user.AvatarPath),
-		RoleKeys:  cloneStringSlice(user.RoleKeys),
+		Role:      user.Role,
 		Status:    user.Status,
 		CreatedAt: user.CreatedAt,
 		UpdatedAt: user.UpdatedAt,

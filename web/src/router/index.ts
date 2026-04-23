@@ -43,8 +43,8 @@ const appShellRoutes = [
     meta: { titleKey: 'route.systemConfig', requiresAuth: true, requiredCapabilities: [CAPABILITY.systemSettingsRead], maskUnauthorizedAsNotFound: true },
   }),
   defineAppShellRoute({
-    path: 'admin-users',
-    name: 'admin-users',
+    path: 'users',
+    name: 'users',
     component: AdminUsers,
     meta: { titleKey: 'route.adminUsers', requiresAuth: true, requiredCapabilities: [CAPABILITY.managementUsersRead], maskUnauthorizedAsNotFound: true },
   }),

@@ -1,19 +1,12 @@
 package authorization
 
 import (
-	"context"
-	"database/sql"
-	"fmt"
 	"slices"
 	"sort"
-	"time"
-
-	"main/internal/database"
 )
 
 const (
 	RoleOwner = "owner"
-	RoleAdmin = "admin"
 	RoleUser  = "user"
 )
 
@@ -31,28 +24,26 @@ const (
 )
 
 type ViewerAuthorization struct {
-	RoleKeys     []string `json:"roleKeys"`
+	Role         string   `json:"role"`
 	Capabilities []string `json:"capabilities"`
 }
 
 type ViewerOptions struct {
-	AllowUserCreate bool
 	AllowSelfDelete bool
 }
 
 type UserAction string
 
 const (
-	UserActionCreate  UserAction = "create"
 	UserActionUpdate  UserAction = "update"
 	UserActionDisable UserAction = "disable"
 	UserActionEnable  UserAction = "enable"
 )
 
 type UserTarget struct {
-	UserID   int64
-	RoleKeys []string
-	Status   string
+	UserID int64
+	Role   string
+	Status string
 }
 
 type Service struct{}
@@ -73,107 +64,28 @@ var roleCapabilities = map[string][]string{
 		CapabilityManagementAuditLogsRead,
 		CapabilityManagementSystemLogsRead,
 	},
-	RoleAdmin: {
-		CapabilityManagementUsersRead,
-		CapabilityManagementUsersCreate,
-		CapabilityManagementUsersUpdate,
-		CapabilityManagementUsersDisable,
-		CapabilityManagementUsersEnable,
-	},
 	RoleUser: {},
 }
 
-func CatalogRoleKeys() []string {
-	return []string{RoleOwner, RoleAdmin, RoleUser}
-}
-
-func CatalogCapabilityKeys() []string {
-	return []string{
-		CapabilitySystemSettingsRead,
-		CapabilitySystemSettingsUpdate,
-		CapabilityManagementUsersRead,
-		CapabilityManagementUsersCreate,
-		CapabilityManagementUsersUpdate,
-		CapabilityManagementUsersDisable,
-		CapabilityManagementUsersEnable,
-		CapabilityManagementAuditLogsRead,
-		CapabilityManagementSystemLogsRead,
-	}
-}
-
-func CatalogRolePermissions() map[string][]string {
-	copyMap := make(map[string][]string, len(roleCapabilities))
-	for roleKey, capabilities := range roleCapabilities {
-		copyMap[roleKey] = append([]string(nil), capabilities...)
-	}
-	return copyMap
-}
-
-func EnsureCatalog(ctx context.Context, db *sql.DB) error {
-	now := time.Now().UTC().Unix()
-
-	return database.WithTx(ctx, db, func(tx *sql.Tx) error {
-		for _, roleKey := range CatalogRoleKeys() {
-			if _, err := tx.ExecContext(ctx, `INSERT OR IGNORE INTO roles (key, created_at) VALUES (?, ?)`, roleKey, now); err != nil {
-				return fmt.Errorf("authorization: seed role %q: %w", roleKey, err)
-			}
-		}
-
-		for _, capabilityKey := range CatalogCapabilityKeys() {
-			if _, err := tx.ExecContext(ctx, `INSERT OR IGNORE INTO permissions (key, created_at) VALUES (?, ?)`, capabilityKey, now); err != nil {
-				return fmt.Errorf("authorization: seed permission %q: %w", capabilityKey, err)
-			}
-		}
-
-		for roleKey, capabilities := range roleCapabilities {
-			for _, capabilityKey := range capabilities {
-				if _, err := tx.ExecContext(
-					ctx,
-					`INSERT OR IGNORE INTO role_permissions (role_key, permission_key, created_at) VALUES (?, ?, ?)`,
-					roleKey,
-					capabilityKey,
-					now,
-				); err != nil {
-					return fmt.Errorf("authorization: seed role permission %q -> %q: %w", roleKey, capabilityKey, err)
-				}
-			}
-		}
-
-		return nil
-	})
-}
-
-func (s *Service) ViewerAuthorization(roleKeys []string, options ViewerOptions) ViewerAuthorization {
-	capabilities := s.CapabilitiesForRoles(roleKeys)
-	if !options.AllowUserCreate {
-		capabilities = removeCapability(capabilities, CapabilityManagementUsersCreate)
-	}
+func (s *Service) ViewerAuthorization(role string, options ViewerOptions) ViewerAuthorization {
+	capabilities := s.CapabilitiesForRole(role)
 	if options.AllowSelfDelete && !slices.Contains(capabilities, CapabilityAccountDeleteSelf) {
 		capabilities = append(capabilities, CapabilityAccountDeleteSelf)
+		sort.Strings(capabilities)
 	}
-	sort.Strings(capabilities)
 
-	nextRoleKeys := cloneStringSlice(roleKeys)
-	sort.Strings(nextRoleKeys)
 	return ViewerAuthorization{
-		RoleKeys:     nextRoleKeys,
+		Role:         role,
 		Capabilities: capabilities,
 	}
 }
 
-func (s *Service) CapabilitiesForRoles(roleKeys []string) []string {
-	unique := make(map[string]struct{})
-	for _, roleKey := range roleKeys {
-		for _, capabilityKey := range roleCapabilities[roleKey] {
-			unique[capabilityKey] = struct{}{}
-		}
-	}
-
-	capabilities := make([]string, 0, len(unique))
-	for capabilityKey := range unique {
-		capabilities = append(capabilities, capabilityKey)
-	}
+func (s *Service) CapabilitiesForRole(role string) []string {
+	capabilities := append([]string(nil), roleCapabilities[role]...)
 	sort.Strings(capabilities)
+	if len(capabilities) == 0 {
+		return []string{}
+	}
 	return capabilities
 }
 
@@ -181,43 +93,21 @@ func (s *Service) HasCapability(capabilities []string, capability string) bool {
 	return slices.Contains(capabilities, capability)
 }
 
-func (s *Service) AllowedManagedRoleKeys(actorRoleKeys []string, allowCreate bool) []string {
-	if !allowCreate {
-		return nil
-	}
-
-	switch {
-	case slices.Contains(actorRoleKeys, RoleOwner):
-		return []string{RoleUser, RoleAdmin}
-	case slices.Contains(actorRoleKeys, RoleAdmin):
-		return []string{RoleUser}
-	default:
-		return nil
-	}
-}
-
 func (s *Service) CanManageUser(actor UserTarget, target UserTarget, action UserAction) bool {
 	if actor.UserID == target.UserID {
 		return false
 	}
-	if len(target.RoleKeys) == 0 {
+	if target.Role == "" {
+		return false
+	}
+	if actor.Role != RoleOwner {
+		return false
+	}
+	if target.Role == RoleOwner {
 		return false
 	}
 
-	switch {
-	case slices.Contains(actor.RoleKeys, RoleOwner):
-		if slices.Contains(target.RoleKeys, RoleOwner) {
-			return false
-		}
-		return action == UserActionUpdate || action == UserActionDisable || action == UserActionEnable
-	case slices.Contains(actor.RoleKeys, RoleAdmin):
-		if !slices.Equal(target.RoleKeys, []string{RoleUser}) {
-			return false
-		}
-		return action == UserActionUpdate || action == UserActionDisable || action == UserActionEnable
-	default:
-		return false
-	}
+	return action == UserActionUpdate || action == UserActionDisable || action == UserActionEnable
 }
 
 func (s *Service) ManagedUserActions(actor UserTarget, target UserTarget) []string {
@@ -236,23 +126,4 @@ func (s *Service) ManagedUserActions(actor UserTarget, target UserTarget) []stri
 		}
 	}
 	return actions
-}
-
-func removeCapability(capabilities []string, capability string) []string {
-	filtered := capabilities[:0]
-	for _, currentCapability := range capabilities {
-		if currentCapability == capability {
-			continue
-		}
-		filtered = append(filtered, currentCapability)
-	}
-	return filtered
-}
-
-func cloneStringSlice(values []string) []string {
-	if len(values) == 0 {
-		return []string{}
-	}
-
-	return append([]string(nil), values...)
 }

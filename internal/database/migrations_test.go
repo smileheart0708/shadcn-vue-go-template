@@ -41,6 +41,7 @@ func TestRunMigrationsAppliesCurrentSchema(t *testing.T) {
 		"disabled_at",
 		"created_at",
 		"updated_at",
+		"role",
 	})
 	assertTableColumns(t, db, "credentials", []string{
 		"user_id",
@@ -48,12 +49,6 @@ func TestRunMigrationsAppliesCurrentSchema(t *testing.T) {
 		"password_changed_at",
 		"created_at",
 		"updated_at",
-	})
-	assertTableColumns(t, db, "user_roles", []string{
-		"user_id",
-		"role_key",
-		"assigned_at",
-		"assigned_by_user_id",
 	})
 	assertTableColumns(t, db, "auth_sessions", []string{
 		"id",
@@ -90,26 +85,26 @@ func TestRunMigrationsAppliesCurrentSchema(t *testing.T) {
 		"created_at",
 		"updated_at",
 	})
-	assertTableColumns(t, db, "system_settings", []string{
+	assertTableColumns(t, db, "account_policies", []string{
 		"id",
-		"auth_mode",
-		"registration_mode",
-		"password_login_enabled",
-		"admin_user_create_enabled",
+		"public_registration_enabled",
 		"self_service_account_deletion_enabled",
-		"updated_at",
 	})
+	assertTableMissing(t, db, "user_roles")
+	assertTableMissing(t, db, "roles")
+	assertTableMissing(t, db, "permissions")
+	assertTableMissing(t, db, "role_permissions")
+	assertTableMissing(t, db, "system_settings")
 
 	if err := RunMigrations(context.Background(), db); err != nil {
 		t.Fatalf("expected schema application to be idempotent: %v", err)
 	}
 
 	assertAppliedMigration(t, db, baselineMigrationVersion, baselineMigrationName)
-	assertIndexExists(t, db, "user_roles_owner_unique_idx")
+	assertAppliedMigrationCount(t, db, 1)
+	assertIndexExists(t, db, "users_owner_unique_idx")
 	assertDefaultInstallState(t, db)
-	assertDefaultSystemSettings(t, db)
-	assertSeedCount(t, db, "roles", 3)
-	assertSeedCount(t, db, "permissions", 9)
+	assertDefaultAccountPolicies(t, db)
 }
 
 func TestRunMigrationsRejectsModifiedAppliedMigration(t *testing.T) {
@@ -167,6 +162,9 @@ CREATE TABLE schema_migrations (
 	}
 
 	assertAppliedMigration(t, db, baselineMigrationVersion, baselineMigrationName)
+	assertAppliedMigrationCount(t, db, 1)
+	assertIndexExists(t, db, "users_owner_unique_idx")
+	assertDefaultAccountPolicies(t, db)
 }
 
 func TestRunMigrationsAllowsConcurrentStartup(t *testing.T) {
@@ -203,6 +201,7 @@ func TestRunMigrationsAllowsConcurrentStartup(t *testing.T) {
 	}
 
 	assertAppliedMigration(t, db1, baselineMigrationVersion, baselineMigrationName)
+	assertAppliedMigrationCount(t, db1, 1)
 }
 
 func mustReadEmbeddedMigration(t *testing.T, name string) []byte {
@@ -271,6 +270,18 @@ func assertAppliedMigration(t *testing.T, db *sql.DB, version int64, name string
 	}
 }
 
+func assertAppliedMigrationCount(t *testing.T, db *sql.DB, want int) {
+	t.Helper()
+
+	var got int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM schema_migrations`).Scan(&got); err != nil {
+		t.Fatalf("failed to count schema_migrations rows: %v", err)
+	}
+	if got != want {
+		t.Fatalf("expected %d applied migrations, got %d", want, got)
+	}
+}
+
 func assertIndexExists(t *testing.T, db *sql.DB, indexName string) {
 	t.Helper()
 
@@ -295,55 +306,42 @@ func assertDefaultInstallState(t *testing.T, db *sql.DB) {
 	}
 }
 
-func assertDefaultSystemSettings(t *testing.T, db *sql.DB) {
+func assertDefaultAccountPolicies(t *testing.T, db *sql.DB) {
 	t.Helper()
 
 	var (
-		authMode                          string
-		registrationMode                  string
-		passwordLoginEnabled              int
-		adminUserCreateEnabled            int
+		publicRegistrationEnabled         int
 		selfServiceAccountDeletionEnabled int
 	)
 	if err := db.QueryRow(
-		`SELECT auth_mode, registration_mode, password_login_enabled, admin_user_create_enabled, self_service_account_deletion_enabled
-		FROM system_settings
+		`SELECT public_registration_enabled, self_service_account_deletion_enabled
+		FROM account_policies
 		WHERE id = 1`,
 	).Scan(
-		&authMode,
-		&registrationMode,
-		&passwordLoginEnabled,
-		&adminUserCreateEnabled,
+		&publicRegistrationEnabled,
 		&selfServiceAccountDeletionEnabled,
 	); err != nil {
-		t.Fatalf("failed to load system settings: %v", err)
+		t.Fatalf("failed to load account policies: %v", err)
 	}
 
-	if authMode != "single_user" {
-		t.Fatalf("expected auth_mode single_user, got %q", authMode)
-	}
-	if registrationMode != "disabled" {
-		t.Fatalf("expected registration_mode disabled, got %q", registrationMode)
-	}
-	if passwordLoginEnabled != 1 || adminUserCreateEnabled != 1 || selfServiceAccountDeletionEnabled != 1 {
+	if publicRegistrationEnabled != 0 || selfServiceAccountDeletionEnabled != 0 {
 		t.Fatalf(
-			"expected default auth settings flags to be enabled, got password_login_enabled=%d admin_user_create_enabled=%d self_service_account_deletion_enabled=%d",
-			passwordLoginEnabled,
-			adminUserCreateEnabled,
+			"expected default account policies to be disabled, got public_registration_enabled=%d self_service_account_deletion_enabled=%d",
+			publicRegistrationEnabled,
 			selfServiceAccountDeletionEnabled,
 		)
 	}
 }
 
-func assertSeedCount(t *testing.T, db *sql.DB, table string, want int) {
+func assertTableMissing(t *testing.T, db *sql.DB, table string) {
 	t.Helper()
 
 	var count int
-	if err := db.QueryRow(`SELECT COUNT(*) FROM ` + table).Scan(&count); err != nil {
-		t.Fatalf("failed to count %s rows: %v", table, err)
+	if err := db.QueryRow(`SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = ?`, table).Scan(&count); err != nil {
+		t.Fatalf("failed to inspect table %s: %v", table, err)
 	}
-	if count != want {
-		t.Fatalf("expected %d rows in %s, got %d", want, table, count)
+	if count != 0 {
+		t.Fatalf("expected table %s to be removed, got count=%d", table, count)
 	}
 }
 

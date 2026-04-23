@@ -56,7 +56,7 @@ const zhCN = {
       success: '成功',
     },
     text: { yes: '是', no: '否', none: '暂无', all: '全部', optional: '可选', required: '必填' },
-    role: { owner: '所有者', admin: '管理员', user: '普通用户' },
+    role: { owner: '所有者', user: '普通用户' },
   },
   apiError: {
     unknown: '发生未知错误，请稍后重试。',
@@ -69,7 +69,6 @@ const zhCN = {
     currentPasswordInvalid: '当前密码不正确。',
     passwordTooShort: '新密码至少需要 8 位。',
     registrationDisabled: '当前已禁止注册。',
-    invalidRegistrationMode: '注册模式无效。',
     setupRequired: '系统尚未完成初始化，请先完成首次安装。',
     setupCompleted: '系统已经完成初始化，不能再次执行 setup。',
     avatarRequired: '请选择头像图片。',
@@ -80,7 +79,6 @@ const zhCN = {
     passwordUpdateFailed: '更新密码失败。',
     accountDeleteFailed: '删除账号失败。',
     accountDeleteForbidden: '当前账号不允许自助删除。',
-    invalidRoleKeys: '角色分配无效。',
     systemLogStreamFailed: '系统日志流连接失败。',
   },
   route: {
@@ -98,87 +96,28 @@ const zhCN = {
   },
   systemConfig: {
     title: '系统配置',
-    description: '集中管理认证模式、公开注册、自助删除和管理员创建用户等所有者级系统设置。',
-    badge: '仅所有者',
-    updatedAt: '最近更新：{value}',
-    registration: {
-      title: '注册策略',
-      description: '控制当前实例是否允许创建新账号，以及允许哪种自助注册方式。',
-      updatedAt: '最近更新：{value}',
-      options: {
-        disabled: {
-          title: '禁止注册',
-          description: '关闭自助注册入口，并在公开注册接口上拒绝所有新注册请求。',
-        },
-        password: {
-          title: '用户名或邮箱 + 密码',
-          description: '允许用户使用用户名、可选邮箱和密码完成注册。',
-        },
-      },
-    },
-    observability: {
-      title: '运维工具',
-      description: '系统日志页继续作为管理员专属运维界面的参考实现。',
-      cta: '打开系统日志',
-    },
-    cards: {
-      auth: {
-        title: '认证设置',
-        description: '这组设置定义单实例 baseline 的认证入口、公开注册与自助账号能力。',
-      },
-      effectivePolicy: {
-        title: '当前生效策略',
-        description: '展示保存后会影响公开注册与用户生命周期的关键策略汇总。',
-      },
-    },
+    description: '管理账号策略。',
+    cardTitle: '账号策略',
+    cardDescription: '修改后立即生效。',
     fields: {
-      authMode: {
-        title: '认证模式',
-        description: '单用户模式只保留唯一所有者，多用户模式允许所有者/管理员管理普通用户。',
-      },
-      registrationMode: {
-        title: '注册模式',
-        description: 'v1 只支持禁用或公开注册；公开注册仅在多用户模式下生效。',
-      },
-      adminUserCreateEnabled: {
-        title: '允许管理员创建普通用户',
-        description: '关闭后只有所有者能通过管理页创建用户。',
+      publicRegistrationEnabled: {
+        title: '允许公开注册',
+        description: '开启后允许新用户自行注册。',
       },
       selfServiceAccountDeletionEnabled: {
-        title: '允许用户自助删除账号',
-        description: '关闭后普通用户和管理员都失去自删能力，owner 本来就不可自删。',
+        title: '允许用户自助注销',
+        description: '开启后普通用户可删除自己的账号，owner 始终不可自删。',
       },
-      passwordLoginEnabled: {
-        title: '密码登录',
-        description: 'v1 仅支持本地密码登录，该项会持久化为只读启用状态。',
-      },
-    },
-    options: {
-      authMode: {
-        singleUser: '单用户',
-        multiUser: '多用户',
-      },
-      registrationMode: {
-        disabled: '禁用',
-        public: '公开注册',
-      },
-    },
-    policy: {
-      authMode: '认证模式：{value}',
-      registrationMode: '注册模式：{value}',
-      publicRegistration: '公开注册：{value}',
-      adminUserCreate: '管理员创建用户：{value}',
-      selfServiceAccountDeletion: '自助删除账号：{value}',
     },
     actions: {
       retry: '重试',
     },
     feedback: {
-      loadFailedTitle: '系统设置加载失败',
+      loadFailedTitle: '账号策略加载失败',
       loadFailed: '请刷新页面后重试。',
-      saving: '正在保存系统设置...',
-      saved: '系统设置已保存。',
-      saveFailed: '保存系统设置失败。',
+      saving: '正在保存账号策略...',
+      saved: '账号策略已保存。',
+      saveFailed: '保存账号策略失败。',
     },
   },
   settings: {
@@ -283,9 +222,8 @@ const zhCN = {
       title: '创建账号',
       description: '已有账号？',
       disabledTitle: '当前禁止注册',
-      disabledDescription: '当前工作区暂未开放自助注册。',
-      disabledHint: '如果你需要访问权限，请联系管理员，或在管理员调整注册策略后再试。',
-      emailOptional: '当前密码注册流程里，邮箱为可选项。',
+      disabledDescription: '当前未开放自助注册。',
+      emailOptional: '邮箱为可选项。',
       signIn: '登录',
       usernamePlaceholder: '请输入用户名',
       emailPlaceholder: '请输入电子邮箱',
@@ -304,11 +242,9 @@ const zhCN = {
   },
   adminUsers: {
     title: '用户管理',
-    description: '创建、编辑并控制应用内用户的访问状态。',
-    badge: '仅管理员',
+    description: '管理普通用户账号。',
     actions: {
       createUser: '新建用户',
-      refresh: '刷新',
       retry: '重试',
       disable: '禁用',
       enable: '启用',
@@ -316,17 +252,11 @@ const zhCN = {
       nextPage: '下一页',
     },
     filters: {
-      title: '筛选条件',
-      description: '按用户名或邮箱搜索，并结合角色和状态进一步过滤。',
       searchPlaceholder: '搜索用户名或邮箱',
-      rolePlaceholder: '按角色筛选',
       statusPlaceholder: '按状态筛选',
-      roleAll: '全部角色',
       statusAll: '全部状态',
     },
     table: {
-      title: '用户列表',
-      summary: '共 {count} 个用户',
       username: '用户名',
       email: '邮箱',
       role: '角色',
@@ -335,6 +265,7 @@ const zhCN = {
       actions: '操作',
       empty: '没有匹配的用户。',
       noEmail: '未设置邮箱',
+      ownerReadonly: '所有者账号仅展示',
       pageSummary: '第 {page} / {totalPages} 页，共 {total} 个用户',
     },
     status: {
@@ -343,15 +274,14 @@ const zhCN = {
     },
     dialog: {
       createTitle: '新建用户',
-      createDescription: '创建一个新账号，并在需要时赋予管理员权限。',
+      createDescription: '创建一个普通用户账号。',
       createSubmit: '创建用户',
       editTitle: '编辑用户',
-      editDescription: '更新所选用户的资料和角色。',
+      editDescription: '更新所选用户的资料。',
       editSubmit: '保存修改',
       usernamePlaceholder: '请输入用户名',
       emailPlaceholder: '请输入邮箱（可选）',
       passwordPlaceholder: '请输入初始密码',
-      passwordHint: '初始密码至少需要 8 位。',
     },
     confirm: {
       disableTitle: '确认禁用用户',
@@ -362,7 +292,6 @@ const zhCN = {
     feedback: {
       loadFailedTitle: '用户列表加载失败',
       loadFailed: '请刷新页面后重试。',
-      refreshing: '正在刷新用户列表...',
       creating: '正在创建用户...',
       createSuccess: '用户已创建。',
       createFailed: '创建用户失败。',

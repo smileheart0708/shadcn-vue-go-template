@@ -13,7 +13,6 @@ import (
 	"main/internal/authorization"
 	"main/internal/database"
 	"main/internal/identity"
-	"main/internal/systemsettings"
 )
 
 const (
@@ -120,14 +119,16 @@ func (s *Service) Complete(ctx context.Context, input CompleteSetupInput, reques
 				email,
 				avatar_path,
 				status,
+				role,
 				security_version,
 				disabled_at,
 				created_at,
 				updated_at
-			) VALUES (?, ?, NULL, ?, 1, NULL, ?, ?)`,
+			) VALUES (?, ?, NULL, ?, ?, 1, NULL, ?, ?)`,
 			username,
 			nil,
 			identity.StatusActive,
+			authorization.RoleOwner,
 			now.Unix(),
 			now.Unix(),
 		)
@@ -160,17 +161,6 @@ func (s *Service) Complete(ctx context.Context, input CompleteSetupInput, reques
 
 		if _, err := tx.ExecContext(
 			ctx,
-			`INSERT INTO user_roles (user_id, role_key, assigned_at, assigned_by_user_id)
-			VALUES (?, ?, ?, NULL)`,
-			ownerUserID,
-			authorization.RoleOwner,
-			now.Unix(),
-		); err != nil {
-			return mapIdentityWriteError(err)
-		}
-
-		if _, err := tx.ExecContext(
-			ctx,
 			`UPDATE install_state
 			SET setup_state = ?,
 				owner_user_id = ?,
@@ -184,24 +174,6 @@ func (s *Service) Complete(ctx context.Context, input CompleteSetupInput, reques
 		); err != nil {
 			return fmt.Errorf("setup: update install state: %w", err)
 		}
-
-		if _, err := tx.ExecContext(
-			ctx,
-			`UPDATE system_settings
-			SET auth_mode = ?,
-				registration_mode = ?,
-				password_login_enabled = 1,
-				admin_user_create_enabled = 1,
-				self_service_account_deletion_enabled = 1,
-				updated_at = ?
-			WHERE id = 1`,
-			systemsettings.AuthModeSingleUser,
-			systemsettings.RegistrationModeDisabled,
-			now.Unix(),
-		); err != nil {
-			return fmt.Errorf("setup: reset system settings baseline: %w", err)
-		}
-
 		return audit.NewService(tx).Log(ctx, audit.Entry{
 			ActorUserID:   new(ownerUserID),
 			SubjectUserID: new(ownerUserID),
@@ -231,7 +203,7 @@ func mapIdentityWriteError(err error) error {
 	switch {
 	case strings.Contains(message, "unique constraint failed: users.username"):
 		return identity.ErrUsernameTaken
-	case strings.Contains(message, "unique constraint failed: user_roles.role_key"):
+	case strings.Contains(message, "unique constraint failed: users.role"):
 		return identity.ErrOwnerAlreadyExists
 	default:
 		return fmt.Errorf("setup: write failed: %w", err)

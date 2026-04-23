@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { authApi, baseApi, normalizeAPIError } from '@/lib/api/client'
 import { successEnvelopeSchema } from '@/lib/api/envelope'
 
-export const roleKeySchema = z.enum(['owner', 'admin', 'user'])
+export const roleKeySchema = z.enum(['owner', 'user'])
 export const capabilitySchema = z.enum([
   'system.settings.read',
   'system.settings.update',
@@ -25,7 +25,7 @@ export const viewerIdentitySchema = z.object({
 })
 
 export const viewerAuthorizationSchema = z.object({
-  roleKeys: z.array(roleKeySchema),
+  role: roleKeySchema,
   capabilities: z.array(capabilitySchema),
 })
 
@@ -33,9 +33,6 @@ export const viewerSchema = z.object({
   identity: viewerIdentitySchema,
   authorization: viewerAuthorizationSchema,
 })
-
-export const authModeSchema = z.enum(['single_user', 'multi_user'])
-export const registrationModeSchema = z.enum(['disabled', 'public'])
 
 export const installStateSchema = z.object({
   setupState: z.enum(['pending', 'completed']),
@@ -45,9 +42,6 @@ export const installStateSchema = z.object({
 })
 
 export const publicAuthConfigSchema = z.object({
-  authMode: authModeSchema,
-  registrationMode: registrationModeSchema,
-  passwordLoginEnabled: z.boolean(),
   registrationEnabled: z.boolean(),
 })
 

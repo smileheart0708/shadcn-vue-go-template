@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/array-type, @typescript-eslint/consistent-type-assertions, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-return, @typescript-eslint/prefer-optional-chain, @typescript-eslint/restrict-template-expressions, @typescript-eslint/strict-boolean-expressions */
 import { http, HttpResponse } from 'msw'
 
-type RoleKey = 'owner' | 'admin' | 'user'
+type RoleKey = 'owner' | 'user'
 type UserStatus = 'active' | 'disabled'
 type Capability =
   | 'system.settings.read'
@@ -20,7 +20,7 @@ interface MockUser {
   username: string
   email: string | null
   avatarUrl: string | null
-  roleKeys: RoleKey[]
+  role: RoleKey
   status: UserStatus
   password: string
   createdAt: string
@@ -54,13 +54,9 @@ interface MockState {
     ownerUserId: number | null
     completedAt: string | null
   }
-  systemSettings: {
-    authMode: 'single_user' | 'multi_user'
-    registrationMode: 'disabled' | 'public'
-    passwordLoginEnabled: boolean
-    adminUserCreateEnabled: boolean
+  accountPolicies: {
+    publicRegistrationEnabled: boolean
     selfServiceAccountDeletionEnabled: boolean
-    updatedAt: string
   }
   users: MockUser[]
   session: MockSession | null
@@ -82,13 +78,9 @@ function createInitialState(): MockState {
       ownerUserId: null,
       completedAt: null,
     },
-    systemSettings: {
-      authMode: 'single_user',
-      registrationMode: 'disabled',
-      passwordLoginEnabled: true,
-      adminUserCreateEnabled: true,
-      selfServiceAccountDeletionEnabled: true,
-      updatedAt: nowISO(),
+    accountPolicies: {
+      publicRegistrationEnabled: false,
+      selfServiceAccountDeletionEnabled: false,
     },
     users: [],
     session: null,
@@ -128,10 +120,7 @@ function jsonError(status: number, code: string, message: string) {
 
 function getPublicAuthConfig() {
   return {
-    authMode: state.systemSettings.authMode,
-    registrationMode: state.systemSettings.registrationMode,
-    passwordLoginEnabled: state.systemSettings.passwordLoginEnabled,
-    registrationEnabled: state.systemSettings.authMode === 'multi_user' && state.systemSettings.registrationMode === 'public' && state.systemSettings.passwordLoginEnabled,
+    registrationEnabled: state.accountPolicies.publicRegistrationEnabled,
   }
 }
 
@@ -166,15 +155,10 @@ function getCurrentUserFromSession() {
   return user
 }
 
-function roleOf(user: MockUser) {
-  return user.roleKeys[0] ?? 'user'
-}
-
 function capabilitiesFor(user: MockUser): Capability[] {
   const capabilities = new Set<Capability>()
-  const primaryRole = roleOf(user)
 
-  if (primaryRole === 'owner') {
+  if (user.role === 'owner') {
     capabilities.add('system.settings.read')
     capabilities.add('system.settings.update')
     capabilities.add('management.users.read')
@@ -186,22 +170,8 @@ function capabilitiesFor(user: MockUser): Capability[] {
     capabilities.add('management.system_logs.read')
   }
 
-  if (primaryRole === 'admin') {
-    capabilities.add('management.users.read')
-    capabilities.add('management.users.update')
-    capabilities.add('management.users.disable')
-    capabilities.add('management.users.enable')
-    if (state.systemSettings.authMode === 'multi_user' && state.systemSettings.adminUserCreateEnabled) {
-      capabilities.add('management.users.create')
-    }
-  }
-
-  if (state.systemSettings.selfServiceAccountDeletionEnabled && primaryRole !== 'owner') {
+  if (state.accountPolicies.selfServiceAccountDeletionEnabled && user.role !== 'owner') {
     capabilities.add('account.delete_self')
-  }
-
-  if (state.systemSettings.authMode !== 'multi_user') {
-    capabilities.delete('management.users.create')
   }
 
   return [...capabilities].sort()
@@ -217,7 +187,7 @@ function toViewer(user: MockUser) {
       status: user.status,
     },
     authorization: {
-      roleKeys: [...user.roleKeys],
+      role: user.role,
       capabilities: capabilitiesFor(user),
     },
   }
@@ -305,21 +275,11 @@ function canManageUser(actor: MockUser, target: MockUser, _action: 'update' | 'd
     return false
   }
 
-  const actorRole = roleOf(actor)
-  const targetRole = roleOf(target)
-
-  if (actorRole === 'owner') {
-    if (targetRole === 'owner') {
-      return false
-    }
-    return true
+  if (actor.role !== 'owner') {
+    return false
   }
 
-  if (actorRole === 'admin') {
-    return targetRole === 'user'
-  }
-
-  return false
+  return target.role !== 'owner'
 }
 
 function managedUserActions(actor: MockUser, target: MockUser) {
@@ -340,29 +300,13 @@ function managedUserActions(actor: MockUser, target: MockUser) {
   return actions
 }
 
-function allowedManagedRoles(actor: MockUser) {
-  if (!hasCapability(actor, 'management.users.create')) {
-    return [] as RoleKey[]
-  }
-
-  if (roleOf(actor) === 'owner') {
-    return ['user', 'admin'] as RoleKey[]
-  }
-
-  if (roleOf(actor) === 'admin') {
-    return ['user'] as RoleKey[]
-  }
-
-  return [] as RoleKey[]
-}
-
 function toManagedUser(user: MockUser, actor: MockUser) {
   return {
     id: user.id,
     username: user.username,
     email: user.email,
     avatarUrl: user.avatarUrl,
-    roleKeys: [...user.roleKeys],
+    role: user.role,
     status: user.status,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
@@ -429,7 +373,7 @@ export const authHandlers = [
       username,
       email: null,
       avatarUrl: null,
-      roleKeys: ['owner'],
+      role: 'owner',
       status: 'active',
       password: payload.password,
       createdAt,
@@ -443,9 +387,9 @@ export const authHandlers = [
       ownerUserId: owner.id,
       completedAt: createdAt,
     }
-    state.systemSettings = {
-      ...state.systemSettings,
-      updatedAt: createdAt,
+    state.accountPolicies = {
+      publicRegistrationEnabled: false,
+      selfServiceAccountDeletionEnabled: false,
     }
 
     const sessionResponse = issueSession(owner)
@@ -492,7 +436,7 @@ export const authHandlers = [
       return setupResponse
     }
 
-    if (!getPublicAuthConfig().registrationEnabled) {
+    if (!state.accountPolicies.publicRegistrationEnabled) {
       return jsonError(403, 'registration_disabled', 'Registration is disabled.')
     }
 
@@ -522,7 +466,7 @@ export const authHandlers = [
       username,
       email,
       avatarUrl: null,
-      roleKeys: ['user'],
+      role: 'user',
       status: 'active',
       password: payload.password,
       createdAt,
@@ -655,7 +599,7 @@ export const authHandlers = [
       return jsonError(403, 'forbidden', 'Forbidden.')
     }
 
-    return jsonSuccess(state.systemSettings)
+    return jsonSuccess(state.accountPolicies)
   }),
 
   http.patch('/api/system/settings', async ({ request }) => {
@@ -672,24 +616,14 @@ export const authHandlers = [
       return jsonError(400, 'invalid_request', 'Invalid settings payload.')
     }
 
-    if (payload.authMode === 'single_user' || payload.authMode === 'multi_user') {
-      state.systemSettings.authMode = payload.authMode
-    }
-    if (payload.registrationMode === 'disabled' || payload.registrationMode === 'public') {
-      state.systemSettings.registrationMode = payload.registrationMode
-    }
-    if (typeof payload.adminUserCreateEnabled === 'boolean') {
-      state.systemSettings.adminUserCreateEnabled = payload.adminUserCreateEnabled
+    if (typeof payload.publicRegistrationEnabled === 'boolean') {
+      state.accountPolicies.publicRegistrationEnabled = payload.publicRegistrationEnabled
     }
     if (typeof payload.selfServiceAccountDeletionEnabled === 'boolean') {
-      state.systemSettings.selfServiceAccountDeletionEnabled = payload.selfServiceAccountDeletionEnabled
+      state.accountPolicies.selfServiceAccountDeletionEnabled = payload.selfServiceAccountDeletionEnabled
     }
-    if (state.systemSettings.authMode === 'single_user') {
-      state.systemSettings.registrationMode = 'disabled'
-    }
-    state.systemSettings.updatedAt = nowISO()
 
-    return jsonSuccess(state.systemSettings)
+    return jsonSuccess(state.accountPolicies)
   }),
 
   http.get('/api/management/users', ({ request }) => {
@@ -703,16 +637,12 @@ export const authHandlers = [
 
     const url = new URL(request.url)
     const query = (url.searchParams.get('q') ?? '').trim().toLowerCase()
-    const role = url.searchParams.get('role')
     const status = url.searchParams.get('status')
     const page = readPositiveInt(url, 'page', 1)
     const pageSize = readPositiveInt(url, 'pageSize', 20)
 
     const filtered = state.users.filter((entry) => {
       if (query !== '' && ![entry.username, entry.email ?? ''].some((value) => value.toLowerCase().includes(query))) {
-        return false
-      }
-      if (role && role !== roleOf(entry)) {
         return false
       }
       if (status && status !== entry.status) {
@@ -742,22 +672,17 @@ export const authHandlers = [
     }
 
     const payload = await readJSON(request)
-    if (!isRecord(payload) || typeof payload.username !== 'string' || typeof payload.password !== 'string' || !Array.isArray(payload.roleKeys)) {
+    if (!isRecord(payload) || typeof payload.username !== 'string' || typeof payload.password !== 'string') {
       return jsonError(400, 'invalid_request', 'Invalid user payload.')
     }
 
     const username = payload.username.trim()
     const email = typeof payload.email === 'string' ? payload.email.trim() || null : null
-    const roleKeys = payload.roleKeys.filter((value): value is RoleKey => value === 'admin' || value === 'user')
-    const allowedRoles = allowedManagedRoles(user)
     if (username === '') {
       return jsonError(400, 'username_required', 'Username is required.')
     }
     if (payload.password.trim().length < 8) {
       return jsonError(400, 'password_too_short', 'Password must be at least 8 characters.')
-    }
-    if (roleKeys.length !== 1 || !allowedRoles.includes(roleKeys[0])) {
-      return jsonError(400, 'invalid_role_keys', 'Invalid role keys.')
     }
     if (usernameTaken(username)) {
       return jsonError(409, 'username_taken', 'Username is already in use.')
@@ -772,7 +697,7 @@ export const authHandlers = [
       username,
       email,
       avatarUrl: null,
-      roleKeys,
+      role: 'user',
       status: 'active',
       password: payload.password,
       createdAt,
@@ -780,7 +705,7 @@ export const authHandlers = [
     }
 
     state.users = [...state.users, createdUser]
-    appendAudit('managed_user_created', 'success', { actorUserID: user.id, subjectUserID: createdUser.id })
+    appendAudit('user_created', 'success', { actorUserID: user.id, subjectUserID: createdUser.id })
     return jsonSuccess(toManagedUser(createdUser, user), { status: 201 })
   }),
 
@@ -800,19 +725,14 @@ export const authHandlers = [
     }
 
     const payload = await readJSON(request)
-    if (!isRecord(payload) || typeof payload.username !== 'string' || !Array.isArray(payload.roleKeys)) {
+    if (!isRecord(payload) || typeof payload.username !== 'string') {
       return jsonError(400, 'invalid_request', 'Invalid user payload.')
     }
 
     const username = payload.username.trim()
     const email = typeof payload.email === 'string' ? payload.email.trim() || null : null
-    const roleKeys = payload.roleKeys.filter((value): value is RoleKey => value === 'admin' || value === 'user')
-    const allowedRoles = roleOf(user) === 'owner' ? (['user', 'admin'] as RoleKey[]) : (['user'] as RoleKey[])
     if (username === '') {
       return jsonError(400, 'username_required', 'Username is required.')
-    }
-    if (roleKeys.length !== 1 || !allowedRoles.includes(roleKeys[0])) {
-      return jsonError(400, 'invalid_role_keys', 'Invalid role keys.')
     }
     if (usernameTaken(username, target.id)) {
       return jsonError(409, 'username_taken', 'Username is already in use.')
@@ -823,10 +743,9 @@ export const authHandlers = [
 
     target.username = username
     target.email = email
-    target.roleKeys = roleKeys
     target.updatedAt = nowISO()
 
-    appendAudit('managed_user_updated', 'success', { actorUserID: user.id, subjectUserID: target.id })
+    appendAudit('user_updated', 'success', { actorUserID: user.id, subjectUserID: target.id })
     return jsonSuccess(toManagedUser(target, user))
   }),
 
@@ -850,7 +769,7 @@ export const authHandlers = [
     if (state.session?.userId === target.id) {
       clearSession()
     }
-    appendAudit('managed_user_disabled', 'success', { actorUserID: user.id, subjectUserID: target.id })
+    appendAudit('user_disabled', 'success', { actorUserID: user.id, subjectUserID: target.id })
     return jsonSuccess(toManagedUser(target, user))
   }),
 
@@ -871,7 +790,7 @@ export const authHandlers = [
 
     target.status = 'active'
     target.updatedAt = nowISO()
-    appendAudit('managed_user_enabled', 'success', { actorUserID: user.id, subjectUserID: target.id })
+    appendAudit('user_enabled', 'success', { actorUserID: user.id, subjectUserID: target.id })
     return jsonSuccess(toManagedUser(target, user))
   }),
 

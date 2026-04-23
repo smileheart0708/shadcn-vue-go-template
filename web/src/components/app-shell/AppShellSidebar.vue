@@ -17,7 +17,7 @@ const currentUser = computed(() => ({
   username: authStore.viewer?.identity.username ?? 'owner',
   email: authStore.viewer?.identity.email ?? null,
   avatarUrl: authStore.viewer?.identity.avatarUrl ?? null,
-  roleKeys: authStore.viewer?.authorization.roleKeys ?? [],
+  role: authStore.viewer?.authorization.role ?? 'owner',
 }))
 
 async function handleLogout() {

@@ -15,7 +15,7 @@ import { Spinner } from '@/components/ui/spinner'
 import { Table, TableBody, TableCell, TableEmpty, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { createAdminUser, disableAdminUser, enableAdminUser, listAdminUsers, type ManagedUser, updateAdminUser } from '@/lib/api/admin-users'
 import { getAPIErrorMessage } from '@/lib/api/error-messages'
-import { CAPABILITY, getPrimaryRoleKey, getUserRoleBadgeVariant, getUserRoleLabelKey } from '@/lib/auth/roles'
+import { CAPABILITY, getUserRoleBadgeVariant, getUserRoleLabelKey } from '@/lib/auth/roles'
 import { useAuthStore } from '@/stores/auth'
 
 const { t, locale } = useI18n()
@@ -26,7 +26,6 @@ const total = ref(0)
 const page = ref(1)
 const pageSize = ref(10)
 const searchQuery = ref('')
-const roleFilter = ref<'ALL' | 'owner' | 'admin' | 'user'>('ALL')
 const statusFilter = ref<'ALL' | 'active' | 'disabled'>('ALL')
 const loading = ref(true)
 const refreshing = ref(false)
@@ -36,16 +35,10 @@ const dialogOpen = ref(false)
 const dialogMode = ref<'create' | 'edit'>('create')
 const dialogPending = ref(false)
 const selectedUser = ref<ManagedUser | null>(null)
-const form = ref<{
-  username: string
-  email: string
-  password: string
-  roleKey: 'user' | 'admin'
-}>({
+const form = ref({
   username: '',
   email: '',
   password: '',
-  roleKey: 'user',
 })
 
 const confirmOpen = ref(false)
@@ -53,8 +46,6 @@ const confirmTarget = ref<ManagedUser | null>(null)
 const confirmPending = ref(false)
 
 const canCreateUsers = computed(() => authStore.can(CAPABILITY.managementUsersCreate))
-const canAssignAdminRole = computed(() => authStore.hasRole('owner'))
-const roleOptions = computed<('user' | 'admin')[]>(() => (canAssignAdminRole.value ? ['user', 'admin'] : ['user']))
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize.value)))
 const dateTimeFormatter = computed(
   () =>
@@ -78,7 +69,6 @@ async function loadUsers(options: { background?: boolean } = {}) {
   try {
     const response = await listAdminUsers({
       q: searchQuery.value,
-      role: roleFilter.value === 'ALL' ? null : roleFilter.value,
       status: statusFilter.value === 'ALL' ? null : statusFilter.value,
       page: page.value,
       pageSize: pageSize.value,
@@ -126,7 +116,6 @@ function openCreateDialog() {
     username: '',
     email: '',
     password: '',
-    roleKey: 'user',
   }
   dialogOpen.value = true
 }
@@ -138,7 +127,6 @@ function openEditDialog(user: ManagedUser) {
     username: user.username,
     email: user.email ?? '',
     password: '',
-    roleKey: resolveManagedRoleKey(user.roleKeys),
   }
   dialogOpen.value = true
 }
@@ -152,7 +140,6 @@ async function submitDialog() {
   const payload = {
     username: form.value.username.trim(),
     email: form.value.email.trim() === '' ? null : form.value.email.trim(),
-    roleKeys: [form.value.roleKey],
   }
   const creating = dialogMode.value === 'create'
   const requestPromise = creating
@@ -219,14 +206,6 @@ function formatDateTime(value: string) {
 function getStatusLabel(status: 'active' | 'disabled') {
   return status === 'active' ? t('adminUsers.status.active') : t('adminUsers.status.disabled')
 }
-
-function getManagedRoleLabel(roleKey: 'user' | 'admin') {
-  return t(getUserRoleLabelKey(roleKey))
-}
-
-function resolveManagedRoleKey(roleKeys: readonly string[]) {
-  return getPrimaryRoleKey(roleKeys) === 'admin' ? 'admin' : 'user'
-}
 </script>
 
 <template>
@@ -253,21 +232,6 @@ function resolveManagedRoleKey(roleKeys: readonly string[]) {
         class="w-full sm:w-80"
         @keydown.enter="submitFilters"
       />
-
-      <Select
-        v-model="roleFilter"
-        @update:model-value="submitFilters"
-      >
-        <SelectTrigger class="w-full sm:w-44">
-          <SelectValue :placeholder="t('adminUsers.filters.rolePlaceholder')" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="ALL">{{ t('adminUsers.filters.roleAll') }}</SelectItem>
-          <SelectItem value="owner">{{ t('common.role.owner') }}</SelectItem>
-          <SelectItem value="admin">{{ t('common.role.admin') }}</SelectItem>
-          <SelectItem value="user">{{ t('common.role.user') }}</SelectItem>
-        </SelectContent>
-      </Select>
 
       <Select
         v-model="statusFilter"
@@ -355,8 +319,8 @@ function resolveManagedRoleKey(roleKeys: readonly string[]) {
                 <TableCell class="font-medium">{{ user.username }}</TableCell>
                 <TableCell>{{ user.email ?? t('adminUsers.table.noEmail') }}</TableCell>
                 <TableCell>
-                  <Badge :variant="getUserRoleBadgeVariant(user.roleKeys)">
-                    {{ t(getUserRoleLabelKey(user.roleKeys)) }}
+                  <Badge :variant="getUserRoleBadgeVariant(user.role)">
+                    {{ t(getUserRoleLabelKey(user.role)) }}
                   </Badge>
                 </TableCell>
                 <TableCell>
@@ -366,7 +330,16 @@ function resolveManagedRoleKey(roleKeys: readonly string[]) {
                 </TableCell>
                 <TableCell>{{ formatDateTime(user.createdAt) }}</TableCell>
                 <TableCell>
-                  <div class="flex justify-end gap-2">
+                  <div
+                    v-if="user.role === 'owner'"
+                    class="text-end text-sm text-muted-foreground"
+                  >
+                    {{ t('adminUsers.table.ownerReadonly') }}
+                  </div>
+                  <div
+                    v-else
+                    class="flex justify-end gap-2"
+                  >
                     <Button
                       variant="outline"
                       size="sm"
@@ -454,20 +427,6 @@ function resolveManagedRoleKey(roleKeys: readonly string[]) {
             type="password"
             :placeholder="t('adminUsers.dialog.passwordPlaceholder')"
           />
-          <Select v-model="form.roleKey">
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem
-                v-for="roleKey in roleOptions"
-                :key="roleKey"
-                :value="roleKey"
-              >
-                {{ getManagedRoleLabel(roleKey) }}
-              </SelectItem>
-            </SelectContent>
-          </Select>
         </div>
 
         <DialogFooter>
