@@ -17,10 +17,7 @@ export interface SidebarController {
   toggleSidebar: () => void
 }
 
-export function useSidebarController(
-  props: SidebarControllerProps,
-  emitUpdateOpen: (value: boolean) => void,
-): SidebarController {
+export function useSidebarController(props: SidebarControllerProps, emitUpdateOpen: (value: boolean) => void): SidebarController {
   const isMobile = useMediaQuery('(max-width: 768px)')
   const openMobile = ref(false)
   const uncontrolledOpen = ref(readStoredSidebarOpen())
@@ -41,7 +38,7 @@ export function useSidebarController(
   )
 
   const open = computed({
-    get: () => (isOpenControlled ? props.open ?? uncontrolledOpen.value : uncontrolledOpen.value),
+    get: () => (isOpenControlled ? (props.open ?? uncontrolledOpen.value) : uncontrolledOpen.value),
     set: (value: boolean) => {
       if (!isOpenControlled) {
         uncontrolledOpen.value = value

@@ -30,10 +30,7 @@ const isDirty = computed(() => {
     return false
   }
 
-  return (
-    form.value.publicRegistrationEnabled !== currentSettings.publicRegistrationEnabled ||
-    form.value.selfServiceAccountDeletionEnabled !== currentSettings.selfServiceAccountDeletionEnabled
-  )
+  return form.value.publicRegistrationEnabled !== currentSettings.publicRegistrationEnabled || form.value.selfServiceAccountDeletionEnabled !== currentSettings.selfServiceAccountDeletionEnabled
 })
 
 onMounted(() => {

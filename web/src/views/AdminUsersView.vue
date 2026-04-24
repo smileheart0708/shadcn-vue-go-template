@@ -225,11 +225,11 @@ function getStatusLabel(status: 'active' | 'disabled') {
       </Button>
     </section>
 
-    <section class="flex flex-col gap-3 sm:flex-row">
+    <section class="flex gap-3">
       <Input
         v-model="searchQuery"
         :placeholder="t('adminUsers.filters.searchPlaceholder')"
-        class="w-full sm:w-80"
+        class="min-w-0 flex-1"
         @keydown.enter="submitFilters"
       />
 
@@ -237,7 +237,7 @@ function getStatusLabel(status: 'active' | 'disabled') {
         v-model="statusFilter"
         @update:model-value="submitFilters"
       >
-        <SelectTrigger class="w-full sm:w-44">
+        <SelectTrigger class="w-auto shrink-0">
           <SelectValue :placeholder="t('adminUsers.filters.statusPlaceholder')" />
         </SelectTrigger>
         <SelectContent>
