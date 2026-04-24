@@ -625,8 +625,8 @@ async function waitForReconnect(delayMs: number, signal: AbortSignal): Promise<b
                             {{ t(`systemLogs.audit.outcome.${entry.outcome}`) }}
                           </Badge>
                         </TableCell>
-                        <TableCell>{{ formatAuditActor(entry.actorUserID) }}</TableCell>
-                        <TableCell>{{ formatAuditActor(entry.subjectUserID) }}</TableCell>
+                        <TableCell>{{ formatAuditActor(entry.actorUserId) }}</TableCell>
+                        <TableCell>{{ formatAuditActor(entry.subjectUserId) }}</TableCell>
                         <TableCell class="max-w-96 truncate">{{ formatAuditReason(entry.reason) }}</TableCell>
                       </TableRow>
                     </template>

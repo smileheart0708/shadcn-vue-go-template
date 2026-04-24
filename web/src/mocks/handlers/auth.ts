@@ -35,9 +35,9 @@ interface MockSession {
 
 interface MockAuditEntry {
   id: number
-  actorUserID: number | null
-  subjectUserID: number | null
-  authSessionID: string | null
+  actorUserId: number | null
+  subjectUserId: number | null
+  authSessionId: string | null
   eventType: string
   outcome: 'success' | 'failure'
   reason: string | null
@@ -217,9 +217,9 @@ function clearSession() {
 function appendAudit(eventType: string, outcome: 'success' | 'failure', options: Partial<MockAuditEntry> = {}) {
   const entry: MockAuditEntry = {
     id: state.nextAuditId++,
-    actorUserID: options.actorUserID ?? null,
-    subjectUserID: options.subjectUserID ?? null,
-    authSessionID: options.authSessionID ?? null,
+    actorUserId: options.actorUserId ?? null,
+    subjectUserId: options.subjectUserId ?? null,
+    authSessionId: options.authSessionId ?? null,
     eventType,
     outcome,
     reason: options.reason ?? null,
@@ -394,9 +394,9 @@ export const authHandlers = [
 
     const sessionResponse = issueSession(owner)
     appendAudit('setup_completed', 'success', {
-      actorUserID: owner.id,
-      subjectUserID: owner.id,
-      authSessionID: `setup-${owner.id}`,
+      actorUserId: owner.id,
+      subjectUserId: owner.id,
+      authSessionId: `setup-${owner.id}`,
     })
 
     return jsonSuccess(sessionResponse, { status: 201 })
@@ -421,12 +421,12 @@ export const authHandlers = [
       return jsonError(401, 'invalid_credentials', 'Invalid credentials.')
     }
     if (user.status !== 'active') {
-      appendAudit('login_failed', 'failure', { subjectUserID: user.id, reason: 'account_disabled' })
+      appendAudit('login_failed', 'failure', { subjectUserId: user.id, reason: 'account_disabled' })
       return jsonError(403, 'account_disabled', 'Account is disabled.')
     }
 
     const sessionResponse = issueSession(user)
-    appendAudit('login_succeeded', 'success', { actorUserID: user.id, subjectUserID: user.id, authSessionID: `session-${user.id}` })
+    appendAudit('login_succeeded', 'success', { actorUserId: user.id, subjectUserId: user.id, authSessionId: `session-${user.id}` })
     return jsonSuccess(sessionResponse)
   }),
 
@@ -475,7 +475,7 @@ export const authHandlers = [
 
     state.users = [...state.users, user]
     const sessionResponse = issueSession(user)
-    appendAudit('registration_succeeded', 'success', { actorUserID: user.id, subjectUserID: user.id, authSessionID: `session-${user.id}` })
+    appendAudit('registration_succeeded', 'success', { actorUserId: user.id, subjectUserId: user.id, authSessionId: `session-${user.id}` })
     return jsonSuccess(sessionResponse, { status: 201 })
   }),
 
@@ -488,14 +488,14 @@ export const authHandlers = [
     }
 
     const sessionResponse = issueSession(user)
-    appendAudit('refresh_succeeded', 'success', { actorUserID: user.id, subjectUserID: user.id, authSessionID: `session-${user.id}` })
+    appendAudit('refresh_succeeded', 'success', { actorUserId: user.id, subjectUserId: user.id, authSessionId: `session-${user.id}` })
     return jsonSuccess(sessionResponse)
   }),
 
   http.post('/api/auth/logout', () => {
     const user = getCurrentUserFromSession()
     if (user !== null) {
-      appendAudit('logout_succeeded', 'success', { actorUserID: user.id, subjectUserID: user.id, authSessionID: `session-${user.id}` })
+      appendAudit('logout_succeeded', 'success', { actorUserId: user.id, subjectUserId: user.id, authSessionId: `session-${user.id}` })
     }
 
     clearSession()
@@ -570,7 +570,7 @@ export const authHandlers = [
 
     user.password = payload.newPassword
     user.updatedAt = nowISO()
-    appendAudit('password_changed', 'success', { actorUserID: user.id, subjectUserID: user.id, authSessionID: `session-${user.id}` })
+    appendAudit('password_changed', 'success', { actorUserId: user.id, subjectUserId: user.id, authSessionId: `session-${user.id}` })
     clearSession()
     return jsonSuccess({ passwordChanged: true })
   }),
@@ -585,7 +585,7 @@ export const authHandlers = [
     }
 
     state.users = state.users.filter((entry) => entry.id !== user.id)
-    appendAudit('account_deleted', 'success', { actorUserID: user.id, subjectUserID: user.id, authSessionID: `session-${user.id}`, reason: 'self_service' })
+    appendAudit('account_deleted', 'success', { actorUserId: user.id, subjectUserId: user.id, authSessionId: `session-${user.id}`, reason: 'self_service' })
     clearSession()
     return jsonSuccess({ deleted: true })
   }),
@@ -705,7 +705,7 @@ export const authHandlers = [
     }
 
     state.users = [...state.users, createdUser]
-    appendAudit('user_created', 'success', { actorUserID: user.id, subjectUserID: createdUser.id })
+    appendAudit('user_created', 'success', { actorUserId: user.id, subjectUserId: createdUser.id })
     return jsonSuccess(toManagedUser(createdUser, user), { status: 201 })
   }),
 
@@ -745,7 +745,7 @@ export const authHandlers = [
     target.email = email
     target.updatedAt = nowISO()
 
-    appendAudit('user_updated', 'success', { actorUserID: user.id, subjectUserID: target.id })
+    appendAudit('user_updated', 'success', { actorUserId: user.id, subjectUserId: target.id })
     return jsonSuccess(toManagedUser(target, user))
   }),
 
@@ -769,7 +769,7 @@ export const authHandlers = [
     if (state.session?.userId === target.id) {
       clearSession()
     }
-    appendAudit('user_disabled', 'success', { actorUserID: user.id, subjectUserID: target.id })
+    appendAudit('user_disabled', 'success', { actorUserId: user.id, subjectUserId: target.id })
     return jsonSuccess(toManagedUser(target, user))
   }),
 
@@ -790,7 +790,7 @@ export const authHandlers = [
 
     target.status = 'active'
     target.updatedAt = nowISO()
-    appendAudit('user_enabled', 'success', { actorUserID: user.id, subjectUserID: target.id })
+    appendAudit('user_enabled', 'success', { actorUserId: user.id, subjectUserId: target.id })
     return jsonSuccess(toManagedUser(target, user))
   }),
 

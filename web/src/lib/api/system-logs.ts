@@ -16,9 +16,9 @@ export type SystemLogEntry = z.infer<typeof systemLogEntrySchema>
 
 export const auditLogEntrySchema = z.object({
   id: z.number().int().positive(),
-  actorUserID: z.number().int().positive().nullable(),
-  subjectUserID: z.number().int().positive().nullable(),
-  authSessionID: z.string().nullable(),
+  actorUserId: z.number().int().positive().nullable(),
+  subjectUserId: z.number().int().positive().nullable(),
+  authSessionId: z.string().nullable(),
   eventType: z.string(),
   outcome: z.enum(['success', 'failure']),
   reason: z.string().nullable(),
