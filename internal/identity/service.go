@@ -462,51 +462,27 @@ func (s *Service) ListUsers(ctx context.Context, params ListUsersParams) (ListUs
 	}
 
 	params = normalizeListParams(params)
-	whereClause, args := buildListWhere(params)
+	query := buildListUsersQuery(params)
 
 	var total int
-	if err := s.db.QueryRowContext(
-		ctx,
-		`SELECT COUNT(*)
-		FROM users u`+whereClause,
-		args...,
-	).Scan(&total); err != nil {
+	if err := s.db.QueryRowContext(ctx, query.countSQL(), query.args...).Scan(&total); err != nil {
 		return ListUsersResult{}, fmt.Errorf("identity: count users: %w", err)
 	}
 
-	queryArgs := append(append([]any{}, args...), params.PageSize, (params.Page-1)*params.PageSize)
-	rows, err := s.db.QueryContext(
-		ctx,
-		`SELECT
-			u.id,
-			u.username,
-			u.email,
-			u.avatar_path,
-			u.status,
-			u.role,
-			u.security_version,
-			u.disabled_at,
-			u.created_at,
-			u.updated_at
-		FROM users u`+whereClause+`
-		ORDER BY u.created_at DESC, u.id DESC
-		LIMIT ? OFFSET ?`,
-		queryArgs...,
-	)
+	rows, err := s.db.QueryContext(ctx, query.listSQL(), query.listArgs(params)...)
 	if err != nil {
 		return ListUsersResult{}, fmt.Errorf("identity: list users: %w", err)
 	}
-	defer rows.Close()
 
 	items := make([]User, 0, params.PageSize)
 	for rows.Next() {
 		item, err := scanUser(rows)
 		if err != nil {
-			return ListUsersResult{}, err
+			return ListUsersResult{}, errors.Join(err, closeRows(rows))
 		}
 		items = append(items, item)
 	}
-	if err := rows.Err(); err != nil {
+	if err := errors.Join(rows.Err(), closeRows(rows)); err != nil {
 		return ListUsersResult{}, fmt.Errorf("identity: iterate users: %w", err)
 	}
 
@@ -648,24 +624,162 @@ func revokeUserSessionsTx(ctx context.Context, tx *sql.Tx, userID int64, reason 
 	return nil
 }
 
-func buildListWhere(params ListUsersParams) (string, []any) {
-	clauses := make([]string, 0, 2)
-	args := make([]any, 0, 3)
+type listUsersQuery struct {
+	whereSQL string
+	args     []any
+}
 
-	if params.Query != "" {
-		pattern := "%" + params.Query + "%"
-		clauses = append(clauses, "(u.username LIKE ? COLLATE NOCASE OR u.email LIKE ? COLLATE NOCASE)")
-		args = append(args, pattern, pattern)
-	}
-	if params.Status != "" {
-		clauses = append(clauses, "u.status = ?")
-		args = append(args, params.Status)
-	}
+func buildListUsersQuery(params ListUsersParams) listUsersQuery {
+	query := listUsersQuery{args: make([]any, 0, 3)}
+	query.addSearchFilter(params.Query)
+	query.addStatusFilter(params.Status)
+	return query
+}
 
-	if len(clauses) == 0 {
-		return "", args
+func (q *listUsersQuery) addSearchFilter(value string) {
+	if value == "" {
+		return
 	}
-	return " WHERE " + strings.Join(clauses, " AND "), args
+	pattern := "%" + value + "%"
+	q.appendWhere("(u.username LIKE ? COLLATE NOCASE OR u.email LIKE ? COLLATE NOCASE)", pattern, pattern)
+}
+
+func (q *listUsersQuery) addStatusFilter(value string) {
+	if value == "" {
+		return
+	}
+	q.appendWhere("u.status = ?", value)
+}
+
+func (q *listUsersQuery) appendWhere(clause string, args ...any) {
+	if q.whereSQL == "" {
+		q.whereSQL = " WHERE " + clause
+	} else {
+		q.whereSQL += " AND " + clause
+	}
+	q.args = append(q.args, args...)
+}
+
+func (q listUsersQuery) countSQL() string {
+	switch q.whereSQL {
+	case "":
+		return listUsersCountSQL
+	case " WHERE (u.username LIKE ? COLLATE NOCASE OR u.email LIKE ? COLLATE NOCASE)":
+		return listUsersCountSQLSearch
+	case " WHERE u.status = ?":
+		return listUsersCountSQLStatus
+	case " WHERE (u.username LIKE ? COLLATE NOCASE OR u.email LIKE ? COLLATE NOCASE) AND u.status = ?":
+		return listUsersCountSQLSearchStatus
+	default:
+		panic("identity: unsupported list users count filter")
+	}
+}
+
+func (q listUsersQuery) listSQL() string {
+	switch q.whereSQL {
+	case "":
+		return listUsersSQL
+	case " WHERE (u.username LIKE ? COLLATE NOCASE OR u.email LIKE ? COLLATE NOCASE)":
+		return listUsersSQLSearch
+	case " WHERE u.status = ?":
+		return listUsersSQLStatus
+	case " WHERE (u.username LIKE ? COLLATE NOCASE OR u.email LIKE ? COLLATE NOCASE) AND u.status = ?":
+		return listUsersSQLSearchStatus
+	default:
+		panic("identity: unsupported list users filter")
+	}
+}
+
+func (q listUsersQuery) listArgs(params ListUsersParams) []any {
+	args := make([]any, 0, len(q.args)+2)
+	args = append(args, q.args...)
+	args = append(args, params.PageSize, (params.Page-1)*params.PageSize)
+	return args
+}
+
+const listUsersCountSQL = `SELECT COUNT(*)
+		FROM users u`
+
+const listUsersCountSQLSearch = `SELECT COUNT(*)
+		FROM users u
+		WHERE (u.username LIKE ? COLLATE NOCASE OR u.email LIKE ? COLLATE NOCASE)`
+
+const listUsersCountSQLStatus = `SELECT COUNT(*)
+		FROM users u
+		WHERE u.status = ?`
+
+const listUsersCountSQLSearchStatus = `SELECT COUNT(*)
+		FROM users u
+		WHERE (u.username LIKE ? COLLATE NOCASE OR u.email LIKE ? COLLATE NOCASE) AND u.status = ?`
+
+const listUsersSQL = `SELECT
+			u.id,
+			u.username,
+			u.email,
+			u.avatar_path,
+			u.status,
+			u.role,
+			u.security_version,
+			u.disabled_at,
+			u.created_at,
+			u.updated_at
+		FROM users u
+		ORDER BY u.created_at DESC, u.id DESC
+		LIMIT ? OFFSET ?`
+
+const listUsersSQLSearch = `SELECT
+			u.id,
+			u.username,
+			u.email,
+			u.avatar_path,
+			u.status,
+			u.role,
+			u.security_version,
+			u.disabled_at,
+			u.created_at,
+			u.updated_at
+		FROM users u
+		WHERE (u.username LIKE ? COLLATE NOCASE OR u.email LIKE ? COLLATE NOCASE)
+		ORDER BY u.created_at DESC, u.id DESC
+		LIMIT ? OFFSET ?`
+
+const listUsersSQLStatus = `SELECT
+			u.id,
+			u.username,
+			u.email,
+			u.avatar_path,
+			u.status,
+			u.role,
+			u.security_version,
+			u.disabled_at,
+			u.created_at,
+			u.updated_at
+		FROM users u
+		WHERE u.status = ?
+		ORDER BY u.created_at DESC, u.id DESC
+		LIMIT ? OFFSET ?`
+
+const listUsersSQLSearchStatus = `SELECT
+			u.id,
+			u.username,
+			u.email,
+			u.avatar_path,
+			u.status,
+			u.role,
+			u.security_version,
+			u.disabled_at,
+			u.created_at,
+			u.updated_at
+		FROM users u
+		WHERE (u.username LIKE ? COLLATE NOCASE OR u.email LIKE ? COLLATE NOCASE) AND u.status = ?
+		ORDER BY u.created_at DESC, u.id DESC
+		LIMIT ? OFFSET ?`
+
+func closeRows(rows *sql.Rows) error {
+	if err := rows.Close(); err != nil {
+		return fmt.Errorf("identity: close user rows: %w", err)
+	}
+	return nil
 }
 
 func normalizeListParams(params ListUsersParams) ListUsersParams {

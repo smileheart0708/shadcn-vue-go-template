@@ -195,7 +195,7 @@ func (api *API) logoutHandler(w http.ResponseWriter, r *http.Request) {
 	rawToken, err := api.auth.ReadRefreshCookie(r)
 	if err == nil {
 		ip, userAgent := requestMetadata(r)
-		if err := api.auth.Logout(r.Context(), rawToken, ip, userAgent); err != nil {
+		if err := api.auth.Logout(r.Context(), rawToken, ip, userAgent); err != nil && !errors.Is(err, auth.ErrInvalidRefreshToken) {
 			writeAPIError(w, http.StatusInternalServerError, "logout_failed", "Failed to revoke refresh session.")
 			return
 		}

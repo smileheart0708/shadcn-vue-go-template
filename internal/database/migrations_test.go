@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -165,6 +166,22 @@ CREATE TABLE schema_migrations (
 	assertAppliedMigrationCount(t, db, 1)
 	assertIndexExists(t, db, "users_owner_unique_idx")
 	assertDefaultAccountPolicies(t, db)
+}
+
+func TestGetAppliedMigrationReturnsSentinelWhenMissing(t *testing.T) {
+	t.Parallel()
+
+	db, cleanup := openRawSQLiteDB(t)
+	defer cleanup()
+
+	if _, err := db.Exec(`CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, name TEXT NOT NULL, checksum TEXT NULL, applied_at INTEGER NOT NULL)`); err != nil {
+		t.Fatalf("failed to create schema_migrations table: %v", err)
+	}
+
+	_, err := getAppliedMigration(context.Background(), db, 42)
+	if !errors.Is(err, errMigrationNotApplied) {
+		t.Fatalf("expected errMigrationNotApplied, got %v", err)
+	}
 }
 
 func TestRunMigrationsAllowsConcurrentStartup(t *testing.T) {

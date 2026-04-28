@@ -1,6 +1,8 @@
 package httpapi
 
 import (
+	"context"
+	"errors"
 	"net/http"
 	"slices"
 
@@ -9,6 +11,10 @@ import (
 )
 
 type Middleware func(http.Handler) http.Handler
+
+type requestAuthenticator interface {
+	AuthenticateRequest(context.Context, string) (auth.Actor, error)
+}
 
 func Chain(handler http.Handler, middlewares ...Middleware) http.Handler {
 	wrapped := handler
@@ -36,16 +42,19 @@ func RequireSetupCompleted(setupService *setup.Service) Middleware {
 }
 
 func RequireAuth(authService *auth.Service) Middleware {
+	return RequireAuthWithAuthenticator(authService)
+}
+
+func RequireAuthWithAuthenticator(authenticator requestAuthenticator) Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			actor, err := authService.AuthenticateRequest(r.Context(), r.Header.Get("Authorization"))
+			actor, err := authenticator.AuthenticateRequest(r.Context(), r.Header.Get("Authorization"))
 			if err != nil {
-				switch err {
-				case auth.ErrMissingBearerToken:
+				if errors.Is(err, auth.ErrMissingBearerToken) {
 					writeAPIError(w, http.StatusUnauthorized, "missing_token", "Missing bearer token.")
-				default:
-					writeAPIError(w, http.StatusUnauthorized, "invalid_token", "Invalid or expired token.")
+					return
 				}
+				writeAPIError(w, http.StatusUnauthorized, "invalid_token", "Invalid or expired token.")
 				return
 			}
 

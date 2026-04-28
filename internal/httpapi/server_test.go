@@ -220,6 +220,22 @@ func TestPublicRegistrationToggleControlsRegisterRefreshReplayAndLogoutFlow(t *t
 	}
 }
 
+func TestLogoutIgnoresInvalidRefreshTokenCookie(t *testing.T) {
+	t.Parallel()
+
+	ctx := newTestContext(t)
+	performSetup(t, ctx)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/auth/logout", nil)
+	req.AddCookie(&http.Cookie{Name: ctx.authServiceCookieName(), Value: "not-a-refresh-token"})
+	rec := httptest.NewRecorder()
+	ctx.handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, rec.Code, rec.Body.String())
+	}
+}
+
 func TestSelfServiceDeletionToggleControlsDeleteFlow(t *testing.T) {
 	t.Parallel()
 

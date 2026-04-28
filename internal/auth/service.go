@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strconv"
 	"strings"
 	"time"
@@ -450,8 +451,7 @@ func (s *Service) Refresh(ctx context.Context, rawToken string, ip string, userA
 
 	accessToken, expiresAt, err := s.issueAccessToken(user, session.ID)
 	if err != nil {
-		_ = s.revokeSessionByID(ctx, session.ID, "access_token_issue_failed")
-		return SessionResult{}, err
+		return SessionResult{}, s.revokeSessionAfterAccessTokenIssueFailure(ctx, session.ID, err)
 	}
 
 	viewerAuthorization, err := s.buildViewerAuthorization(ctx, user.Role)
@@ -483,7 +483,7 @@ func (s *Service) Refresh(ctx context.Context, rawToken string, ip string, userA
 func (s *Service) Logout(ctx context.Context, rawToken string, ip string, userAgent string) error {
 	sessionID, _, err := ParseRefreshToken(rawToken)
 	if err != nil {
-		return nil
+		return err
 	}
 
 	session, err := s.getSessionByID(ctx, sessionID)
@@ -631,8 +631,7 @@ func (s *Service) IssueSessionForUser(ctx context.Context, user identity.User, i
 
 	accessToken, expiresAt, err := s.issueAccessToken(user, sessionID)
 	if err != nil {
-		_ = s.revokeSessionByID(ctx, sessionID, "access_token_issue_failed")
-		return SessionResult{}, err
+		return SessionResult{}, s.revokeSessionAfterAccessTokenIssueFailure(ctx, sessionID, err)
 	}
 
 	viewerAuthorization, err := s.buildViewerAuthorization(ctx, user.Role)
@@ -835,7 +834,16 @@ func (s *Service) logAudit(ctx context.Context, entry audit.Entry) {
 	if s.audit == nil {
 		return
 	}
-	_ = s.audit.Log(ctx, entry)
+	if err := s.audit.Log(ctx, entry); err != nil {
+		slog.WarnContext(ctx, "failed to write audit log", "error", err, "event_type", entry.EventType, "outcome", entry.Outcome)
+	}
+}
+
+func (s *Service) revokeSessionAfterAccessTokenIssueFailure(ctx context.Context, sessionID string, issueErr error) error {
+	if revokeErr := s.revokeSessionByID(ctx, sessionID, "access_token_issue_failed"); revokeErr != nil {
+		return errors.Join(issueErr, fmt.Errorf("auth: revoke session after access token issue failure: %w", revokeErr))
+	}
+	return issueErr
 }
 
 func stringPointerOrNil(value string) *string {

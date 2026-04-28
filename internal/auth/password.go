@@ -45,11 +45,13 @@ func VerifyPassword(password string, encodedHash string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	if len(hash) > math.MaxUint32 {
+	hashLength := len(hash)
+	if hashLength > math.MaxUint32 {
 		return false, errors.New("auth: password hash is too large")
 	}
+	hashLengthUint32 := uint32(hashLength)
 
-	comparison := argon2.IDKey([]byte(password), salt, params.time, params.memory, params.threads, uint32(len(hash)))
+	comparison := argon2.IDKey([]byte(password), salt, params.time, params.memory, params.threads, hashLengthUint32)
 	return subtle.ConstantTimeCompare(hash, comparison) == 1, nil
 }
 

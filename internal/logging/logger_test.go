@@ -158,6 +158,32 @@ func TestStreamHandlerRendersErrorValuesAsMessages(t *testing.T) {
 	}
 }
 
+func TestStreamHandlerRendersGroupsAndLogValuers(t *testing.T) {
+	t.Parallel()
+
+	stream := NewStream(StreamOptions{Capacity: 10})
+	logger := slog.New(NewStreamHandler(stream, "app"))
+
+	logger.InfoContext(
+		context.Background(),
+		"render structured values",
+		slog.Group("request", slog.String("id", "req-1"), slog.Int("status", 200)),
+		slog.Any("lazy", slog.StringValue("resolved")),
+	)
+
+	entries := stream.Snapshot(1)
+	if len(entries) != 1 {
+		t.Fatalf("expected 1 entry, got %d", len(entries))
+	}
+	entry := entries[0]
+	if !strings.Contains(entry.Text, "request.id=req-1") || !strings.Contains(entry.Text, "request.status=200") {
+		t.Fatalf("expected flattened group fields in text, got %q", entry.Text)
+	}
+	if !strings.Contains(entry.Text, "lazy=resolved") {
+		t.Fatalf("expected resolved log valuer in text, got %q", entry.Text)
+	}
+}
+
 func TestLogStartupBanner(t *testing.T) {
 	t.Parallel()
 

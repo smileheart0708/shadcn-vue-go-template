@@ -132,7 +132,10 @@ func loadJWTSecret(dataDir string) (string, error) {
 		return secret, nil
 	}
 
-	secretPath := filepath.Join(dataDir, jwtSecretFileName)
+	secretPath, err := jwtSecretPath(dataDir)
+	if err != nil {
+		return "", fmt.Errorf("config JWT_SECRET: %w", err)
+	}
 	secret, err := readJWTSecretFile(secretPath)
 	switch {
 	case err == nil:
@@ -158,8 +161,21 @@ func loadJWTSecret(dataDir string) (string, error) {
 	return secret, nil
 }
 
+func jwtSecretPath(dataDir string) (string, error) {
+	cleanDataDir, err := filepath.Abs(filepath.Clean(dataDir))
+	if err != nil {
+		return "", fmt.Errorf("resolve data dir: %w", err)
+	}
+	return filepath.Join(cleanDataDir, jwtSecretFileName), nil
+}
+
 func readJWTSecretFile(secretPath string) (string, error) {
-	secret, err := os.ReadFile(secretPath)
+	cleanPath := filepath.Clean(secretPath)
+	if filepath.Base(cleanPath) != jwtSecretFileName {
+		return "", fmt.Errorf("refuse to read non-JWT secret file %q", secretPath)
+	}
+
+	secret, err := os.ReadFile(filepath.Clean(cleanPath))
 	if err != nil {
 		return "", err
 	}

@@ -79,3 +79,16 @@ func TestLoadConfigGeneratesAndPersistsJWTSecretWhenMissing(t *testing.T) {
 		t.Fatalf("expected generated JWT secret to persist across loads")
 	}
 }
+
+func TestReadJWTSecretFileRejectsNonSecretFilename(t *testing.T) {
+	t.Parallel()
+
+	filename := filepath.Join(t.TempDir(), "other_secret")
+	if err := os.WriteFile(filename, []byte("secret"), 0o600); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	if _, err := readJWTSecretFile(filename); err == nil {
+		t.Fatal("expected non-JWT secret filename to be rejected")
+	}
+}

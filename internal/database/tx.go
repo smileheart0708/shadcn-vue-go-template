@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 )
 
@@ -25,7 +26,7 @@ func WithTx(ctx context.Context, db *sql.DB, fn func(*sql.Tx) error) error {
 
 	if fnErr := fn(tx); fnErr != nil {
 		if rollbackErr := tx.Rollback(); rollbackErr != nil {
-			return fmt.Errorf("db: rollback transaction after %v: %w", fnErr, rollbackErr)
+			return errors.Join(fnErr, fmt.Errorf("db: rollback transaction: %w", rollbackErr))
 		}
 		return fnErr
 	}

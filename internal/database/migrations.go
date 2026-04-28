@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"embed"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io/fs"
 	"log/slog"
@@ -34,6 +35,8 @@ type sqlMigration struct {
 	Checksum string
 }
 
+var errMigrationNotApplied = errors.New("db: migration not applied")
+
 type appliedMigration struct {
 	Name      string
 	Checksum  sql.NullString
@@ -59,14 +62,14 @@ func RunMigrations(ctx context.Context, db *sql.DB) error {
 
 	for _, migration := range migrations {
 		applied, err := getAppliedMigration(ctx, db, migration.Version)
-		if err != nil {
-			return err
-		}
-		if applied != nil {
-			if err := reconcileAppliedMigration(ctx, db, migration, *applied); err != nil {
+		if err == nil {
+			if err := reconcileAppliedMigration(ctx, db, migration, applied); err != nil {
 				return err
 			}
 			continue
+		}
+		if !errors.Is(err, errMigrationNotApplied) {
+			return err
 		}
 
 		if err := applySQLMigration(ctx, db, migration); err != nil {
@@ -170,24 +173,27 @@ func migrationVersionFromFilename(name string) (int64, error) {
 
 func ensureSchemaMigrationsChecksumColumn(ctx context.Context, db *sql.DB) error {
 	hasChecksum, err := schemaMigrationsHasColumn(ctx, db, "checksum")
-	if err != nil {
+	if err != nil || hasChecksum {
 		return err
-	}
-	if hasChecksum {
-		return nil
 	}
 
 	if _, err := db.ExecContext(ctx, `ALTER TABLE schema_migrations ADD COLUMN checksum TEXT NULL`); err != nil {
-		if isSQLiteDuplicateColumnError(err) {
-			hasChecksum, checkErr := schemaMigrationsHasColumn(ctx, db, "checksum")
-			if checkErr != nil {
-				return checkErr
-			}
-			if hasChecksum {
-				return nil
-			}
-		}
+		return handleChecksumColumnAddError(ctx, db, err)
+	}
+	return nil
+}
+
+func handleChecksumColumnAddError(ctx context.Context, db *sql.DB, err error) error {
+	if !isSQLiteDuplicateColumnError(err) {
 		return fmt.Errorf("db: failed to add checksum column to schema_migrations: %w", err)
+	}
+
+	hasChecksum, checkErr := schemaMigrationsHasColumn(ctx, db, "checksum")
+	if checkErr != nil {
+		return checkErr
+	}
+	if !hasChecksum {
+		return fmt.Errorf("db: checksum column add reported duplicate but column is still missing: %w", err)
 	}
 	return nil
 }
@@ -226,17 +232,17 @@ func schemaMigrationsHasColumn(ctx context.Context, db *sql.DB, column string) (
 	return false, nil
 }
 
-func getAppliedMigration(ctx context.Context, db *sql.DB, version int64) (*appliedMigration, error) {
+func getAppliedMigration(ctx context.Context, db *sql.DB, version int64) (appliedMigration, error) {
 	var applied appliedMigration
 	err := db.QueryRowContext(ctx, `SELECT name, checksum, applied_at FROM schema_migrations WHERE version = ?`, version).Scan(&applied.Name, &applied.Checksum, &applied.AppliedAt)
 	if err == nil {
-		return &applied, nil
+		return applied, nil
 	}
-	if err == sql.ErrNoRows {
-		return nil, nil
+	if errors.Is(err, sql.ErrNoRows) {
+		return appliedMigration{}, errMigrationNotApplied
 	}
 
-	return nil, fmt.Errorf("db: failed to query schema_migrations for version %d: %w", version, err)
+	return appliedMigration{}, fmt.Errorf("db: failed to query schema_migrations for version %d: %w", version, err)
 }
 
 func reconcileAppliedMigration(ctx context.Context, db *sql.DB, migration sqlMigration, applied appliedMigration) error {
@@ -279,34 +285,11 @@ func applySQLMigration(ctx context.Context, db *sql.DB, migration sqlMigration) 
 	}
 
 	if _, err := tx.ExecContext(ctx, migration.SQL); err != nil {
-		if rbErr := tx.Rollback(); rbErr != nil {
-			return fmt.Errorf("db: failed to apply migration %d (%s): %w (rollback failed: %v)", migration.Version, migration.Name, err, rbErr)
-		}
-		return fmt.Errorf("db: failed to apply migration %d (%s): %w", migration.Version, migration.Name, err)
+		return rollbackMigrationTx(tx, fmt.Errorf("db: failed to apply migration %d (%s): %w", migration.Version, migration.Name, err))
 	}
 
-	if _, err := tx.ExecContext(
-		ctx,
-		`INSERT INTO schema_migrations(version, name, checksum, applied_at) VALUES (?, ?, ?, ?)`,
-		migration.Version,
-		migration.Name,
-		migration.Checksum,
-		time.Now().Unix(),
-	); err != nil {
-		if rbErr := tx.Rollback(); rbErr != nil {
-			return fmt.Errorf("db: failed to record migration %d (%s): %w (rollback failed: %v)", migration.Version, migration.Name, err, rbErr)
-		}
-		if isSQLiteSchemaMigrationVersionConflict(err) {
-			applied, getErr := getAppliedMigration(ctx, db, migration.Version)
-			if getErr != nil {
-				return getErr
-			}
-			if applied == nil {
-				return fmt.Errorf("db: migration %d (%s) was concurrently recorded but cannot be reloaded", migration.Version, migration.Name)
-			}
-			return reconcileAppliedMigration(ctx, db, migration, *applied)
-		}
-		return fmt.Errorf("db: failed to record migration %d (%s): %w", migration.Version, migration.Name, err)
+	if err := recordAppliedMigration(ctx, tx, db, migration); err != nil {
+		return err
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -314,6 +297,48 @@ func applySQLMigration(ctx context.Context, db *sql.DB, migration sqlMigration) 
 	}
 
 	return nil
+}
+
+func recordAppliedMigration(ctx context.Context, tx *sql.Tx, db *sql.DB, migration sqlMigration) error {
+	_, err := tx.ExecContext(
+		ctx,
+		`INSERT INTO schema_migrations(version, name, checksum, applied_at) VALUES (?, ?, ?, ?)`,
+		migration.Version,
+		migration.Name,
+		migration.Checksum,
+		time.Now().Unix(),
+	)
+	if err == nil {
+		return nil
+	}
+
+	recordErr := fmt.Errorf("db: failed to record migration %d (%s): %w", migration.Version, migration.Name, err)
+	if !isSQLiteSchemaMigrationVersionConflict(err) {
+		return rollbackMigrationTx(tx, recordErr)
+	}
+
+	if rollbackErr := tx.Rollback(); rollbackErr != nil {
+		return errors.Join(recordErr, fmt.Errorf("db: rollback migration transaction: %w", rollbackErr))
+	}
+	return reconcileConcurrentAppliedMigration(ctx, db, migration)
+}
+
+func reconcileConcurrentAppliedMigration(ctx context.Context, db *sql.DB, migration sqlMigration) error {
+	applied, err := getAppliedMigration(ctx, db, migration.Version)
+	if errors.Is(err, errMigrationNotApplied) {
+		return fmt.Errorf("db: migration %d (%s) was concurrently recorded but cannot be reloaded", migration.Version, migration.Name)
+	}
+	if err != nil {
+		return err
+	}
+	return reconcileAppliedMigration(ctx, db, migration, applied)
+}
+
+func rollbackMigrationTx(tx *sql.Tx, primaryErr error) error {
+	if rollbackErr := tx.Rollback(); rollbackErr != nil {
+		return errors.Join(primaryErr, fmt.Errorf("db: rollback migration transaction: %w", rollbackErr))
+	}
+	return primaryErr
 }
 
 func isSQLiteDuplicateColumnError(err error) bool {
