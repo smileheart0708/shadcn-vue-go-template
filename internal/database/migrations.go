@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io/fs"
+	"log/slog"
 	"path"
 	"slices"
 	"strconv"
@@ -196,7 +197,11 @@ func schemaMigrationsHasColumn(ctx context.Context, db *sql.DB, column string) (
 	if err != nil {
 		return false, fmt.Errorf("db: failed to inspect schema_migrations table: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil {
+			slog.WarnContext(ctx, "failed to close schema metadata rows", "error", closeErr)
+		}
+	}()
 
 	for rows.Next() {
 		var (

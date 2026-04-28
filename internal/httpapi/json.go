@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"strings"
 )
@@ -28,7 +29,11 @@ type successResponse[T any] struct {
 
 func decodeJSON(w http.ResponseWriter, r *http.Request, dst any) error {
 	r.Body = http.MaxBytesReader(w, r.Body, maxJSONBodyBytes)
-	defer r.Body.Close()
+	defer func() {
+		if closeErr := r.Body.Close(); closeErr != nil {
+			slog.WarnContext(r.Context(), "failed to close request body", "error", closeErr)
+		}
+	}()
 
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()

@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 
@@ -43,6 +44,9 @@ func VerifyPassword(password string, encodedHash string) (bool, error) {
 	params, salt, hash, err := parsePasswordHash(encodedHash)
 	if err != nil {
 		return false, err
+	}
+	if len(hash) > math.MaxUint32 {
+		return false, errors.New("auth: password hash is too large")
 	}
 
 	comparison := argon2.IDKey([]byte(password), salt, params.time, params.memory, params.threads, uint32(len(hash)))
@@ -104,6 +108,9 @@ func parsePasswordParams(raw string) (passwordParams, error) {
 		case "t":
 			params.time = uint32(parsed)
 		case "p":
+			if parsed > math.MaxUint8 {
+				return passwordParams{}, errors.New("auth: invalid password hash threads value")
+			}
 			params.threads = uint8(parsed)
 		default:
 			return passwordParams{}, errors.New("auth: unsupported password hash parameter")

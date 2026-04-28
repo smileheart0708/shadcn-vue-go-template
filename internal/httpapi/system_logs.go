@@ -13,10 +13,7 @@ import (
 const systemLogsHeartbeatInterval = 25 * time.Second
 
 func (api *API) streamSystemLogsHandler(w http.ResponseWriter, r *http.Request) {
-	logger := api.logger
-	if logger == nil {
-		logger = slog.Default()
-	}
+	logger := api.loggerOrDefault()
 
 	if api.logStream == nil {
 		writeAPIError(w, http.StatusServiceUnavailable, "system_log_stream_unavailable", "System log stream is unavailable.")
@@ -29,8 +26,8 @@ func (api *API) streamSystemLogsHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	actor, ok := api.currentActor(r.Context())
-	if !ok {
+	actor, authenticated := api.currentActor(r.Context())
+	if !authenticated {
 		writeAPIError(w, http.StatusUnauthorized, "unauthorized", "Authentication is required.")
 		return
 	}
@@ -60,14 +57,16 @@ func (api *API) streamSystemLogsHandler(w http.ResponseWriter, r *http.Request) 
 			return
 		case <-heartbeat.C:
 			if _, err := w.Write([]byte(": keep-alive\n\n")); err != nil {
+				logger.WarnContext(r.Context(), "failed to write system log heartbeat", "user_id", actor.User.ID, "error", err)
 				return
 			}
 			flusher.Flush()
-		case entry, ok := <-subscription.Entries():
-			if !ok {
+		case streamEntry, entriesOK := <-subscription.Entries():
+			if !entriesOK {
 				return
 			}
-			if err := writeSystemLogSSEEvent(w, entry); err != nil {
+			if err := writeSystemLogSSEEvent(w, streamEntry); err != nil {
+				logger.WarnContext(r.Context(), "failed to stream system log entry", "user_id", actor.User.ID, "entry_id", streamEntry.ID, "error", err)
 				return
 			}
 			flusher.Flush()
@@ -101,17 +100,17 @@ func writeSystemLogSSEEvent(w http.ResponseWriter, entry logging.StreamEntry) er
 		return err
 	}
 
-	if _, err := w.Write([]byte("event: log\n")); err != nil {
-		return err
+	if _, writeErr := w.Write([]byte("event: log\n")); writeErr != nil {
+		return writeErr
 	}
-	if _, err := w.Write([]byte("id: " + strconv.FormatInt(entry.ID, 10) + "\n")); err != nil {
-		return err
+	if _, writeErr := w.Write([]byte("id: " + strconv.FormatInt(entry.ID, 10) + "\n")); writeErr != nil {
+		return writeErr
 	}
-	if _, err := w.Write([]byte("data: ")); err != nil {
-		return err
+	if _, writeErr := w.Write([]byte("data: ")); writeErr != nil {
+		return writeErr
 	}
-	if _, err := w.Write(payload); err != nil {
-		return err
+	if _, writeErr := w.Write(payload); writeErr != nil {
+		return writeErr
 	}
 	_, err = w.Write([]byte("\n\n"))
 	return err

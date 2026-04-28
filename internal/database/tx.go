@@ -18,20 +18,20 @@ func WithTx(ctx context.Context, db *sql.DB, fn func(*sql.Tx) error) error {
 		return fmt.Errorf("db: transaction requires a non-nil *sql.DB")
 	}
 
-	tx, err := db.BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("db: begin transaction: %w", err)
+	tx, beginErr := db.BeginTx(ctx, nil)
+	if beginErr != nil {
+		return fmt.Errorf("db: begin transaction: %w", beginErr)
 	}
 
-	if err := fn(tx); err != nil {
+	if fnErr := fn(tx); fnErr != nil {
 		if rollbackErr := tx.Rollback(); rollbackErr != nil {
-			return fmt.Errorf("db: rollback transaction after %v: %w", err, rollbackErr)
+			return fmt.Errorf("db: rollback transaction after %v: %w", fnErr, rollbackErr)
 		}
-		return err
+		return fnErr
 	}
 
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("db: commit transaction: %w", err)
+	if commitErr := tx.Commit(); commitErr != nil {
+		return fmt.Errorf("db: commit transaction: %w", commitErr)
 	}
 
 	return nil

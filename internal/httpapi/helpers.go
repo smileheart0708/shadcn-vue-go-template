@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -34,5 +35,7 @@ func (api *API) logAuditEvent(r *http.Request, entry audit.Entry) {
 		}
 	}
 
-	_ = api.audit.Log(r.Context(), entry)
+	if err := api.audit.Log(r.Context(), entry); err != nil {
+		slog.ErrorContext(r.Context(), "failed to write audit event", "event_type", entry.EventType, "outcome", entry.Outcome, "error", err)
+	}
 }

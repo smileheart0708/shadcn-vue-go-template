@@ -146,11 +146,13 @@ func loadJWTSecret(dataDir string) (string, error) {
 		return "", fmt.Errorf("config JWT_SECRET: %w", err)
 	}
 
-	if err := os.MkdirAll(dataDir, 0o700); err != nil {
-		return "", fmt.Errorf("config JWT_SECRET: create data dir: %w", err)
+	mkdirErr := os.MkdirAll(dataDir, 0o700)
+	if mkdirErr != nil {
+		return "", fmt.Errorf("config JWT_SECRET: create data dir: %w", mkdirErr)
 	}
-	if err := os.WriteFile(secretPath, []byte(secret), 0o600); err != nil {
-		return "", fmt.Errorf("config JWT_SECRET: write secret file: %w", err)
+	writeErr := os.WriteFile(secretPath, []byte(secret), 0o600)
+	if writeErr != nil {
+		return "", fmt.Errorf("config JWT_SECRET: write secret file: %w", writeErr)
 	}
 
 	return secret, nil

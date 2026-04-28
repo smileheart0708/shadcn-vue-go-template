@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -77,7 +78,6 @@ func Open(ctx context.Context, opts Options) (*DBContainer, error) {
 		return nil, errors.New("db: missing sqlite path")
 	}
 
-	// 确保数据目录存在
 	if dir := filepath.Dir(opts.Path); dir != "" && dir != "." {
 		if err := os.MkdirAll(dir, 0o700); err != nil {
 			return nil, fmt.Errorf("db: failed to create data dir %s: %w", dir, err)
@@ -89,24 +89,23 @@ func Open(ctx context.Context, opts Options) (*DBContainer, error) {
 		return nil, fmt.Errorf("db: failed to open sqlite %s: %w", opts.Path, err)
 	}
 
-	// 连接池配置：SQLite 默认单连接最稳妥
 	db.SetMaxOpenConns(opts.MaxOpenConns)
 	db.SetMaxIdleConns(opts.MaxIdleConns)
 	db.SetConnMaxLifetime(0)
 	db.SetConnMaxIdleTime(0)
 
 	if err := verifyPragmas(ctx, db, opts); err != nil {
-		_ = db.Close()
+		closeDBOnError(db, "verify sqlite pragmas")
 		return nil, err
 	}
 
 	if err := db.PingContext(ctx); err != nil {
-		_ = db.Close()
+		closeDBOnError(db, "ping sqlite")
 		return nil, fmt.Errorf("db: failed to ping sqlite %s: %w", opts.Path, err)
 	}
 
 	if err := RunMigrations(ctx, db); err != nil {
-		_ = db.Close()
+		closeDBOnError(db, "run sqlite migrations")
 		return nil, err
 	}
 
@@ -160,7 +159,11 @@ func verifyPragmas(ctx context.Context, db *sql.DB, opts Options) error {
 	if err != nil {
 		return fmt.Errorf("db: failed to get sqlite conn: %w", err)
 	}
-	defer conn.Close()
+	defer func() {
+		if closeErr := conn.Close(); closeErr != nil {
+			slog.ErrorContext(ctx, "failed to close sqlite connection", "error", closeErr)
+		}
+	}()
 
 	if !opts.DisableForeignKeys {
 		var enabled int
@@ -172,7 +175,6 @@ func verifyPragmas(ctx context.Context, db *sql.DB, opts Options) error {
 		}
 	}
 
-	// 模板默认开启 WAL 模式
 	var mode string
 	if err := conn.QueryRowContext(ctx, "PRAGMA journal_mode").Scan(&mode); err != nil {
 		return fmt.Errorf("db: failed to verify WAL: %w", err)
@@ -192,6 +194,15 @@ func verifyPragmas(ctx context.Context, db *sql.DB, opts Options) error {
 	}
 
 	return nil
+}
+
+func closeDBOnError(db *sql.DB, operation string) {
+	if db == nil {
+		return
+	}
+	if err := db.Close(); err != nil {
+		slog.Error("failed to close sqlite database after error", "operation", operation, "error", err)
+	}
 }
 
 func normalizeContext(ctx context.Context) context.Context {

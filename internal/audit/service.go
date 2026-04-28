@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"main/internal/database"
@@ -167,13 +168,17 @@ func (s *Service) List(ctx context.Context, params ListParams) (ListResult, erro
 	if err != nil {
 		return ListResult{}, fmt.Errorf("audit: list logs: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil {
+			slog.WarnContext(ctx, "failed to close audit log rows", "error", closeErr)
+		}
+	}()
 
 	items := make([]Record, 0, params.PageSize)
 	for rows.Next() {
-		record, err := scanRecord(rows)
-		if err != nil {
-			return ListResult{}, err
+		record, scanErr := scanRecord(rows)
+		if scanErr != nil {
+			return ListResult{}, scanErr
 		}
 		items = append(items, record)
 	}

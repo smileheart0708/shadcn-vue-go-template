@@ -22,17 +22,17 @@ import (
 )
 
 type HandlerOptions struct {
-	Logger         *slog.Logger
-	LogStream      *logging.Stream
-	Auth           *auth.Service
-	Authorization  *authorization.Service
-	Identity       *identity.Service
-	Setup          *setup.Service
+	Logger          *slog.Logger
+	LogStream       *logging.Stream
+	Auth            *auth.Service
+	Authorization   *authorization.Service
+	Identity        *identity.Service
+	Setup           *setup.Service
 	AccountPolicies *accountpolicies.Service
-	Audit          *audit.Service
-	DataDir        string
-	FrontendFS     fs.FS
-	LogAPIRequests bool
+	Audit           *audit.Service
+	DataDir         string
+	FrontendFS      fs.FS
+	LogAPIRequests  bool
 }
 
 func NewHandlerWithOptions(options HandlerOptions) http.Handler {
