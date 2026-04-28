@@ -389,6 +389,7 @@ func appendRenderedAttrs(items []renderedAttr, groups []string, attr slog.Attr) 
 }
 
 func renderSlogValue(value slog.Value) string {
+	value = value.Resolve()
 	switch value.Kind() {
 	case slog.KindString:
 		return value.String()
@@ -407,6 +408,10 @@ func renderSlogValue(value slog.Value) string {
 		return value.Duration().String()
 	case slog.KindTime:
 		return value.Time().Format(time.RFC3339Nano)
+	case slog.KindGroup:
+		return renderSlogGroup(value.Group())
+	case slog.KindLogValuer:
+		return renderSlogValue(value.Resolve())
 	case slog.KindAny:
 		fallthrough
 	default:
@@ -424,6 +429,18 @@ func renderSlogValue(value slog.Value) string {
 		}
 		return string(data)
 	}
+}
+
+func renderSlogGroup(attrs []slog.Attr) string {
+	payload := make(map[string]any, len(attrs))
+	for _, attr := range attrs {
+		payload[attr.Key] = renderSlogValue(attr.Value)
+	}
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Sprintf("%v", payload)
+	}
+	return string(data)
 }
 
 func hiddenLogKey(key string) bool {
