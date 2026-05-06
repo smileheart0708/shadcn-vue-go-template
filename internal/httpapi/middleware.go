@@ -18,8 +18,8 @@ type requestAuthenticator interface {
 
 func Chain(handler http.Handler, middlewares ...Middleware) http.Handler {
 	wrapped := handler
-	for i := len(middlewares) - 1; i >= 0; i-- {
-		wrapped = middlewares[i](wrapped)
+	for _, middleware := range slices.Backward(middlewares) {
+		wrapped = middleware(wrapped)
 	}
 	return wrapped
 }

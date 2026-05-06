@@ -48,28 +48,24 @@ func (s *Service) ReadRefreshCookie(r *http.Request) (string, error) {
 	return cookie.Value, nil
 }
 
-func (s *Service) SetRefreshCookie(w http.ResponseWriter, r *http.Request, refreshToken string) {
-	http.SetCookie(w, &http.Cookie{
-		Name:     s.refreshCookieName,
-		Value:    refreshToken,
-		Path:     RefreshCookiePath,
-		MaxAge:   int(s.refreshAbsoluteTTL.Seconds()),
-		HttpOnly: true,
-		SameSite: http.SameSiteLaxMode,
-		Secure:   requestUsesHTTPS(r),
-	})
+func (s *Service) SetRefreshCookie(w http.ResponseWriter, _ *http.Request, refreshToken string) {
+	http.SetCookie(w, s.newRefreshCookie(refreshToken, int(s.refreshAbsoluteTTL.Seconds())))
 }
 
-func (s *Service) ClearRefreshCookie(w http.ResponseWriter, r *http.Request) {
-	http.SetCookie(w, &http.Cookie{
+func (s *Service) ClearRefreshCookie(w http.ResponseWriter, _ *http.Request) {
+	http.SetCookie(w, s.newRefreshCookie("", -1))
+}
+
+func (s *Service) newRefreshCookie(value string, maxAge int) *http.Cookie {
+	return &http.Cookie{
 		Name:     s.refreshCookieName,
-		Value:    "",
+		Value:    value,
 		Path:     RefreshCookiePath,
-		MaxAge:   -1,
+		MaxAge:   maxAge,
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
-		Secure:   requestUsesHTTPS(r),
-	})
+		Secure:   true,
+	}
 }
 
 func randomTokenComponent(bytes int) (string, error) {
@@ -95,14 +91,4 @@ func ParseRefreshToken(rawToken string) (string, string, error) {
 func hashRefreshToken(rawToken string) string {
 	sum := sha256.Sum256([]byte(rawToken))
 	return hex.EncodeToString(sum[:])
-}
-
-func requestUsesHTTPS(r *http.Request) bool {
-	if r == nil {
-		return false
-	}
-	if r.TLS != nil {
-		return true
-	}
-	return strings.EqualFold(strings.TrimSpace(r.Header.Get("X-Forwarded-Proto")), "https")
 }

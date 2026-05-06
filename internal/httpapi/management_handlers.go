@@ -52,7 +52,7 @@ func (api *API) getAccountPoliciesHandler(w http.ResponseWriter, r *http.Request
 
 func (api *API) updateAccountPoliciesHandler(w http.ResponseWriter, r *http.Request) {
 	var payload updateAccountPoliciesRequest
-	if err := decodeJSON(w, r, &payload); err != nil {
+	if err := decodeJSON(r.Context(), w, r, &payload); err != nil {
 		writeAPIError(w, http.StatusBadRequest, "invalid_request", describeJSONDecodeError(err))
 		return
 	}
@@ -119,7 +119,7 @@ func (api *API) createManagementUserHandler(w http.ResponseWriter, r *http.Reque
 	}
 
 	var payload createManagementUserRequest
-	if err := decodeJSON(w, r, &payload); err != nil {
+	if err := decodeJSON(r.Context(), w, r, &payload); err != nil {
 		writeAPIError(w, http.StatusBadRequest, "invalid_request", describeJSONDecodeError(err))
 		return
 	}
@@ -188,7 +188,7 @@ func (api *API) updateManagementUserHandler(w http.ResponseWriter, r *http.Reque
 	}
 
 	var payload updateManagementUserRequest
-	if err := decodeJSON(w, r, &payload); err != nil {
+	if err := decodeJSON(r.Context(), w, r, &payload); err != nil {
 		writeAPIError(w, http.StatusBadRequest, "invalid_request", describeJSONDecodeError(err))
 		return
 	}

@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -27,11 +28,11 @@ type successResponse[T any] struct {
 	Data    T    `json:"data"`
 }
 
-func decodeJSON(w http.ResponseWriter, r *http.Request, dst any) error {
+func decodeJSON(ctx context.Context, w http.ResponseWriter, r *http.Request, dst any) error {
 	r.Body = http.MaxBytesReader(w, r.Body, maxJSONBodyBytes)
 	defer func() {
 		if closeErr := r.Body.Close(); closeErr != nil {
-			slog.WarnContext(r.Context(), "failed to close request body", "error", closeErr)
+			slog.WarnContext(ctx, "failed to close request body", "error", closeErr)
 		}
 	}()
 

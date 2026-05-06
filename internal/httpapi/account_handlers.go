@@ -47,7 +47,7 @@ func (api *API) updateProfileHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var payload updateProfileRequest
-	if err := decodeJSON(w, r, &payload); err != nil {
+	if err := decodeJSON(r.Context(), w, r, &payload); err != nil {
 		writeAPIError(w, http.StatusBadRequest, "invalid_request", describeJSONDecodeError(err))
 		return
 	}
@@ -91,7 +91,7 @@ func (api *API) updateAvatarHandler(w http.ResponseWriter, r *http.Request) {
 		currentAvatarPath = avatarPathFromStoredName(api.dataDir, *actor.User.AvatarPath)
 	}
 
-	avatarFileName, err := api.storeAvatarUpload(w, r)
+	avatarFileName, err := api.storeAvatarUpload(r.Context(), w, r)
 	if err != nil {
 		var avatarError *avatarUploadError
 		if errors.As(err, &avatarError) {
@@ -129,7 +129,7 @@ func (api *API) changePasswordHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var payload changePasswordRequest
-	if err := decodeJSON(w, r, &payload); err != nil {
+	if err := decodeJSON(r.Context(), w, r, &payload); err != nil {
 		writeAPIError(w, http.StatusBadRequest, "invalid_request", describeJSONDecodeError(err))
 		return
 	}
@@ -213,7 +213,7 @@ func (err *avatarUploadError) Error() string {
 	return err.Message
 }
 
-func (api *API) storeAvatarUpload(w http.ResponseWriter, r *http.Request) (string, error) {
+func (api *API) storeAvatarUpload(ctx context.Context, w http.ResponseWriter, r *http.Request) (string, error) {
 	r.Body = http.MaxBytesReader(w, r.Body, maxAvatarUploadBodySize)
 
 	file, _, err := r.FormFile("avatar")
@@ -229,7 +229,7 @@ func (api *API) storeAvatarUpload(w http.ResponseWriter, r *http.Request) (strin
 	}
 	defer func() {
 		if closeErr := file.Close(); closeErr != nil {
-			api.loggerOrDefault().WarnContext(r.Context(), "failed to close avatar upload file", "error", closeErr)
+			api.loggerOrDefault().WarnContext(ctx, "failed to close avatar upload file", "error", closeErr)
 		}
 	}()
 

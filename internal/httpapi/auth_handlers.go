@@ -52,7 +52,7 @@ func (api *API) installStateHandler(w http.ResponseWriter, r *http.Request) {
 
 func (api *API) installSetupHandler(w http.ResponseWriter, r *http.Request) {
 	var payload installSetupRequest
-	if err := decodeJSON(w, r, &payload); err != nil {
+	if err := decodeJSON(r.Context(), w, r, &payload); err != nil {
 		writeAPIError(w, http.StatusBadRequest, "invalid_request", describeJSONDecodeError(err))
 		return
 	}
@@ -106,7 +106,7 @@ func (api *API) publicAuthConfigHandler(w http.ResponseWriter, r *http.Request) 
 
 func (api *API) loginHandler(w http.ResponseWriter, r *http.Request) {
 	var payload loginRequest
-	if err := decodeJSON(w, r, &payload); err != nil {
+	if err := decodeJSON(r.Context(), w, r, &payload); err != nil {
 		writeAPIError(w, http.StatusBadRequest, "invalid_request", describeJSONDecodeError(err))
 		return
 	}
@@ -131,7 +131,7 @@ func (api *API) loginHandler(w http.ResponseWriter, r *http.Request) {
 
 func (api *API) registerHandler(w http.ResponseWriter, r *http.Request) {
 	var payload registerRequest
-	if err := decodeJSON(w, r, &payload); err != nil {
+	if err := decodeJSON(r.Context(), w, r, &payload); err != nil {
 		writeAPIError(w, http.StatusBadRequest, "invalid_request", describeJSONDecodeError(err))
 		return
 	}
