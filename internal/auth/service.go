@@ -491,8 +491,8 @@ func (s *Service) Logout(ctx context.Context, rawToken string, ip string, userAg
 		return err
 	}
 
-	if err := s.revokeSessionByID(ctx, sessionID, "logout"); err != nil {
-		return err
+	if revokeErr := s.revokeSessionByID(ctx, sessionID, "logout"); revokeErr != nil {
+		return revokeErr
 	}
 
 	if err == nil && session.UserID > 0 {
@@ -534,7 +534,7 @@ func (s *Service) ChangePassword(ctx context.Context, actor Actor, currentPasswo
 
 	return database.WithTx(ctx, s.db, func(tx *sql.Tx) error {
 		now := time.Now().UTC()
-		if _, err := tx.ExecContext(
+		if _, updateCredentialErr := tx.ExecContext(
 			ctx,
 			`UPDATE credentials
 			SET password_hash = ?, password_changed_at = ?, updated_at = ?
@@ -543,11 +543,11 @@ func (s *Service) ChangePassword(ctx context.Context, actor Actor, currentPasswo
 			now.Unix(),
 			now.Unix(),
 			actor.User.ID,
-		); err != nil {
-			return fmt.Errorf("auth: update password credential: %w", err)
+		); updateCredentialErr != nil {
+			return fmt.Errorf("auth: update password credential: %w", updateCredentialErr)
 		}
 
-		if _, err := tx.ExecContext(
+		if _, bumpVersionErr := tx.ExecContext(
 			ctx,
 			`UPDATE users
 			SET security_version = security_version + 1,
@@ -555,11 +555,11 @@ func (s *Service) ChangePassword(ctx context.Context, actor Actor, currentPasswo
 			WHERE id = ?`,
 			now.Unix(),
 			actor.User.ID,
-		); err != nil {
-			return fmt.Errorf("auth: bump security version: %w", err)
+		); bumpVersionErr != nil {
+			return fmt.Errorf("auth: bump security version: %w", bumpVersionErr)
 		}
 
-		if _, err := tx.ExecContext(
+		if _, revokeSessionsErr := tx.ExecContext(
 			ctx,
 			`UPDATE auth_sessions
 			SET revoked_at = COALESCE(revoked_at, ?),
@@ -567,8 +567,8 @@ func (s *Service) ChangePassword(ctx context.Context, actor Actor, currentPasswo
 			WHERE user_id = ? AND revoked_at IS NULL`,
 			now.Unix(),
 			actor.User.ID,
-		); err != nil {
-			return fmt.Errorf("auth: revoke sessions after password change: %w", err)
+		); revokeSessionsErr != nil {
+			return fmt.Errorf("auth: revoke sessions after password change: %w", revokeSessionsErr)
 		}
 
 		return audit.NewService(tx).Log(ctx, audit.Entry{
@@ -600,7 +600,7 @@ func (s *Service) IssueSessionForUser(ctx context.Context, user identity.User, i
 	}
 
 	refreshToken := composeRefreshToken(sessionID, sessionSecret)
-	if _, err := s.db.ExecContext(
+	if _, insertSessionErr := s.db.ExecContext(
 		ctx,
 		`INSERT INTO auth_sessions (
 			id,
@@ -625,8 +625,8 @@ func (s *Service) IssueSessionForUser(ctx context.Context, user identity.User, i
 		now.Add(s.refreshIdleTTL).Unix(),
 		stringPointerOrNil(ip),
 		stringPointerOrNil(userAgent),
-	); err != nil {
-		return SessionResult{}, fmt.Errorf("auth: create refresh session: %w", err)
+	); insertSessionErr != nil {
+		return SessionResult{}, fmt.Errorf("auth: create refresh session: %w", insertSessionErr)
 	}
 
 	accessToken, expiresAt, err := s.issueAccessToken(user, sessionID)

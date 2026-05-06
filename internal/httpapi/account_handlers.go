@@ -256,16 +256,16 @@ func (api *API) storeAvatarUpload(ctx context.Context, w http.ResponseWriter, r 
 	}
 
 	avatarDir := identity.AvatarDir(api.dataDir)
-	if err := os.MkdirAll(avatarDir, avatarDirPermissions); err != nil {
-		return "", fmt.Errorf("create avatar dir: %w", err)
+	if mkdirErr := os.MkdirAll(avatarDir, avatarDirPermissions); mkdirErr != nil {
+		return "", fmt.Errorf("create avatar dir: %w", mkdirErr)
 	}
 
 	fullPath, err := resolveAvatarPath(api.dataDir, fileName)
 	if err != nil {
 		return "", err
 	}
-	if err := os.WriteFile(fullPath, data, avatarFilePermissions); err != nil {
-		return "", fmt.Errorf("write avatar file: %w", err)
+	if writeErr := os.WriteFile(fullPath, data, avatarFilePermissions); writeErr != nil {
+		return "", fmt.Errorf("write avatar file: %w", writeErr)
 	}
 
 	return fileName, nil

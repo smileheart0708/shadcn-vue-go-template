@@ -182,8 +182,8 @@ func (s *Service) List(ctx context.Context, params ListParams) (ListResult, erro
 		}
 		items = append(items, record)
 	}
-	if err := rows.Err(); err != nil {
-		return ListResult{}, fmt.Errorf("audit: iterate logs: %w", err)
+	if iterErr := rows.Err(); iterErr != nil {
+		return ListResult{}, fmt.Errorf("audit: iterate logs: %w", iterErr)
 	}
 
 	return ListResult{
@@ -235,8 +235,8 @@ func scanRecord(scanner rowScanner) (Record, error) {
 	record.OccurredAt = time.Unix(occurredAt, 0).UTC()
 
 	if metadataJSON.Valid && metadataJSON.String != "" {
-		if err := json.Unmarshal([]byte(metadataJSON.String), &record.Metadata); err != nil {
-			return Record{}, fmt.Errorf("audit: decode metadata: %w", err)
+		if decodeErr := json.Unmarshal([]byte(metadataJSON.String), &record.Metadata); decodeErr != nil {
+			return Record{}, fmt.Errorf("audit: decode metadata: %w", decodeErr)
 		}
 	}
 

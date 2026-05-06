@@ -61,19 +61,19 @@ func RunMigrations(ctx context.Context, db *sql.DB) error {
 	}
 
 	for _, migration := range migrations {
-		applied, err := getAppliedMigration(ctx, db, migration.Version)
-		if err == nil {
-			if err := reconcileAppliedMigration(ctx, db, migration, applied); err != nil {
-				return err
+		applied, migrationErr := getAppliedMigration(ctx, db, migration.Version)
+		if migrationErr == nil {
+			if reconcileErr := reconcileAppliedMigration(ctx, db, migration, applied); reconcileErr != nil {
+				return reconcileErr
 			}
 			continue
 		}
-		if !errors.Is(err, errMigrationNotApplied) {
-			return err
+		if !errors.Is(migrationErr, errMigrationNotApplied) {
+			return migrationErr
 		}
 
-		if err := applySQLMigration(ctx, db, migration); err != nil {
-			return err
+		if applyErr := applySQLMigration(ctx, db, migration); applyErr != nil {
+			return applyErr
 		}
 	}
 
@@ -112,18 +112,18 @@ func loadSQLMigrations() ([]sqlMigration, error) {
 		}
 
 		name := entry.Name()
-		version, err := migrationVersionFromFilename(name)
-		if err != nil {
-			return nil, err
+		version, parseErr := migrationVersionFromFilename(name)
+		if parseErr != nil {
+			return nil, parseErr
 		}
 
 		if existingName, exists := seenVersions[version]; exists {
 			return nil, fmt.Errorf("db: duplicate migration version %d in %s and %s", version, existingName, name)
 		}
 
-		content, err := embeddedMigrations.ReadFile(path.Join("migrations", name))
-		if err != nil {
-			return nil, fmt.Errorf("db: failed to read embedded migration %s: %w", name, err)
+		content, readErr := embeddedMigrations.ReadFile(path.Join("migrations", name))
+		if readErr != nil {
+			return nil, fmt.Errorf("db: failed to read embedded migration %s: %w", name, readErr)
 		}
 
 		sqlText := strings.TrimSpace(string(content))
@@ -177,8 +177,8 @@ func ensureSchemaMigrationsChecksumColumn(ctx context.Context, db *sql.DB) error
 		return err
 	}
 
-	if _, err := db.ExecContext(ctx, `ALTER TABLE schema_migrations ADD COLUMN checksum TEXT NULL`); err != nil {
-		return handleChecksumColumnAddError(ctx, db, err)
+	if _, alterErr := db.ExecContext(ctx, `ALTER TABLE schema_migrations ADD COLUMN checksum TEXT NULL`); alterErr != nil {
+		return handleChecksumColumnAddError(ctx, db, alterErr)
 	}
 	return nil
 }
@@ -218,15 +218,15 @@ func schemaMigrationsHasColumn(ctx context.Context, db *sql.DB, column string) (
 			defaultVal sql.NullString
 			primaryKey int
 		)
-		if err := rows.Scan(&cid, &name, &columnType, &notNull, &defaultVal, &primaryKey); err != nil {
-			return false, fmt.Errorf("db: failed to scan schema_migrations metadata: %w", err)
+		if scanErr := rows.Scan(&cid, &name, &columnType, &notNull, &defaultVal, &primaryKey); scanErr != nil {
+			return false, fmt.Errorf("db: failed to scan schema_migrations metadata: %w", scanErr)
 		}
 		if name == column {
 			return true, nil
 		}
 	}
-	if err := rows.Err(); err != nil {
-		return false, fmt.Errorf("db: failed to iterate schema_migrations metadata: %w", err)
+	if iterErr := rows.Err(); iterErr != nil {
+		return false, fmt.Errorf("db: failed to iterate schema_migrations metadata: %w", iterErr)
 	}
 
 	return false, nil
@@ -284,16 +284,16 @@ func applySQLMigration(ctx context.Context, db *sql.DB, migration sqlMigration) 
 		return fmt.Errorf("db: failed to begin migration %d (%s): %w", migration.Version, migration.Name, err)
 	}
 
-	if _, err := tx.ExecContext(ctx, migration.SQL); err != nil {
-		return rollbackMigrationTx(tx, fmt.Errorf("db: failed to apply migration %d (%s): %w", migration.Version, migration.Name, err))
+	if _, applyErr := tx.ExecContext(ctx, migration.SQL); applyErr != nil {
+		return rollbackMigrationTx(tx, fmt.Errorf("db: failed to apply migration %d (%s): %w", migration.Version, migration.Name, applyErr))
 	}
 
-	if err := recordAppliedMigration(ctx, tx, db, migration); err != nil {
-		return err
+	if recordErr := recordAppliedMigration(ctx, tx, db, migration); recordErr != nil {
+		return recordErr
 	}
 
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("db: failed to commit migration %d (%s): %w", migration.Version, migration.Name, err)
+	if commitErr := tx.Commit(); commitErr != nil {
+		return fmt.Errorf("db: failed to commit migration %d (%s): %w", migration.Version, migration.Name, commitErr)
 	}
 
 	return nil

@@ -94,17 +94,20 @@ func Open(ctx context.Context, opts Options) (*DBContainer, error) {
 	db.SetConnMaxLifetime(0)
 	db.SetConnMaxIdleTime(0)
 
-	if err := verifyPragmas(ctx, db, opts); err != nil {
+	err = verifyPragmas(ctx, db, opts)
+	if err != nil {
 		closeDBOnError(db, "verify sqlite pragmas")
 		return nil, err
 	}
 
-	if err := db.PingContext(ctx); err != nil {
+	err = db.PingContext(ctx)
+	if err != nil {
 		closeDBOnError(db, "ping sqlite")
 		return nil, fmt.Errorf("db: failed to ping sqlite %s: %w", opts.Path, err)
 	}
 
-	if err := RunMigrations(ctx, db); err != nil {
+	err = RunMigrations(ctx, db)
+	if err != nil {
 		closeDBOnError(db, "run sqlite migrations")
 		return nil, err
 	}
@@ -167,8 +170,8 @@ func verifyPragmas(ctx context.Context, db *sql.DB, opts Options) error {
 
 	if !opts.DisableForeignKeys {
 		var enabled int
-		if err := conn.QueryRowContext(ctx, "PRAGMA foreign_keys").Scan(&enabled); err != nil {
-			return fmt.Errorf("db: failed to verify foreign_keys: %w", err)
+		if scanErr := conn.QueryRowContext(ctx, "PRAGMA foreign_keys").Scan(&enabled); scanErr != nil {
+			return fmt.Errorf("db: failed to verify foreign_keys: %w", scanErr)
 		}
 		if enabled != 1 {
 			return fmt.Errorf("db: expected foreign_keys pragma to be enabled, got %d", enabled)
@@ -176,8 +179,8 @@ func verifyPragmas(ctx context.Context, db *sql.DB, opts Options) error {
 	}
 
 	var mode string
-	if err := conn.QueryRowContext(ctx, "PRAGMA journal_mode").Scan(&mode); err != nil {
-		return fmt.Errorf("db: failed to verify WAL: %w", err)
+	if scanErr := conn.QueryRowContext(ctx, "PRAGMA journal_mode").Scan(&mode); scanErr != nil {
+		return fmt.Errorf("db: failed to verify WAL: %w", scanErr)
 	}
 	if !strings.EqualFold(mode, "wal") {
 		return fmt.Errorf("db: expected WAL journal mode, got %q", mode)
@@ -185,8 +188,8 @@ func verifyPragmas(ctx context.Context, db *sql.DB, opts Options) error {
 
 	if opts.BusyTimeout > 0 {
 		var actualBusyTimeout int64
-		if err := conn.QueryRowContext(ctx, "PRAGMA busy_timeout").Scan(&actualBusyTimeout); err != nil {
-			return fmt.Errorf("db: failed to verify busy_timeout: %w", err)
+		if scanErr := conn.QueryRowContext(ctx, "PRAGMA busy_timeout").Scan(&actualBusyTimeout); scanErr != nil {
+			return fmt.Errorf("db: failed to verify busy_timeout: %w", scanErr)
 		}
 		if actualBusyTimeout < opts.BusyTimeout.Milliseconds() {
 			return fmt.Errorf("db: expected busy_timeout >= %dms, got %dms", opts.BusyTimeout.Milliseconds(), actualBusyTimeout)

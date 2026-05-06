@@ -146,7 +146,7 @@ func (s *Service) CreateUser(ctx context.Context, params CreateUserParams, actio
 			return fmt.Errorf("identity: read inserted user id: %w", err)
 		}
 
-		if _, err := tx.ExecContext(
+		_, err = tx.ExecContext(
 			ctx,
 			`INSERT INTO credentials (
 				user_id,
@@ -160,12 +160,13 @@ func (s *Service) CreateUser(ctx context.Context, params CreateUserParams, actio
 			now.Unix(),
 			now.Unix(),
 			now.Unix(),
-		); err != nil {
+		)
+		if err != nil {
 			return fmt.Errorf("identity: insert credential: %w", err)
 		}
 
 		if action.ActorUserID != nil {
-			if err := audit.NewService(tx).Log(ctx, audit.Entry{
+			err = audit.NewService(tx).Log(ctx, audit.Entry{
 				ActorUserID:   action.ActorUserID,
 				SubjectUserID: new(userID),
 				AuthSessionID: action.AuthSessionID,
@@ -177,7 +178,8 @@ func (s *Service) CreateUser(ctx context.Context, params CreateUserParams, actio
 					"role": role,
 				},
 				OccurredAt: now,
-			}); err != nil {
+			})
+			if err != nil {
 				return err
 			}
 		}
@@ -260,8 +262,8 @@ func (s *Service) UpdateProfile(ctx context.Context, userID int64, username stri
 	if err != nil {
 		return User{}, mapWriteError(err)
 	}
-	if err := ensureRowsAffected(result); err != nil {
-		return User{}, err
+	if affectedErr := ensureRowsAffected(result); affectedErr != nil {
+		return User{}, affectedErr
 	}
 
 	return s.GetUserByID(ctx, userID)
@@ -284,8 +286,8 @@ func (s *Service) UpdateAvatar(ctx context.Context, userID int64, avatarPath *st
 	if err != nil {
 		return User{}, fmt.Errorf("identity: update avatar: %w", err)
 	}
-	if err := ensureRowsAffected(result); err != nil {
-		return User{}, err
+	if affectedErr := ensureRowsAffected(result); affectedErr != nil {
+		return User{}, affectedErr
 	}
 
 	return s.GetUserByID(ctx, userID)
@@ -316,12 +318,12 @@ func (s *Service) UpdateManagedUser(ctx context.Context, userID int64, params Up
 		if err != nil {
 			return mapWriteError(err)
 		}
-		if err := ensureRowsAffected(result); err != nil {
-			return err
+		if affectedErr := ensureRowsAffected(result); affectedErr != nil {
+			return affectedErr
 		}
 
 		if action.ActorUserID != nil {
-			if err := audit.NewService(tx).Log(ctx, audit.Entry{
+			if auditErr := audit.NewService(tx).Log(ctx, audit.Entry{
 				ActorUserID:   action.ActorUserID,
 				SubjectUserID: new(userID),
 				AuthSessionID: action.AuthSessionID,
@@ -330,8 +332,8 @@ func (s *Service) UpdateManagedUser(ctx context.Context, userID int64, params Up
 				IP:            action.IP,
 				UserAgent:     action.UserAgent,
 				OccurredAt:    now,
-			}); err != nil {
-				return err
+			}); auditErr != nil {
+				return auditErr
 			}
 		}
 
@@ -371,7 +373,7 @@ func (s *Service) SetUserStatus(ctx context.Context, userID int64, status string
 			disabledAt = now.Unix()
 		}
 
-		result, err := tx.ExecContext(
+		result, updateErr := tx.ExecContext(
 			ctx,
 			`UPDATE users
 			SET status = ?,
@@ -384,15 +386,15 @@ func (s *Service) SetUserStatus(ctx context.Context, userID int64, status string
 			now.Unix(),
 			userID,
 		)
-		if err != nil {
-			return fmt.Errorf("identity: update status: %w", err)
+		if updateErr != nil {
+			return fmt.Errorf("identity: update status: %w", updateErr)
 		}
-		if err := ensureRowsAffected(result); err != nil {
-			return err
+		if affectedErr := ensureRowsAffected(result); affectedErr != nil {
+			return affectedErr
 		}
 
-		if err := revokeUserSessionsTx(ctx, tx, userID, "status_changed", now); err != nil {
-			return err
+		if revokeErr := revokeUserSessionsTx(ctx, tx, userID, "status_changed", now); revokeErr != nil {
+			return revokeErr
 		}
 
 		eventType := audit.EventUserDisabled
@@ -400,7 +402,7 @@ func (s *Service) SetUserStatus(ctx context.Context, userID int64, status string
 			eventType = audit.EventUserEnabled
 		}
 
-		if err := audit.NewService(tx).Log(ctx, audit.Entry{
+		if auditErr := audit.NewService(tx).Log(ctx, audit.Entry{
 			ActorUserID:   action.ActorUserID,
 			SubjectUserID: new(userID),
 			AuthSessionID: action.AuthSessionID,
@@ -409,8 +411,8 @@ func (s *Service) SetUserStatus(ctx context.Context, userID int64, status string
 			IP:            action.IP,
 			UserAgent:     action.UserAgent,
 			OccurredAt:    now,
-		}); err != nil {
-			return err
+		}); auditErr != nil {
+			return auditErr
 		}
 
 		updated, err = s.getUserQuerier(ctx, tx, userID)
@@ -438,8 +440,8 @@ func (s *Service) DeleteUser(ctx context.Context, userID int64, action ActionAud
 		if err != nil {
 			return fmt.Errorf("identity: delete user: %w", err)
 		}
-		if err := ensureRowsAffected(result); err != nil {
-			return err
+		if affectedErr := ensureRowsAffected(result); affectedErr != nil {
+			return affectedErr
 		}
 
 		return audit.NewService(tx).Log(ctx, audit.Entry{
@@ -476,14 +478,14 @@ func (s *Service) ListUsers(ctx context.Context, params ListUsersParams) (ListUs
 
 	items := make([]User, 0, params.PageSize)
 	for rows.Next() {
-		item, err := scanUser(rows)
-		if err != nil {
-			return ListUsersResult{}, errors.Join(err, closeRows(rows))
+		item, scanErr := scanUser(rows)
+		if scanErr != nil {
+			return ListUsersResult{}, errors.Join(scanErr, closeRows(rows))
 		}
 		items = append(items, item)
 	}
-	if err := errors.Join(rows.Err(), closeRows(rows)); err != nil {
-		return ListUsersResult{}, fmt.Errorf("identity: iterate users: %w", err)
+	if iterErr := errors.Join(rows.Err(), closeRows(rows)); iterErr != nil {
+		return ListUsersResult{}, fmt.Errorf("identity: iterate users: %w", iterErr)
 	}
 
 	return ListUsersResult{

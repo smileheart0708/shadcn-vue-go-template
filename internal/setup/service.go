@@ -104,15 +104,15 @@ func (s *Service) Complete(ctx context.Context, input CompleteSetupInput, reques
 	var ownerUserID int64
 	err = database.WithTx(ctx, s.db, func(tx *sql.Tx) error {
 		var setupState string
-		if err := tx.QueryRowContext(ctx, `SELECT setup_state FROM install_state WHERE id = 1`).Scan(&setupState); err != nil {
-			return fmt.Errorf("setup: load install state: %w", err)
+		if scanErr := tx.QueryRowContext(ctx, `SELECT setup_state FROM install_state WHERE id = 1`).Scan(&setupState); scanErr != nil {
+			return fmt.Errorf("setup: load install state: %w", scanErr)
 		}
 		if setupState == StateCompleted {
 			return ErrAlreadyCompleted
 		}
 
 		now := time.Now().UTC()
-		result, err := tx.ExecContext(
+		result, insertUserErr := tx.ExecContext(
 			ctx,
 			`INSERT INTO users (
 				username,
@@ -132,8 +132,8 @@ func (s *Service) Complete(ctx context.Context, input CompleteSetupInput, reques
 			now.Unix(),
 			now.Unix(),
 		)
-		if err != nil {
-			return mapIdentityWriteError(err)
+		if insertUserErr != nil {
+			return mapIdentityWriteError(insertUserErr)
 		}
 
 		ownerUserID, err = result.LastInsertId()
@@ -141,7 +141,7 @@ func (s *Service) Complete(ctx context.Context, input CompleteSetupInput, reques
 			return fmt.Errorf("setup: read owner user id: %w", err)
 		}
 
-		if _, err := tx.ExecContext(
+		if _, insertCredentialErr := tx.ExecContext(
 			ctx,
 			`INSERT INTO credentials (
 				user_id,
@@ -155,11 +155,11 @@ func (s *Service) Complete(ctx context.Context, input CompleteSetupInput, reques
 			now.Unix(),
 			now.Unix(),
 			now.Unix(),
-		); err != nil {
-			return fmt.Errorf("setup: insert owner credential: %w", err)
+		); insertCredentialErr != nil {
+			return fmt.Errorf("setup: insert owner credential: %w", insertCredentialErr)
 		}
 
-		if _, err := tx.ExecContext(
+		if _, updateStateErr := tx.ExecContext(
 			ctx,
 			`UPDATE install_state
 			SET setup_state = ?,
@@ -171,8 +171,8 @@ func (s *Service) Complete(ctx context.Context, input CompleteSetupInput, reques
 			ownerUserID,
 			now.Unix(),
 			now.Unix(),
-		); err != nil {
-			return fmt.Errorf("setup: update install state: %w", err)
+		); updateStateErr != nil {
+			return fmt.Errorf("setup: update install state: %w", updateStateErr)
 		}
 		return audit.NewService(tx).Log(ctx, audit.Entry{
 			ActorUserID:   new(ownerUserID),

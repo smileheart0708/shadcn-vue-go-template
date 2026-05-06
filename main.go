@@ -112,8 +112,8 @@ func run() error {
 
 	serverErrCh := make(chan error, 1)
 	go func() {
-		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			serverErrCh <- err
+		if listenErr := server.ListenAndServe(); listenErr != nil && !errors.Is(listenErr, http.ErrServerClosed) {
+			serverErrCh <- listenErr
 			return
 		}
 		serverErrCh <- nil
@@ -123,9 +123,9 @@ func run() error {
 	defer stop()
 
 	select {
-	case err := <-serverErrCh:
-		if err != nil {
-			return fmt.Errorf("http server stopped unexpectedly: %w", err)
+	case serverErr := <-serverErrCh:
+		if serverErr != nil {
+			return fmt.Errorf("http server stopped unexpectedly: %w", serverErr)
 		}
 		return nil
 	case <-signalCtx.Done():
@@ -135,12 +135,12 @@ func run() error {
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 	defer cancel()
 
-	if err := server.Shutdown(shutdownCtx); err != nil {
-		return fmt.Errorf("shutdown http server: %w", err)
+	if shutdownErr := server.Shutdown(shutdownCtx); shutdownErr != nil {
+		return fmt.Errorf("shutdown http server: %w", shutdownErr)
 	}
 
-	if err := <-serverErrCh; err != nil {
-		return fmt.Errorf("http server stopped unexpectedly: %w", err)
+	if serverErr := <-serverErrCh; serverErr != nil {
+		return fmt.Errorf("http server stopped unexpectedly: %w", serverErr)
 	}
 
 	slog.Info("application stopped")
