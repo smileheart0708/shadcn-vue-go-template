@@ -75,23 +75,23 @@ const visibleEntries = computed(() => {
     return [entry.text, entry.message, entry.source].some((value) => value.toLowerCase().includes(normalizedQuery))
   })
 })
-const connectionLabel = computed(() => {
+const connectionStatusLabel = computed(() => {
   if (connecting.value) {
-    return t('systemLogs.connection.connecting')
+    return 'Connecting'
   }
   if (connected.value) {
-    return t('systemLogs.connection.connected')
+    return 'Connected'
   }
-  return t('systemLogs.connection.disconnected')
+  return 'Disconnected'
 })
-const connectionVariant = computed(() => {
+const connectionIndicatorClass = computed(() => {
   if (connecting.value) {
-    return 'warning'
+    return 'bg-amber-500'
   }
   if (connected.value) {
-    return 'outline'
+    return 'bg-emerald-500'
   }
-  return 'secondary'
+  return 'bg-red-500'
 })
 const auditTotalPages = computed(() => Math.max(1, Math.ceil(auditTotal.value / auditPageSize.value)))
 const auditDateFormatter = computed(
@@ -378,11 +378,13 @@ async function waitForReconnect(delayMs: number, signal: AbortSignal): Promise<b
 </script>
 
 <template>
-  <div class="flex flex-1 flex-col gap-6 p-4 lg:p-6">
-    <section class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-      <div>
+  <div class="flex flex-1 flex-col gap-4 p-4 lg:min-h-0 lg:gap-6 lg:overflow-hidden lg:p-6">
+    <section class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+      <div class="flex flex-wrap items-center gap-3">
         <h1 class="text-2xl font-semibold">{{ t('systemLogs.title') }}</h1>
-        <p class="text-sm text-muted-foreground">{{ t('systemLogs.description') }}</p>
+        <Badge variant="outline">
+          {{ t('systemLogs.summary.buffered', { count: entries.length }) }}
+        </Badge>
       </div>
 
       <Tabs
@@ -401,30 +403,37 @@ async function waitForReconnect(delayMs: number, signal: AbortSignal): Promise<b
       </Tabs>
     </section>
 
-    <Tabs v-model="activeTab">
+    <Tabs
+      v-model="activeTab"
+      class="lg:min-h-0 lg:flex-1"
+    >
       <TabsContent
         value="console"
-        class="space-y-6"
+        class="flex flex-col gap-6 lg:min-h-0 lg:flex-1"
       >
-        <div class="flex flex-wrap items-center gap-2">
-          <Badge :variant="connectionVariant">
-            {{ connectionLabel }}
-          </Badge>
-          <Badge variant="outline">
-            {{ t('systemLogs.summary.buffered', { count: entries.length }) }}
-          </Badge>
-          <Badge
-            v-if="streamError"
-            variant="destructive"
-            class="max-w-full truncate"
-          >
-            {{ streamError }}
-          </Badge>
-        </div>
-
-        <Card>
-          <CardHeader class="flex flex-row items-center justify-between">
-            <CardTitle class="text-lg">{{ t('systemLogs.console.title') }}</CardTitle>
+        <Card class="lg:min-h-0 lg:flex-1 lg:overflow-hidden">
+          <CardHeader class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div class="flex min-w-0 flex-wrap items-center gap-2">
+              <CardTitle class="text-lg">{{ t('systemLogs.console.title') }}</CardTitle>
+              <span
+                class="relative inline-flex size-3 items-center justify-center"
+                :aria-label="connectionStatusLabel"
+                role="status"
+              >
+                <span
+                  v-if="connected"
+                  class="absolute inline-flex size-full animate-ping rounded-full bg-emerald-500 opacity-60"
+                />
+                <span :class="cn('relative inline-flex size-3 rounded-full shadow-sm ring-2 ring-background', connectionIndicatorClass)" />
+              </span>
+              <Badge
+                v-if="streamError"
+                variant="destructive"
+                class="max-w-full truncate"
+              >
+                {{ streamError }}
+              </Badge>
+            </div>
 
             <div class="flex flex-wrap items-center gap-2">
               <Button
@@ -462,7 +471,7 @@ async function waitForReconnect(delayMs: number, signal: AbortSignal): Promise<b
             </div>
           </CardHeader>
 
-          <CardContent class="space-y-4">
+          <CardContent class="flex flex-col gap-4 lg:min-h-0 lg:flex-1">
             <div class="flex flex-col gap-3 md:flex-row md:items-center">
               <Input
                 v-model="searchQuery"
@@ -487,10 +496,10 @@ async function waitForReconnect(delayMs: number, signal: AbortSignal): Promise<b
               </Select>
             </div>
 
-            <div class="rounded-xl border bg-sidebar/40">
+            <div class="flex min-h-0 flex-1 flex-col rounded-xl border bg-sidebar/40">
               <div
                 ref="viewport"
-                class="h-128 overflow-auto rounded-xl"
+                class="h-128 overflow-auto rounded-xl lg:h-auto lg:min-h-0 lg:flex-1"
                 @scroll="handleViewportScroll"
               >
                 <div

@@ -346,17 +346,11 @@ const enUS = {
   theme: { light: 'Light', dark: 'Dark', system: 'System' },
   systemLogs: {
     title: 'System Logs',
-    description: 'View live application logs and paginated authentication/security audit records from the current process.',
     tabs: {
       console: 'Live Logs',
       audit: 'Audit Logs',
     },
     summary: { buffered: '{count} buffered' },
-    connection: {
-      connected: 'Connected',
-      connecting: 'Connecting',
-      disconnected: 'Disconnected',
-    },
     console: { title: 'Live Console' },
     actions: {
       clear: 'Clear',

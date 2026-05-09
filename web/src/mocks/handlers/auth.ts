@@ -184,7 +184,7 @@ const baseSystemLogs = [
 function createSystemLogEntry(id: number, level: 'DEBUG' | 'INFO' | 'WARN' | 'ERROR', source: string, text: string) {
   return {
     id,
-    timestamp: Date.now(),
+    timestamp: Math.floor(Date.now() / 1000),
     level,
     source,
     message: text,
@@ -414,17 +414,33 @@ function readPositiveInt(url: URL, key: string, fallback: number) {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback
 }
 
+function formatSystemLogEvent(entry: ReturnType<typeof createSystemLogEntry>) {
+  return `event: log\ndata: ${JSON.stringify(entry)}\n\n`
+}
+
 function buildSystemLogStreamResponse() {
-  const latestEntry = createSystemLogEntry(
-    state.nextLogId++,
-    state.installState.setupCompleted ? 'INFO' : 'WARN',
-    state.installState.setupCompleted ? 'auth' : 'setup',
-    state.installState.setupCompleted ? 'Mock stream replayed for authenticated session.' : 'Mock stream replayed while setup is pending.',
-  )
+  const encoder = new TextEncoder()
+  let intervalId: ReturnType<typeof setInterval> | null = null
 
-  const payload = [...baseSystemLogs, latestEntry].map((entry) => `event: log\ndata: ${JSON.stringify(entry)}\n\n`).join('')
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      for (const entry of baseSystemLogs) {
+        controller.enqueue(encoder.encode(formatSystemLogEvent(entry)))
+      }
 
-  return new HttpResponse(payload, {
+      intervalId = setInterval(() => {
+        const entry = createSystemLogEntry(state.nextLogId++, 'INFO', 'mock', 'Mock system log placeholder heartbeat.')
+        controller.enqueue(encoder.encode(formatSystemLogEvent(entry)))
+      }, 5_000)
+    },
+    cancel() {
+      if (intervalId !== null) {
+        clearInterval(intervalId)
+      }
+    },
+  })
+
+  return new HttpResponse(stream, {
     headers: {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',

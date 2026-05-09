@@ -313,10 +313,8 @@ export interface MessageSchema {
   theme: { light: string; dark: string; system: string }
   systemLogs: {
     title: string
-    description: string
     tabs: { console: string; audit: string }
     summary: { buffered: string }
-    connection: { connected: string; connecting: string; disconnected: string }
     console: { title: string }
     actions: { clear: string; export: string; pauseFollow: string; resumeFollow: string; reconnect: string }
     export: {

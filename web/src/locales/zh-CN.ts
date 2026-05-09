@@ -346,17 +346,11 @@ const zhCN = {
   theme: { light: '浅色', dark: '深色', system: '跟随系统' },
   systemLogs: {
     title: '系统日志',
-    description: '实时查看当前进程应用日志，并按分页查看认证与安全审计事件。',
     tabs: {
       console: '实时日志',
       audit: '安全审计',
     },
     summary: { buffered: '已缓冲 {count} 条' },
-    connection: {
-      connected: '实时连接中',
-      connecting: '连接中',
-      disconnected: '已断开',
-    },
     console: { title: '实时控制台' },
     actions: {
       clear: '清空',
