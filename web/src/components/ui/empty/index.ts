@@ -12,7 +12,7 @@ export const emptyMediaVariants = cva('mbe-2 flex shrink-0 items-center justify-
   variants: {
     variant: {
       default: 'bg-transparent',
-      icon: "flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted text-foreground [&_svg:not([class*='size-'])]:size-6",
+      icon: "flex shrink-0 items-center justify-center rounded-lg bg-muted text-foreground block-10 inline-10 [&_svg:not([class*='size-'])]:block-6 [&_svg:not([class*='size-'])]:inline-6",
     },
   },
   defaultVariants: { variant: 'default' },

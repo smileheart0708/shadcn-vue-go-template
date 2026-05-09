@@ -15,16 +15,16 @@ const width = computed(() => {
   <div
     data-slot="sidebar-menu-skeleton"
     data-sidebar="menu-skeleton"
-    :class="cn('flex h-8 items-center gap-2 rounded-md px-2', props.class)"
+    :class="cn('flex items-center gap-2 rounded-md px-2 block-8', props.class)"
   >
     <Skeleton
       v-if="showIcon === true"
-      class="size-4 rounded-md"
+      class="rounded-md block-4 inline-4"
       data-sidebar="menu-skeleton-icon"
     />
 
     <Skeleton
-      class="h-4 max-w-(--skeleton-width) flex-1"
+      class="flex-1 block-4 max-inline-(--skeleton-width)"
       data-sidebar="menu-skeleton-text"
       :style="{ '--skeleton-width': width }"
     />

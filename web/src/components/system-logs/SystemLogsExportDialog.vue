@@ -71,7 +71,7 @@ function handleExport() {
 
 <template>
   <Dialog v-model:open="openModel">
-    <DialogContent class="sm:max-w-md">
+    <DialogContent class="sm:max-inline-md">
       <DialogHeader>
         <DialogTitle>{{ t('systemLogs.export.title') }}</DialogTitle>
         <DialogDescription>

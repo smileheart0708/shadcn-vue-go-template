@@ -22,7 +22,7 @@ const { isMobile, state, openMobile, setOpenMobile } = useSidebar()
   <div
     v-if="collapsible === 'none'"
     data-slot="sidebar"
-    :class="cn('flex h-full w-(--sidebar-width) flex-col bg-sidebar text-sidebar-foreground', props.class)"
+    :class="cn('flex flex-col bg-sidebar text-sidebar-foreground block-full inline-(--sidebar-width)', props.class)"
     v-bind="$attrs"
   >
     <slot />
@@ -39,14 +39,14 @@ const { isMobile, state, openMobile, setOpenMobile } = useSidebar()
       data-slot="sidebar"
       data-mobile="true"
       :side="side"
-      class="w-(--sidebar-width) bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden"
+      class="bg-sidebar p-0 text-sidebar-foreground inline-(--sidebar-width) [&>button]:hidden"
       :style="{ '--sidebar-width': SIDEBAR_WIDTH_MOBILE }"
     >
       <SheetHeader class="sr-only">
         <SheetTitle>Sidebar</SheetTitle>
         <SheetDescription>Displays the mobile sidebar.</SheetDescription>
       </SheetHeader>
-      <div class="flex size-full flex-col">
+      <div class="flex flex-col block-full inline-full">
         <slot />
       </div>
     </SheetContent>
@@ -65,24 +65,24 @@ const { isMobile, state, openMobile, setOpenMobile } = useSidebar()
     <div
       :class="
         cn(
-          'relative w-(--sidebar-width) bg-transparent transition-[width] duration-200 ease-linear',
-          'group-data-[collapsible=offcanvas]:w-0',
+          'relative bg-transparent transition-[width] duration-200 ease-linear inline-(--sidebar-width)',
+          'group-data-[collapsible=offcanvas]:inline-0',
           'group-data-[side=right]:rotate-180',
-          variant === 'floating' || variant === 'inset' ? 'group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+(--spacing(4)))]' : 'group-data-[collapsible=icon]:w-(--sidebar-width-icon)',
+          variant === 'floating' || variant === 'inset' ? 'group-data-[collapsible=icon]:inline-[calc(var(--sidebar-width-icon)+(--spacing(4)))]' : 'group-data-[collapsible=icon]:inline-(--sidebar-width-icon)',
         )
       "
     />
     <div
       :class="
         cn(
-          'fixed inset-y-0 z-10 hidden h-svh w-(--sidebar-width) transition-[left,right,width] duration-200 ease-linear md:flex',
+          'fixed inset-y-0 z-10 hidden transition-[left,right,width] duration-200 ease-linear block-svh inline-(--sidebar-width) md:flex',
           side === 'left'
-            ? 'inset-s-0 group-data-[collapsible=offcanvas]:inset-s-[calc(var(--sidebar-width)*-1)]'
-            : 'inset-e-0 group-data-[collapsible=offcanvas]:inset-e-[calc(var(--sidebar-width)*-1)]',
+            ? 'inset-s-0 group-data-[collapsible=offcanvas]:-inset-s-(--sidebar-width)'
+            : 'inset-e-0 group-data-[collapsible=offcanvas]:-inset-e-(--sidebar-width)',
           // Adjust the padding for floating and inset variants.
           variant === 'floating' || variant === 'inset'
-            ? 'p-2 group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+(--spacing(4))+2px)]'
-            : 'group-data-[collapsible=icon]:w-(--sidebar-width-icon) group-data-[side=left]:border-e group-data-[side=right]:border-s',
+            ? 'p-2 group-data-[collapsible=icon]:inline-[calc(var(--sidebar-width-icon)+(--spacing(4))+2px)]'
+            : 'group-data-[collapsible=icon]:inline-(--sidebar-width-icon) group-data-[side=left]:border-e group-data-[side=right]:border-s',
           props.class,
         )
       "
@@ -90,7 +90,7 @@ const { isMobile, state, openMobile, setOpenMobile } = useSidebar()
     >
       <div
         data-sidebar="sidebar"
-        class="flex size-full flex-col bg-sidebar group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:border group-data-[variant=floating]:border-sidebar-border group-data-[variant=floating]:shadow-sm"
+        class="flex flex-col bg-sidebar block-full inline-full group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:border group-data-[variant=floating]:border-sidebar-border group-data-[variant=floating]:shadow-sm"
       >
         <slot />
       </div>

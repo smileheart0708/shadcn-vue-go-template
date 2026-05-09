@@ -116,9 +116,9 @@ async function goToDashboard() {
 </script>
 
 <template>
-  <div class="min-h-screen bg-background px-6 py-10 text-foreground">
-    <div class="mx-auto flex min-h-[calc(100vh-5rem)] w-full max-w-2xl items-center">
-      <div class="w-full space-y-8">
+  <div class="bg-background px-6 py-10 text-foreground min-block-screen">
+    <div class="mx-auto flex items-center inline-full max-inline-2xl min-block-[calc(100vh-5rem)]">
+      <div class="space-y-8 inline-full">
         <div class="space-y-2 text-center">
           <h1 class="text-3xl font-semibold tracking-tight sm:text-4xl">
             {{ t('setup.title') }}
@@ -128,7 +128,7 @@ async function goToDashboard() {
         <Stepper
           v-model="currentStep"
           :linear="false"
-          class="flex w-full items-start gap-3"
+          class="flex items-start gap-3 inline-full"
         >
           <StepperItem
             v-for="step in steps"
@@ -139,14 +139,14 @@ async function goToDashboard() {
           >
             <StepperSeparator
               v-if="step.step !== totalSteps"
-              class="absolute inset-s-[calc(50%+1.5rem)] inset-e-[calc(-50%+1.5rem)] inset-bs-4 block h-px rounded-full bg-border/70"
+              class="absolute inset-s-[calc(50%+1.5rem)] inset-e-[calc(-50%+1.5rem)] inset-bs-4 block rounded-full bg-border/70 block-px"
             />
 
             <StepperTrigger as-child>
-              <StepperIndicator class="size-10 shadow-sm">
+              <StepperIndicator class="shadow-sm block-10 inline-10">
                 <component
                   :is="step.icon"
-                  class="size-4"
+                  class="block-4 inline-4"
                 />
               </StepperIndicator>
             </StepperTrigger>
@@ -169,7 +169,7 @@ async function goToDashboard() {
           >
             <section
               :key="currentStep"
-              class="flex min-h-96 flex-col gap-6"
+              class="flex flex-col gap-6 min-block-96"
             >
               <template v-if="currentStep === 1">
                 <h2 class="text-xl font-semibold tracking-tight">{{ t('setup.step1') }}</h2>
@@ -217,7 +217,7 @@ async function goToDashboard() {
                       <Button
                         type="submit"
                         size="lg"
-                        class="w-full"
+                        class="inline-full"
                         :disabled="submitting || setupCompleted"
                       >
                         <Spinner
@@ -226,7 +226,7 @@ async function goToDashboard() {
                         />
                         <Rocket
                           v-else
-                          class="me-2 size-4"
+                          class="me-2 block-4 inline-4"
                         />
                         {{ submitting ? t('setup.creating') : t('setup.submit') }}
                       </Button>
@@ -237,8 +237,8 @@ async function goToDashboard() {
 
               <template v-else>
                 <div class="flex flex-1 flex-col items-center justify-center gap-8 py-6 text-center sm:py-10">
-                  <div class="flex size-20 items-center justify-center rounded-full bg-primary/10 text-primary">
-                    <Check class="size-10" />
+                  <div class="flex items-center justify-center rounded-full bg-primary/10 text-primary block-20 inline-20">
+                    <Check class="block-10 inline-10" />
                   </div>
 
                   <div class="space-y-3">
@@ -247,7 +247,7 @@ async function goToDashboard() {
 
                   <Button
                     size="lg"
-                    class="w-full px-8 sm:w-auto"
+                    class="px-8 inline-full sm:inline-auto"
                     @click="goToDashboard"
                   >
                     {{ t('setup.complete') }}

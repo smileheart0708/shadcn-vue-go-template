@@ -476,7 +476,7 @@ async function confirmDelete() {
           <CardContent class="space-y-4">
             <div class="flex flex-col gap-4 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between">
               <div class="flex items-center gap-4">
-                <Avatar class="size-12 rounded-full">
+                <Avatar class="rounded-full block-12 inline-12">
                   <AvatarImage
                     v-if="avatarImageSrc !== null"
                     :src="avatarImageSrc"
@@ -505,7 +505,7 @@ async function confirmDelete() {
                     {{ t('settings.account.edit') }}
                   </Button>
                 </DialogTrigger>
-                <DialogContent class="sm:max-w-110">
+                <DialogContent class="sm:max-inline-110">
                   <DialogHeader>
                     <DialogTitle>{{ t('settings.account.editProfile') }}</DialogTitle>
                     <DialogDescription>{{ t('settings.account.editProfileDesc') }}</DialogDescription>
@@ -513,7 +513,7 @@ async function confirmDelete() {
 
                   <div class="grid gap-4 py-4">
                     <div class="flex flex-col items-center gap-2">
-                      <Avatar class="size-20 rounded-full">
+                      <Avatar class="rounded-full block-20 inline-20">
                         <AvatarImage
                           v-if="editAvatarImageSrc !== null"
                           :src="editAvatarImageSrc"

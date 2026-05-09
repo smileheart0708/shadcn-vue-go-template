@@ -19,7 +19,7 @@ const forwarded = useForwardPropsEmits(delegatedProps, emits)
     data-slot="slider"
     :class="
       cn(
-        'relative flex w-full touch-none items-center select-none data-disabled:opacity-50 data-[orientation=vertical]:h-full data-[orientation=vertical]:min-h-44 data-[orientation=vertical]:w-auto data-[orientation=vertical]:flex-col',
+        'relative flex touch-none items-center select-none inline-full data-disabled:opacity-50 data-[orientation=vertical]:flex-col data-[orientation=vertical]:block-full data-[orientation=vertical]:inline-auto data-[orientation=vertical]:min-block-44',
         props.class,
       )
     "
@@ -27,11 +27,11 @@ const forwarded = useForwardPropsEmits(delegatedProps, emits)
   >
     <SliderTrack
       data-slot="slider-track"
-      class="relative grow overflow-hidden rounded-full bg-muted data-[orientation=horizontal]:h-1.5 data-[orientation=horizontal]:w-full data-[orientation=vertical]:h-full data-[orientation=vertical]:w-1.5"
+      class="relative grow overflow-hidden rounded-full bg-muted data-[orientation=horizontal]:block-1.5 data-[orientation=horizontal]:inline-full data-[orientation=vertical]:block-full data-[orientation=vertical]:inline-1.5"
     >
       <SliderRange
         data-slot="slider-range"
-        class="absolute bg-primary data-[orientation=horizontal]:h-full data-[orientation=vertical]:w-full"
+        class="absolute bg-primary data-[orientation=horizontal]:block-full data-[orientation=vertical]:inline-full"
       />
     </SliderTrack>
 
@@ -39,7 +39,7 @@ const forwarded = useForwardPropsEmits(delegatedProps, emits)
       v-for="(_, key) in sliderModelValue"
       :key="key"
       data-slot="slider-thumb"
-      class="block size-4 shrink-0 rounded-full border border-primary bg-white shadow-sm ring-ring/50 transition-[color,box-shadow] hover:ring-4 focus-visible:ring-4 focus-visible:outline-hidden disabled:pointer-events-none disabled:opacity-50"
+      class="block shrink-0 rounded-full border border-primary bg-white shadow-sm ring-ring/50 transition-[color,box-shadow] block-4 inline-4 hover:ring-4 focus-visible:ring-4 focus-visible:outline-hidden disabled:pointer-events-none disabled:opacity-50"
     />
   </SliderRoot>
 </template>

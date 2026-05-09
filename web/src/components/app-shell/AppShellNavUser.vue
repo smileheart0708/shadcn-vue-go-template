@@ -58,7 +58,7 @@ function switchLanguage(newLocale: AppLocale) {
             size="lg"
             class="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
           >
-            <Avatar class="size-8 rounded-lg">
+            <Avatar class="rounded-lg block-8 inline-8">
               <AvatarImage
                 v-if="user.avatarUrl"
                 :src="user.avatarUrl"
@@ -80,18 +80,18 @@ function switchLanguage(newLocale: AppLocale) {
                 {{ user.email ?? ' ' }}
               </span>
             </div>
-            <IconDotsVertical class="ms-auto size-4" />
+            <IconDotsVertical class="ms-auto block-4 inline-4" />
           </SidebarMenuButton>
         </DropdownMenuTrigger>
         <DropdownMenuContent
-          class="w-(--reka-dropdown-menu-trigger-width) min-w-56 rounded-lg"
+          class="rounded-lg inline-(--reka-dropdown-menu-trigger-width) min-inline-56"
           :side="isMobile ? 'bottom' : 'right'"
           :side-offset="4"
           align="end"
         >
           <DropdownMenuLabel class="p-0 font-normal">
             <div class="flex items-center gap-2 px-1 py-1.5 text-start text-sm">
-              <Avatar class="size-8 rounded-lg">
+              <Avatar class="rounded-lg block-8 inline-8">
                 <AvatarImage
                   v-if="user.avatarUrl"
                   :src="user.avatarUrl"

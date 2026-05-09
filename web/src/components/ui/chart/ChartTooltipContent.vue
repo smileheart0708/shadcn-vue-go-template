@@ -104,7 +104,7 @@ function formatTooltipValue(value: unknown): string {
 </script>
 
 <template>
-  <div :class="cn('grid min-w-32 items-start gap-1.5 rounded-lg border border-border/50 bg-background px-2.5 py-1.5 text-xs shadow-xl', props.class)">
+  <div :class="cn('grid items-start gap-1.5 rounded-lg border border-border/50 bg-background px-2.5 py-1.5 text-xs shadow-xl min-inline-32', props.class)">
     <slot>
       <div
         v-if="!nestLabel && tooltipLabel !== null"
@@ -116,7 +116,7 @@ function formatTooltipValue(value: unknown): string {
         <div
           v-for="{ value, itemConfig, indicatorColor, key } in payload"
           :key="key"
-          :class="cn('flex w-full flex-wrap items-stretch gap-2 [&>svg]:size-2.5 [&>svg]:text-muted-foreground', indicator === 'dot' ? 'items-center' : undefined)"
+          :class="cn('flex flex-wrap items-stretch gap-2 inline-full [&>svg]:text-muted-foreground [&>svg]:block-2.5 [&>svg]:inline-2.5', indicator === 'dot' ? 'items-center' : undefined)"
         >
           <component
             :is="itemConfig.icon"
@@ -126,9 +126,9 @@ function formatTooltipValue(value: unknown): string {
             <div
               :class="
                 cn('shrink-0 rounded-[2px] border-border bg-(--color-bg)', {
-                  'size-2.5': indicator === 'dot',
-                  'w-1': indicator === 'line',
-                  'w-0 border-[1.5px] border-dashed bg-transparent': indicator === 'dashed',
+                  'block-2.5 inline-2.5': indicator === 'dot',
+                  'inline-1': indicator === 'line',
+                  'border-[1.5px] border-dashed bg-transparent inline-0': indicator === 'dashed',
                   'my-0.5': nestLabel && indicator === 'dashed',
                 })
               "

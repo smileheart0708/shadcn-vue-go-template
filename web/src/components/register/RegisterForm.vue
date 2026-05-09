@@ -90,15 +90,15 @@ async function handleSubmit() {
       class="space-y-4 rounded-xl border p-6"
     >
       <div class="space-y-2 text-center">
-        <Skeleton class="mx-auto h-6 w-40 rounded-md" />
-        <Skeleton class="mx-auto h-4 w-60 rounded-md" />
+        <Skeleton class="mx-auto rounded-md block-6 inline-40" />
+        <Skeleton class="mx-auto rounded-md block-4 inline-60" />
       </div>
       <div class="space-y-3">
-        <Skeleton class="h-18 rounded-xl" />
-        <Skeleton class="h-18 rounded-xl" />
-        <Skeleton class="h-18 rounded-xl" />
-        <Skeleton class="h-18 rounded-xl" />
-        <Skeleton class="h-10 rounded-md" />
+        <Skeleton class="rounded-xl block-18" />
+        <Skeleton class="rounded-xl block-18" />
+        <Skeleton class="rounded-xl block-18" />
+        <Skeleton class="rounded-xl block-18" />
+        <Skeleton class="rounded-md block-10" />
       </div>
     </div>
 

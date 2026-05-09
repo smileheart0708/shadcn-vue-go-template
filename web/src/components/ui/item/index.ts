@@ -13,7 +13,7 @@ export { default as ItemSeparator } from './ItemSeparator.vue'
 export { default as ItemTitle } from './ItemTitle.vue'
 
 export const itemVariants = cva(
-  'group/item flex w-full flex-wrap items-center transition-colors duration-100 outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 [a]:transition-colors',
+  'group/item flex flex-wrap items-center transition-colors duration-100 outline-none inline-full focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 [a]:transition-colors',
   {
     variants: {
       variant: {
@@ -40,8 +40,8 @@ export const itemMediaVariants = cva(
     variants: {
       variant: {
         default: 'bg-transparent',
-        icon: "size-8 rounded-sm border bg-muted [&_svg:not([class*='size-'])]:size-4",
-        image: 'size-10 overflow-hidden rounded-sm [&_img]:size-full [&_img]:object-cover',
+        icon: "rounded-sm border bg-muted block-8 inline-8 [&_svg:not([class*='size-'])]:block-4 [&_svg:not([class*='size-'])]:inline-4",
+        image: 'overflow-hidden rounded-sm block-10 inline-10 [&_img]:object-cover [&_img]:block-full [&_img]:inline-full',
       },
     },
     defaultVariants: {

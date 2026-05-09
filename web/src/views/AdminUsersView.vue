@@ -220,7 +220,7 @@ function getStatusLabel(status: 'active' | 'disabled') {
         :disabled="!canCreateUsers"
         @click="openCreateDialog"
       >
-        <UserPlus class="me-2 size-4" />
+        <UserPlus class="me-2 block-4 inline-4" />
         {{ t('adminUsers.actions.createUser') }}
       </Button>
     </section>
@@ -229,7 +229,7 @@ function getStatusLabel(status: 'active' | 'disabled') {
       <Input
         v-model="searchQuery"
         :placeholder="t('adminUsers.filters.searchPlaceholder')"
-        class="min-w-0 flex-1"
+        class="flex-1 min-inline-0"
         @keydown.enter="submitFilters"
       />
 
@@ -237,7 +237,7 @@ function getStatusLabel(status: 'active' | 'disabled') {
         v-model="statusFilter"
         @update:model-value="submitFilters"
       >
-        <SelectTrigger class="w-auto shrink-0">
+        <SelectTrigger class="shrink-0 inline-auto">
           <SelectValue :placeholder="t('adminUsers.filters.statusPlaceholder')" />
         </SelectTrigger>
         <SelectContent>
@@ -272,7 +272,7 @@ function getStatusLabel(status: 'active' | 'disabled') {
               v-for="cell in 6"
               :key="cell"
             >
-              <Skeleton class="h-5 rounded-md" />
+              <Skeleton class="rounded-md block-5" />
             </TableCell>
           </TableRow>
         </TableBody>
@@ -356,7 +356,7 @@ function getStatusLabel(status: 'active' | 'disabled') {
                     >
                       <component
                         :is="user.status === 'active' ? ShieldBan : ShieldCheck"
-                        class="me-2 size-4"
+                        class="me-2 block-4 inline-4"
                       />
                       {{ user.status === 'active' ? t('adminUsers.actions.disable') : t('adminUsers.actions.enable') }}
                     </Button>
@@ -379,7 +379,7 @@ function getStatusLabel(status: 'active' | 'disabled') {
         <div class="flex items-center gap-2 text-sm text-muted-foreground">
           <Spinner
             v-if="refreshing"
-            class="size-4"
+            class="block-4 inline-4"
           />
           {{ t('adminUsers.table.pageSummary', { page, totalPages, total }) }}
         </div>

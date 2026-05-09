@@ -11,14 +11,14 @@ export { default as InputGroupText } from './InputGroupText.vue'
 export { default as InputGroupTextarea } from './InputGroupTextarea.vue'
 
 export const inputGroupAddonVariants = cva(
-  "flex h-auto cursor-text items-center justify-center gap-2 py-1.5 text-sm font-medium text-muted-foreground select-none group-data-[disabled=true]/input-group:opacity-50 [&>kbd]:rounded-[calc(var(--radius)-5px)] [&>svg:not([class*='size-'])]:size-4",
+  "flex cursor-text items-center justify-center gap-2 py-1.5 text-sm font-medium text-muted-foreground select-none block-auto group-data-[disabled=true]/input-group:opacity-50 [&>kbd]:rounded-[calc(var(--radius)-5px)] [&>svg:not([class*='size-'])]:block-4 [&>svg:not([class*='size-'])]:inline-4",
   {
     variants: {
       align: {
         'inline-start': 'order-first ps-3 has-[>button]:ms-[-0.45rem] has-[>kbd]:ms-[-0.35rem]',
         'inline-end': 'order-last pe-3 has-[>button]:me-[-0.45rem] has-[>kbd]:me-[-0.35rem]',
-        'block-start': 'order-first w-full justify-start px-3 pbs-3 group-has-[>input]/input-group:pbs-2.5 [.border-b]:pbe-3',
-        'block-end': 'order-last w-full justify-start px-3 pbe-3 group-has-[>input]/input-group:pbe-2.5 [.border-t]:pbs-3',
+        'block-start': 'order-first justify-start px-3 pbs-3 inline-full group-has-[>input]/input-group:pbs-2.5 [.border-b]:pbe-3',
+        'block-end': 'order-last justify-start px-3 pbe-3 inline-full group-has-[>input]/input-group:pbe-2.5 [.border-t]:pbs-3',
       },
     },
     defaultVariants: {
@@ -32,10 +32,10 @@ export type InputGroupVariants = VariantProps<typeof inputGroupAddonVariants>
 export const inputGroupButtonVariants = cva('flex items-center gap-2 text-sm shadow-none', {
   variants: {
     size: {
-      xs: "h-6 gap-1 rounded-[calc(var(--radius)-5px)] px-2 has-[>svg]:px-2 [&>svg:not([class*='size-'])]:size-3.5",
-      sm: 'h-8 gap-1.5 rounded-md px-2.5 has-[>svg]:px-2.5',
-      'icon-xs': 'size-6 rounded-[calc(var(--radius)-5px)] p-0 has-[>svg]:p-0',
-      'icon-sm': 'size-8 p-0 has-[>svg]:p-0',
+      xs: "gap-1 rounded-[calc(var(--radius)-5px)] px-2 block-6 has-[>svg]:px-2 [&>svg:not([class*='size-'])]:block-3.5 [&>svg:not([class*='size-'])]:inline-3.5",
+      sm: 'gap-1.5 rounded-md px-2.5 block-8 has-[>svg]:px-2.5',
+      'icon-xs': 'rounded-[calc(var(--radius)-5px)] p-0 block-6 inline-6 has-[>svg]:p-0',
+      'icon-sm': 'p-0 block-8 inline-8 has-[>svg]:p-0',
     },
   },
   defaultVariants: {

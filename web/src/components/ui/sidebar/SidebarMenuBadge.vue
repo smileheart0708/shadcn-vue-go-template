@@ -11,7 +11,7 @@ const props = defineProps<{ class?: HTMLAttributes['class'] }>()
     data-sidebar="menu-badge"
     :class="
       cn(
-        'pointer-events-none absolute inset-e-1 flex h-5 min-w-5 items-center justify-center rounded-md px-1 text-xs font-medium text-sidebar-foreground tabular-nums select-none',
+        'pointer-events-none absolute inset-e-1 flex items-center justify-center rounded-md px-1 text-xs font-medium text-sidebar-foreground tabular-nums select-none block-5 min-inline-5',
         'peer-hover/menu-button:text-sidebar-accent-foreground peer-data-[active=true]/menu-button:text-sidebar-accent-foreground',
         'peer-data-[size=sm]/menu-button:inset-bs-1',
         'peer-data-[size=default]/menu-button:inset-bs-1.5',

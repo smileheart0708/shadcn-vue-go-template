@@ -24,24 +24,24 @@ const props = withDefaults(defineProps<ToasterProps>(), {
     v-bind="props"
   >
     <template #success-icon>
-      <CircleCheckIcon class="size-4" />
+      <CircleCheckIcon class="block-4 inline-4" />
     </template>
     <template #info-icon>
-      <InfoIcon class="size-4" />
+      <InfoIcon class="block-4 inline-4" />
     </template>
     <template #warning-icon>
-      <TriangleAlertIcon class="size-4" />
+      <TriangleAlertIcon class="block-4 inline-4" />
     </template>
     <template #error-icon>
-      <OctagonXIcon class="size-4" />
+      <OctagonXIcon class="block-4 inline-4" />
     </template>
     <template #loading-icon>
       <div>
-        <Loader2Icon class="size-4 animate-spin" />
+        <Loader2Icon class="animate-spin block-4 inline-4" />
       </div>
     </template>
     <template #close-icon>
-      <XIcon class="size-4" />
+      <XIcon class="block-4 inline-4" />
     </template>
   </Sonner>
 </template>

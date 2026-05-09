@@ -18,7 +18,7 @@ const delegatedProps = reactiveOmit(props, 'class')
     :class="cn('flex items-center justify-center', props.class)"
   >
     <slot>
-      <MoreHorizontalIcon class="size-4" />
+      <MoreHorizontalIcon class="block-4 inline-4" />
       <span class="sr-only">More pages</span>
     </slot>
   </PaginationEllipsis>

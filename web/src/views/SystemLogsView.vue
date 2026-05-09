@@ -378,7 +378,7 @@ async function waitForReconnect(delayMs: number, signal: AbortSignal): Promise<b
 </script>
 
 <template>
-  <div class="flex flex-1 flex-col gap-4 p-4 lg:min-h-0 lg:gap-6 lg:overflow-hidden lg:p-6">
+  <div class="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:overflow-hidden lg:p-6 lg:min-block-0">
     <section class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
       <div class="flex flex-wrap items-center gap-3">
         <h1 class="text-2xl font-semibold">{{ t('systemLogs.title') }}</h1>
@@ -389,9 +389,9 @@ async function waitForReconnect(delayMs: number, signal: AbortSignal): Promise<b
 
       <Tabs
         v-model="activeTab"
-        class="w-full lg:w-auto"
+        class="inline-full lg:inline-auto"
       >
-        <TabsList class="w-full lg:w-auto">
+        <TabsList class="inline-full lg:inline-auto">
           <TabsTrigger value="console">{{ t('systemLogs.tabs.console') }}</TabsTrigger>
           <TabsTrigger
             v-if="canReadAuditLogs"
@@ -405,31 +405,31 @@ async function waitForReconnect(delayMs: number, signal: AbortSignal): Promise<b
 
     <Tabs
       v-model="activeTab"
-      class="lg:min-h-0 lg:flex-1"
+      class="lg:flex-1 lg:min-block-0"
     >
       <TabsContent
         value="console"
-        class="flex flex-col gap-6 lg:min-h-0 lg:flex-1"
+        class="flex flex-col gap-6 lg:flex-1 lg:min-block-0"
       >
-        <Card class="lg:min-h-0 lg:flex-1 lg:overflow-hidden">
+        <Card class="lg:flex-1 lg:overflow-hidden lg:min-block-0">
           <CardHeader class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div class="flex min-w-0 flex-wrap items-center gap-2">
+            <div class="flex flex-wrap items-center gap-2 min-inline-0">
               <CardTitle class="text-lg">{{ t('systemLogs.console.title') }}</CardTitle>
               <span
-                class="relative inline-flex size-3 items-center justify-center"
+                class="relative inline-flex items-center justify-center block-3 inline-3"
                 :aria-label="connectionStatusLabel"
                 role="status"
               >
                 <span
                   v-if="connected"
-                  class="absolute inline-flex size-full animate-ping rounded-full bg-emerald-500 opacity-60"
+                  class="absolute inline-flex animate-ping rounded-full bg-emerald-500 opacity-60 block-full inline-full"
                 />
-                <span :class="cn('relative inline-flex size-3 rounded-full shadow-sm ring-2 ring-background', connectionIndicatorClass)" />
+                <span :class="cn('relative inline-flex rounded-full shadow-sm ring-2 ring-background block-3 inline-3', connectionIndicatorClass)" />
               </span>
               <Badge
                 v-if="streamError"
                 variant="destructive"
-                class="max-w-full truncate"
+                class="truncate max-inline-full"
               >
                 {{ streamError }}
               </Badge>
@@ -442,7 +442,7 @@ async function waitForReconnect(delayMs: number, signal: AbortSignal): Promise<b
                 :disabled="entries.length === 0"
                 @click="exportDialogOpen = true"
               >
-                <Download class="size-4" />
+                <Download class="block-4 inline-4" />
                 {{ t('systemLogs.actions.export') }}
               </Button>
               <Button
@@ -465,13 +465,13 @@ async function waitForReconnect(delayMs: number, signal: AbortSignal): Promise<b
                 :disabled="connecting"
                 @click="reconnect"
               >
-                <RefreshCw :class="cn('size-4', connecting && 'animate-spin')" />
+                <RefreshCw :class="cn('block-4 inline-4', connecting && 'animate-spin')" />
                 {{ t('systemLogs.actions.reconnect') }}
               </Button>
             </div>
           </CardHeader>
 
-          <CardContent class="flex flex-col gap-4 lg:min-h-0 lg:flex-1">
+          <CardContent class="flex flex-col gap-4 lg:flex-1 lg:min-block-0">
             <div class="flex flex-col gap-3 md:flex-row md:items-center">
               <Input
                 v-model="searchQuery"
@@ -480,7 +480,7 @@ async function waitForReconnect(delayMs: number, signal: AbortSignal): Promise<b
               />
 
               <Select v-model="levelFilter">
-                <SelectTrigger class="w-full md:w-40">
+                <SelectTrigger class="inline-full md:inline-40">
                   <SelectValue :placeholder="t('systemLogs.filters.levelPlaceholder')" />
                 </SelectTrigger>
                 <SelectContent>
@@ -496,10 +496,10 @@ async function waitForReconnect(delayMs: number, signal: AbortSignal): Promise<b
               </Select>
             </div>
 
-            <div class="flex min-h-0 flex-1 flex-col rounded-xl border bg-sidebar/40">
+            <div class="flex flex-1 flex-col rounded-xl border bg-sidebar/40 min-block-0">
               <div
                 ref="viewport"
-                class="h-128 overflow-auto rounded-xl lg:h-auto lg:min-h-0 lg:flex-1"
+                class="overflow-auto rounded-xl block-128 lg:flex-1 lg:block-auto lg:min-block-0"
                 @scroll="handleViewportScroll"
               >
                 <div
@@ -509,7 +509,7 @@ async function waitForReconnect(delayMs: number, signal: AbortSignal): Promise<b
                   <Skeleton
                     v-for="index in 8"
                     :key="index"
-                    class="h-11 rounded-lg"
+                    class="rounded-lg block-11"
                   />
                 </div>
 
@@ -528,7 +528,7 @@ async function waitForReconnect(delayMs: number, signal: AbortSignal): Promise<b
 
                 <div
                   v-else
-                  class="min-w-max space-y-1 p-3 font-mono text-xs/5 whitespace-nowrap"
+                  class="space-y-1 p-3 font-mono text-xs/5 whitespace-nowrap min-inline-max"
                 >
                   <div
                     v-for="entry in visibleEntries"
@@ -583,7 +583,7 @@ async function waitForReconnect(delayMs: number, signal: AbortSignal): Promise<b
                       v-for="cell in 6"
                       :key="cell"
                     >
-                      <Skeleton class="h-5 rounded-md" />
+                      <Skeleton class="rounded-md block-5" />
                     </TableCell>
                   </TableRow>
                 </TableBody>
@@ -636,7 +636,7 @@ async function waitForReconnect(delayMs: number, signal: AbortSignal): Promise<b
                         </TableCell>
                         <TableCell>{{ formatAuditActor(entry.actorUserId) }}</TableCell>
                         <TableCell>{{ formatAuditActor(entry.subjectUserId) }}</TableCell>
-                        <TableCell class="max-w-96 truncate">{{ formatAuditReason(entry.reason) }}</TableCell>
+                        <TableCell class="truncate max-inline-96">{{ formatAuditReason(entry.reason) }}</TableCell>
                       </TableRow>
                     </template>
                     <TableEmpty
@@ -653,7 +653,7 @@ async function waitForReconnect(delayMs: number, signal: AbortSignal): Promise<b
                 <div class="flex items-center gap-2 text-sm text-muted-foreground">
                   <Spinner
                     v-if="auditRefreshing"
-                    class="size-4"
+                    class="block-4 inline-4"
                   />
                   {{ t('systemLogs.audit.pageSummary', { page: auditPage, totalPages: auditTotalPages, total: auditTotal }) }}
                 </div>

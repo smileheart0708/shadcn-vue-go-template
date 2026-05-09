@@ -94,14 +94,14 @@ async function saveSettings() {
 
     <Card v-if="loading">
       <CardHeader>
-        <Skeleton class="h-6 w-32 rounded-md" />
+        <Skeleton class="rounded-md block-6 inline-32" />
       </CardHeader>
       <CardContent class="space-y-4">
-        <Skeleton class="h-16 rounded-lg" />
-        <Skeleton class="h-16 rounded-lg" />
+        <Skeleton class="rounded-lg block-16" />
+        <Skeleton class="rounded-lg block-16" />
         <div class="flex justify-end gap-2">
-          <Skeleton class="h-10 w-20 rounded-md" />
-          <Skeleton class="h-10 w-20 rounded-md" />
+          <Skeleton class="rounded-md block-10 inline-20" />
+          <Skeleton class="rounded-md block-10 inline-20" />
         </div>
       </CardContent>
     </Card>

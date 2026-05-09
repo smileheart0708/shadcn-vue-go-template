@@ -31,10 +31,10 @@ const forwarded = useForwardPropsEmits(delegatedProps, emits)
       :class="
         cn(
           'fixed z-50 flex flex-col gap-4 bg-background p-4 shadow-lg transition ease-in-out data-[state=closed]:animate-out data-[state=closed]:duration-300 data-[state=open]:animate-in data-[state=open]:duration-500',
-          side === 'right' && 'inset-y-0 inset-e-0 h-full w-3/4 border-s data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right sm:max-w-sm',
-          side === 'left' && 'inset-y-0 inset-s-0 h-full w-3/4 border-e data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left sm:max-w-sm',
-          side === 'top' && 'inset-x-0 inset-bs-0 h-auto border-be data-[state=closed]:slide-out-to-top data-[state=open]:slide-in-from-top',
-          side === 'bottom' && 'inset-x-0 inset-be-0 h-auto border-bs data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom',
+          side === 'right' && 'inset-y-0 inset-e-0 border-s block-full inline-3/4 data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right sm:max-inline-sm',
+          side === 'left' && 'inset-y-0 inset-s-0 border-e block-full inline-3/4 data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left sm:max-inline-sm',
+          side === 'top' && 'inset-x-0 inset-bs-0 border-be block-auto data-[state=closed]:slide-out-to-top data-[state=open]:slide-in-from-top',
+          side === 'bottom' && 'inset-x-0 inset-be-0 border-bs block-auto data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom',
           props.class,
         )
       "
@@ -45,7 +45,7 @@ const forwarded = useForwardPropsEmits(delegatedProps, emits)
       <DialogClose
         class="absolute inset-e-4 inset-bs-4 rounded-xs opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none data-[state=open]:bg-secondary"
       >
-        <X class="size-4" />
+        <X class="block-4 inline-4" />
         <span class="sr-only">Close</span>
       </DialogClose>
     </DialogContent>

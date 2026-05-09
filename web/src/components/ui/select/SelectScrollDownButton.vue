@@ -20,7 +20,7 @@ const forwardedProps = useForwardProps(delegatedProps)
     :class="cn('flex cursor-default items-center justify-center py-1', props.class)"
   >
     <slot>
-      <ChevronDown class="size-4" />
+      <ChevronDown class="block-4 inline-4" />
     </slot>
   </SelectScrollDownButton>
 </template>

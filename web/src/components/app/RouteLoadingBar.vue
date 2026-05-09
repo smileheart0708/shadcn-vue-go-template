@@ -15,17 +15,17 @@ const { t } = useI18n()
   >
     <div
       v-if="isRouteLoading"
-      class="pointer-events-none fixed inset-x-0 inset-bs-0 z-70 h-0.5 overflow-hidden"
+      class="pointer-events-none fixed inset-x-0 inset-bs-0 z-70 overflow-hidden block-0.5"
       role="status"
       aria-live="polite"
     >
       <span class="sr-only">{{ t('common.state.loading') }}</span>
       <span
-        class="absolute inset-y-0 inset-s-0 w-[34%] rounded-full bg-[linear-gradient(90deg,transparent_0%,var(--primary)_45%,var(--primary)_55%,transparent_100%)] motion-reduce:w-full motion-reduce:animate-none"
+        class="absolute inset-y-0 inset-s-0 rounded-full bg-[linear-gradient(90deg,transparent_0%,var(--primary)_45%,var(--primary)_55%,transparent_100%)] inline-[34%] motion-reduce:animate-none motion-reduce:inline-full"
         style="animation: route-loading-sweep 1.05s linear infinite"
       />
       <span
-        class="absolute -inset-y-1.5 inset-s-0 w-[34%] rounded-full bg-[linear-gradient(90deg,transparent_0%,var(--primary)_45%,var(--primary)_55%,transparent_100%)] opacity-[0.35] blur-[10px] motion-reduce:hidden"
+        class="absolute -inset-y-1.5 inset-s-0 rounded-full bg-[linear-gradient(90deg,transparent_0%,var(--primary)_45%,var(--primary)_55%,transparent_100%)] opacity-[0.35] blur-[10px] inline-[34%] motion-reduce:hidden"
         style="animation: route-loading-sweep 1.05s linear infinite"
       />
     </div>

@@ -242,7 +242,7 @@ function formatTooltipDate(value: number | Date) {
 </script>
 
 <template>
-  <Card class="h-full min-h-0 flex-col gap-0 overflow-hidden py-0">
+  <Card class="flex-col gap-0 overflow-hidden py-0 block-full min-block-0">
     <CardHeader class="flex items-center gap-2 space-y-0 border-be py-5 sm:flex-row">
       <div class="grid flex-1 gap-1">
         <CardTitle>Area Chart - Interactive</CardTitle>
@@ -250,7 +250,7 @@ function formatTooltipDate(value: number | Date) {
       </div>
       <Select v-model="timeRange">
         <SelectTrigger
-          class="hidden w-40 rounded-lg sm:ms-auto sm:flex"
+          class="hidden rounded-lg inline-40 sm:ms-auto sm:flex"
           aria-label="Select a value"
         >
           <SelectValue placeholder="Last 3 months" />
@@ -277,16 +277,16 @@ function formatTooltipDate(value: number | Date) {
         </SelectContent>
       </Select>
     </CardHeader>
-    <CardContent class="min-h-0 flex-1 px-2 py-4 sm:px-6 sm:pbs-6">
+    <CardContent class="flex-1 px-2 py-4 min-block-0 sm:px-6 sm:pbs-6">
       <div
         ref="chartShell"
-        class="relative flex h-full min-h-0 flex-col"
+        class="relative flex flex-col block-full min-block-0"
       >
-        <div class="relative flex h-full min-h-0 flex-1">
+        <div class="relative flex flex-1 block-full min-block-0">
           <ChartContainer
             v-if="filteredChartData.length > 0 && chartWidth > 0"
             :config="chartConfig"
-            class="size-full min-h-0 opacity-100 transition-[opacity,filter] duration-200"
+            class="opacity-100 transition-[opacity,filter] duration-200 block-full inline-full min-block-0"
             :cursor="false"
           >
             <VisXYContainer
@@ -294,7 +294,7 @@ function formatTooltipDate(value: number | Date) {
               :width="chartWidth > 0 ? chartWidth : undefined"
               :margin="chartMargin"
               :auto-margin="false"
-              class="h-auto! min-h-0 flex-1"
+              class="flex-1 block-auto! min-block-0"
             >
               <VisArea
                 :x="(d: Data) => d.date"

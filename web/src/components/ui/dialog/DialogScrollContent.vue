@@ -25,7 +25,7 @@ const forwarded = useForwardPropsEmits(delegatedProps, emits)
       class="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-black/80 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0"
     >
       <DialogContent
-        :class="cn('relative z-50 my-8 grid w-[calc(100%-2rem)] max-w-lg gap-4 rounded-lg border border-border bg-background p-6 shadow-lg duration-200', props.class)"
+        :class="cn('relative z-50 my-8 grid gap-4 rounded-lg border border-border bg-background p-6 shadow-lg duration-200 inline-[calc(100%-2rem)] max-inline-lg', props.class)"
         v-bind="{ ...$attrs, ...forwarded }"
         @pointer-down-outside="
           (event) => {
@@ -40,7 +40,7 @@ const forwarded = useForwardPropsEmits(delegatedProps, emits)
         <slot />
 
         <DialogClose class="absolute inset-e-4 inset-bs-4 rounded-md p-0.5 transition-colors hover:bg-secondary">
-          <X class="size-4" />
+          <X class="block-4 inline-4" />
           <span class="sr-only">Close</span>
         </DialogClose>
       </DialogContent>

@@ -8,7 +8,7 @@ const props = defineProps<{
 </script>
 
 <template>
-  <span :class="cn('flex items-center gap-2 text-sm text-muted-foreground [&_svg]:pointer-events-none [&_svg:not([class*=\'size-\'])]:size-4', props.class)">
+  <span :class="cn('flex items-center gap-2 text-sm text-muted-foreground [&_svg]:pointer-events-none [&_svg:not([class*=\'size-\'])]:block-4 [&_svg:not([class*=\'size-\'])]:inline-4', props.class)">
     <slot />
   </span>
 </template>

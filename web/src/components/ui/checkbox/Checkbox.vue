@@ -21,7 +21,7 @@ const forwarded = useForwardPropsEmits(delegatedProps, emits)
     v-bind="forwarded"
     :class="
       cn(
-        'peer size-4 shrink-0 rounded-[4px] border border-input shadow-xs transition-shadow outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 data-[state=checked]:border-primary data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground dark:aria-invalid:ring-destructive/40',
+        'peer shrink-0 rounded-[4px] border border-input shadow-xs transition-shadow outline-none block-4 inline-4 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 data-[state=checked]:border-primary data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground dark:aria-invalid:ring-destructive/40',
         props.class,
       )
     "
@@ -31,7 +31,7 @@ const forwarded = useForwardPropsEmits(delegatedProps, emits)
       class="grid place-content-center text-current transition-none"
     >
       <slot v-bind="slotProps">
-        <Check class="size-3.5" />
+        <Check class="block-3.5 inline-3.5" />
       </slot>
     </CheckboxIndicator>
   </CheckboxRoot>

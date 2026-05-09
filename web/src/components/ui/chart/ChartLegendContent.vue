@@ -52,7 +52,7 @@ onMounted(() => {
     <div
       v-for="{ key, itemConfig } in payload"
       :key="key"
-      :class="cn('flex items-center gap-1.5 [&>svg]:size-3 [&>svg]:text-muted-foreground')"
+      :class="cn('flex items-center gap-1.5 [&>svg]:text-muted-foreground [&>svg]:block-3 [&>svg]:inline-3')"
     >
       <component
         :is="itemConfig.icon"
@@ -60,7 +60,7 @@ onMounted(() => {
       />
       <div
         v-else
-        class="size-2 shrink-0 rounded-[2px]"
+        class="shrink-0 rounded-[2px] block-2 inline-2"
         :style="{ backgroundColor: itemConfig.color }"
       />
 

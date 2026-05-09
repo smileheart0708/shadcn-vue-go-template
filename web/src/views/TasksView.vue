@@ -162,23 +162,23 @@ function toggleColumnVisibility(columnId: TaskColumnId, nextValue: boolean) {
         <Input
           v-model="filterText"
           placeholder="Filter tasks..."
-          class="h-9 w-full sm:w-80 lg:w-94"
+          class="block-9 inline-full sm:inline-80 lg:inline-94"
         />
         <div class="flex flex-wrap gap-3">
           <Button
             variant="outline"
             size="sm"
-            class="h-9 justify-start gap-2.5"
+            class="justify-start gap-2.5 block-9"
           >
-            <CirclePlus class="size-4" />
+            <CirclePlus class="block-4 inline-4" />
             Status
           </Button>
           <Button
             variant="outline"
             size="sm"
-            class="h-9 justify-start gap-2.5"
+            class="justify-start gap-2.5 block-9"
           >
-            <CirclePlus class="size-4" />
+            <CirclePlus class="block-4 inline-4" />
             Priority
           </Button>
         </div>
@@ -189,15 +189,15 @@ function toggleColumnVisibility(columnId: TaskColumnId, nextValue: boolean) {
           <Button
             variant="outline"
             size="sm"
-            class="h-9 w-full gap-2.5 sm:w-auto"
+            class="gap-2.5 block-9 inline-full sm:inline-auto"
           >
-            <SlidersHorizontal class="size-4" />
+            <SlidersHorizontal class="block-4 inline-4" />
             View
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent
           align="end"
-          class="w-48"
+          class="inline-48"
         >
           <DropdownMenuCheckboxItem
             v-for="column in columnOptions"
@@ -216,7 +216,7 @@ function toggleColumnVisibility(columnId: TaskColumnId, nextValue: boolean) {
       <Table>
         <TableHeader class="bg-muted">
           <TableRow class="hover:bg-transparent">
-            <TableHead class="w-12">
+            <TableHead class="inline-12">
               <Checkbox
                 aria-label="Select all tasks on the current page"
                 :model-value="allPageSelected || (somePageSelected && 'indeterminate')"
@@ -225,47 +225,47 @@ function toggleColumnVisibility(columnId: TaskColumnId, nextValue: boolean) {
             </TableHead>
             <TableHead
               v-if="isColumnVisible('task')"
-              class="w-17.5 min-w-17.5 text-sm font-semibold"
+              class="text-sm font-semibold inline-17.5 min-inline-17.5"
             >
               Task
             </TableHead>
             <TableHead
               v-if="isColumnVisible('title')"
-              class="min-w-105 text-sm font-semibold"
+              class="text-sm font-semibold min-inline-105"
             >
               <button
                 type="button"
                 class="inline-flex items-center gap-2 font-semibold"
               >
                 Title
-                <ArrowUpDown class="size-4 text-muted-foreground" />
+                <ArrowUpDown class="text-muted-foreground block-4 inline-4" />
               </button>
             </TableHead>
             <TableHead
               v-if="isColumnVisible('status')"
-              class="w-22 min-w-22 text-sm font-semibold"
+              class="text-sm font-semibold inline-22 min-inline-22"
             >
               <button
                 type="button"
                 class="inline-flex items-center gap-2 font-semibold"
               >
                 Status
-                <ArrowUpDown class="size-4 text-muted-foreground" />
+                <ArrowUpDown class="text-muted-foreground block-4 inline-4" />
               </button>
             </TableHead>
             <TableHead
               v-if="isColumnVisible('priority')"
-              class="w-20 min-w-20 text-sm font-semibold"
+              class="text-sm font-semibold inline-20 min-inline-20"
             >
               <button
                 type="button"
                 class="inline-flex items-center gap-2 font-semibold"
               >
                 Priority
-                <ArrowUpDown class="size-4 text-muted-foreground" />
+                <ArrowUpDown class="text-muted-foreground block-4 inline-4" />
               </button>
             </TableHead>
-            <TableHead class="w-14" />
+            <TableHead class="inline-14" />
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -287,14 +287,14 @@ function toggleColumnVisibility(columnId: TaskColumnId, nextValue: boolean) {
               {{ task.id }}
             </TableCell>
             <TableCell v-if="isColumnVisible('title')">
-              <div class="flex min-w-0 items-center gap-3">
+              <div class="flex items-center gap-3 min-inline-0">
                 <Badge
                   variant="outline"
                   class="rounded-full px-3 py-1 text-xs font-medium"
                 >
                   {{ task.label }}
                 </Badge>
-                <span class="block min-w-0 truncate text-sm font-medium">
+                <span class="block truncate text-sm font-medium min-inline-0">
                   {{ task.title }}
                 </span>
               </div>
@@ -303,7 +303,7 @@ function toggleColumnVisibility(columnId: TaskColumnId, nextValue: boolean) {
               <div class="flex items-center gap-2 text-sm">
                 <component
                   :is="statusMeta[task.status].icon"
-                  :class="['size-4 shrink-0', statusMeta[task.status].iconClass]"
+                  :class="['shrink-0 block-4 inline-4', statusMeta[task.status].iconClass]"
                 />
                 <span :class="statusMeta[task.status].labelClass">{{ task.status }}</span>
               </div>
@@ -312,7 +312,7 @@ function toggleColumnVisibility(columnId: TaskColumnId, nextValue: boolean) {
               <div class="flex items-center gap-2 text-sm">
                 <component
                   :is="priorityMeta[task.priority].icon"
-                  :class="['size-4 shrink-0', priorityMeta[task.priority].class]"
+                  :class="['shrink-0 block-4 inline-4', priorityMeta[task.priority].class]"
                 />
                 <span>{{ task.priority }}</span>
               </div>
@@ -326,7 +326,7 @@ function toggleColumnVisibility(columnId: TaskColumnId, nextValue: boolean) {
                     class="rounded-full"
                   >
                     <span class="sr-only">Open menu</span>
-                    <MoreHorizontal class="size-4" />
+                    <MoreHorizontal class="block-4 inline-4" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
@@ -349,7 +349,7 @@ function toggleColumnVisibility(columnId: TaskColumnId, nextValue: boolean) {
         <div class="flex items-center gap-3">
           <span class="text-sm font-medium">Rows per page</span>
           <Select v-model="rowsPerPage">
-            <SelectTrigger class="w-20">
+            <SelectTrigger class="inline-20">
               <SelectValue placeholder="10" />
             </SelectTrigger>
             <SelectContent>
@@ -372,7 +372,7 @@ function toggleColumnVisibility(columnId: TaskColumnId, nextValue: boolean) {
             @click="currentPage = 1"
           >
             <span class="sr-only">Go to first page</span>
-            <ChevronsLeft class="size-4" />
+            <ChevronsLeft class="block-4 inline-4" />
           </Button>
           <Button
             variant="outline"
@@ -381,7 +381,7 @@ function toggleColumnVisibility(columnId: TaskColumnId, nextValue: boolean) {
             @click="currentPage = Math.max(1, currentPage - 1)"
           >
             <span class="sr-only">Go to previous page</span>
-            <ChevronLeft class="size-4" />
+            <ChevronLeft class="block-4 inline-4" />
           </Button>
           <Button
             variant="outline"
@@ -390,7 +390,7 @@ function toggleColumnVisibility(columnId: TaskColumnId, nextValue: boolean) {
             @click="currentPage = Math.min(pageCount, currentPage + 1)"
           >
             <span class="sr-only">Go to next page</span>
-            <ChevronRight class="size-4" />
+            <ChevronRight class="block-4 inline-4" />
           </Button>
           <Button
             variant="outline"
@@ -399,7 +399,7 @@ function toggleColumnVisibility(columnId: TaskColumnId, nextValue: boolean) {
             @click="currentPage = pageCount"
           >
             <span class="sr-only">Go to last page</span>
-            <ChevronsRight class="size-4" />
+            <ChevronsRight class="block-4 inline-4" />
           </Button>
         </div>
       </div>

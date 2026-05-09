@@ -19,10 +19,10 @@ function handleBack() {
 </script>
 
 <template>
-  <div class="flex h-[calc(100vh-200px)] items-center justify-center p-4">
-    <Empty class="max-w-md">
+  <div class="flex items-center justify-center p-4 block-[calc(100vh-200px)]">
+    <Empty class="max-inline-md">
       <EmptyMedia>
-        <IconUnlink class="size-16 text-muted-foreground" />
+        <IconUnlink class="text-muted-foreground block-16 inline-16" />
       </EmptyMedia>
       <EmptyHeader>
         <EmptyTitle>404</EmptyTitle>

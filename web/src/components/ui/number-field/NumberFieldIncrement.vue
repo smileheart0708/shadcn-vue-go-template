@@ -20,7 +20,7 @@ const forwarded = useForwardProps(delegatedProps)
     :class="cn('absolute inset-e-0 inset-bs-1/2 -translate-y-1/2 p-3 disabled:cursor-not-allowed disabled:opacity-20', props.class)"
   >
     <slot>
-      <Plus class="size-4" />
+      <Plus class="block-4 inline-4" />
     </slot>
   </NumberFieldIncrement>
 </template>

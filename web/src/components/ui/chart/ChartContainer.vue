@@ -31,7 +31,7 @@ provideChartContext({ id: uniqueId, config })
     :data-chart="chartId"
     :class="
       cn(
-        `flex aspect-video size-full flex-col justify-center text-xs **:data-vis-single-container:size-full **:data-vis-xy-container:size-full [&_.recharts-curve.recharts-tooltip-cursor]:stroke-border [&_.recharts-dot[stroke='#fff']]:stroke-transparent [&_.recharts-layer]:outline-hidden [&_.recharts-polar-grid_[stroke='#ccc']]:stroke-border [&_.recharts-radial-bar-background-sector]:fill-muted [&_.recharts-rectangle.recharts-tooltip-cursor]:fill-muted [&_.recharts-reference-line_[stroke='#ccc']]:stroke-border [&_.recharts-sector]:outline-hidden [&_.recharts-sector[stroke='#fff']]:stroke-transparent [&_.recharts-surface]:outline-hidden [&_.tick_line]:stroke-border/50! [&_.tick_text]:fill-muted-foreground!`,
+        `flex aspect-video flex-col justify-center text-xs block-full inline-full **:data-vis-single-container:block-full **:data-vis-single-container:inline-full **:data-vis-xy-container:block-full **:data-vis-xy-container:inline-full [&_.recharts-curve.recharts-tooltip-cursor]:stroke-border [&_.recharts-dot[stroke='#fff']]:stroke-transparent [&_.recharts-layer]:outline-hidden [&_.recharts-polar-grid_[stroke='#ccc']]:stroke-border [&_.recharts-radial-bar-background-sector]:fill-muted [&_.recharts-rectangle.recharts-tooltip-cursor]:fill-muted [&_.recharts-reference-line_[stroke='#ccc']]:stroke-border [&_.recharts-sector]:outline-hidden [&_.recharts-sector[stroke='#fff']]:stroke-transparent [&_.recharts-surface]:outline-hidden [&_.tick_line]:stroke-border/50! [&_.tick_text]:fill-muted-foreground!`,
         props.class,
       )
     "

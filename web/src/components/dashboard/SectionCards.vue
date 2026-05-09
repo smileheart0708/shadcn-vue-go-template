@@ -43,7 +43,7 @@ const metrics = [
 </script>
 
 <template>
-  <div class="flex flex-col gap-4 lg:min-h-0 lg:flex-1 lg:gap-6">
+  <div class="flex flex-col gap-4 lg:flex-1 lg:gap-6 lg:min-block-0">
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
       <Card
         v-for="metric in metrics"
@@ -59,7 +59,7 @@ const metrics = [
             <Badge variant="outline">
               <component
                 :is="metric.icon"
-                class="size-4"
+                class="block-4 inline-4"
               />
               {{ metric.trend }}
             </Badge>
@@ -70,7 +70,7 @@ const metrics = [
             {{ metric.summary }}
             <component
               :is="metric.icon"
-              class="size-4"
+              class="block-4 inline-4"
             />
           </div>
           <div class="text-muted-foreground">
@@ -80,40 +80,40 @@ const metrics = [
       </Card>
     </div>
 
-    <div class="flex min-h-0 flex-1 flex-col gap-4 lg:grid lg:grid-cols-2">
+    <div class="flex flex-1 flex-col gap-4 min-block-0 lg:grid lg:grid-cols-2">
       <LineChart />
 
-      <Card class="min-h-0 min-w-0 gap-0 overflow-hidden py-5">
+      <Card class="gap-0 overflow-hidden py-5 min-block-0 min-inline-0">
         <CardHeader class="shrink-0 pbe-2">
           <CardDescription>Reserved Panel</CardDescription>
           <CardTitle class="text-xl font-semibold">Next Widget Slot</CardTitle>
           <CardAction>
             <Badge variant="outline">
-              <IconClockPause class="size-4" />
+              <IconClockPause class="block-4 inline-4" />
               Placeholder
             </Badge>
           </CardAction>
         </CardHeader>
-        <CardContent class="flex min-h-0 min-w-0 flex-1">
-          <Empty class="h-full min-w-0 border-border/70 bg-muted/30">
+        <CardContent class="flex flex-1 min-block-0 min-inline-0">
+          <Empty class="border-border/70 bg-muted/30 block-full min-inline-0">
             <EmptyHeader>
               <EmptyMedia variant="icon">
-                <IconChartAreaLine class="size-5" />
+                <IconChartAreaLine class="block-5 inline-5" />
               </EmptyMedia>
               <EmptyTitle>Reserved for the next dashboard module</EmptyTitle>
               <EmptyDescription> Keep this panel available for alerts, conversion funnels, or a quick summary table without changing the current desktop fold. </EmptyDescription>
             </EmptyHeader>
-            <EmptyContent class="max-w-none min-w-0">
-              <div class="grid w-full gap-3">
-                <div class="flex min-w-0 items-center justify-between gap-3 rounded-lg border bg-background/80 px-4 py-3">
+            <EmptyContent class="max-inline-none min-inline-0">
+              <div class="grid gap-3 inline-full">
+                <div class="flex items-center justify-between gap-3 rounded-lg border bg-background/80 px-4 py-3 min-inline-0">
                   <span class="text-muted-foreground">Suggested width</span>
                   <span class="truncate text-end font-medium">Right-side companion card</span>
                 </div>
-                <div class="flex min-w-0 items-center justify-between gap-3 rounded-lg border bg-background/80 px-4 py-3">
+                <div class="flex items-center justify-between gap-3 rounded-lg border bg-background/80 px-4 py-3 min-inline-0">
                   <span class="text-muted-foreground">Suggested content</span>
                   <span class="truncate text-end font-medium">Tasks, notices, or small table</span>
                 </div>
-                <div class="flex min-w-0 items-center justify-between gap-3 rounded-lg border bg-background/80 px-4 py-3">
+                <div class="flex items-center justify-between gap-3 rounded-lg border bg-background/80 px-4 py-3 min-inline-0">
                   <span class="text-muted-foreground">Viewport rule</span>
                   <span class="truncate text-end font-medium">No vertical scroll on desktop</span>
                 </div>

@@ -15,7 +15,7 @@ const props = defineProps<PrimitiveProps & { class?: HTMLAttributes['class'] }>(
     :as-child="asChild"
     :class="
       cn(
-        'flex h-8 shrink-0 items-center rounded-md px-2 text-xs font-medium text-sidebar-foreground/70 ring-sidebar-ring outline-hidden transition-[margin,opacity] duration-200 ease-linear focus-visible:ring-2 [&>svg]:size-4 [&>svg]:shrink-0',
+        'flex shrink-0 items-center rounded-md px-2 text-xs font-medium text-sidebar-foreground/70 ring-sidebar-ring outline-hidden transition-[margin,opacity] duration-200 ease-linear block-8 focus-visible:ring-2 [&>svg]:shrink-0 [&>svg]:block-4 [&>svg]:inline-4',
         'group-data-[collapsible=icon]:-mbs-8 group-data-[collapsible=icon]:opacity-0',
         props.class,
       )

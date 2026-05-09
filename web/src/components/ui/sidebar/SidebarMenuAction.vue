@@ -13,7 +13,7 @@ const props = withDefaults(defineProps<PrimitiveProps & { showOnHover?: boolean;
     data-sidebar="menu-action"
     :class="
       cn(
-        'absolute inset-e-1 inset-bs-1.5 flex aspect-square w-5 items-center justify-center rounded-md p-0 text-sidebar-foreground ring-sidebar-ring outline-hidden transition-transform peer-hover/menu-button:text-sidebar-accent-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 [&>svg]:size-4 [&>svg]:shrink-0',
+        'absolute inset-e-1 inset-bs-1.5 flex aspect-square items-center justify-center rounded-md p-0 text-sidebar-foreground ring-sidebar-ring outline-hidden transition-transform inline-5 peer-hover/menu-button:text-sidebar-accent-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 [&>svg]:shrink-0 [&>svg]:block-4 [&>svg]:inline-4',
         'after:absolute after:-inset-2 md:after:hidden',
         'peer-data-[size=sm]/menu-button:inset-bs-1',
         'peer-data-[size=default]/menu-button:inset-bs-1.5',

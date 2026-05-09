@@ -62,7 +62,7 @@ async function handleSubmit() {
           <img
             src="/logo.svg"
             alt="Logo"
-            class="size-8"
+            class="block-8 inline-8"
           />
           <h1 class="text-xl font-bold">{{ t('auth.signIn.title') }}</h1>
           <p class="text-sm text-muted-foreground">
