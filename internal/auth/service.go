@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-
 	"main/internal/accountpolicies"
 	"main/internal/audit"
 	"main/internal/authorization"
