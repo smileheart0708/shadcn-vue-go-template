@@ -95,23 +95,16 @@ async function submit() {
   }
 
   submitting.value = true
-  const setupPromise = authStore.completeSetup({
-    username: username.value.trim(),
-    password: password.value,
-  })
-
-  toast.promise(setupPromise, {
-    loading: t('setup.creating'),
-    success: () => t('setup.success'),
-    error: (error: unknown) => getAPIErrorMessage(t, error, 'setup.failed'),
-  })
 
   try {
-    await setupPromise
+    await authStore.completeSetup({
+      username: username.value.trim(),
+      password: password.value,
+    })
     transitionDirection.value = 'forward'
     currentStep.value = totalSteps
-  } catch {
-    // Error is handled by toast.promise
+  } catch (error: unknown) {
+    toast.error(getAPIErrorMessage(t, error, 'setup.failed'))
   } finally {
     submitting.value = false
   }
