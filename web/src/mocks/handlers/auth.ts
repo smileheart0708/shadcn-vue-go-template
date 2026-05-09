@@ -66,37 +66,119 @@ interface MockState {
   nextLogId: number
 }
 
+const MOCK_OWNER_USER_ID = 1
+const MOCK_ACTIVE_USER_ID = 2
+const MOCK_DISABLED_USER_ID = 3
+const MOCK_DEV_ACCESS_TOKEN = 'mock-owner-access-token'
+const MOCK_FIXTURE_CREATED_AT = '2026-01-01T00:00:00.000Z'
+const MOCK_FIXTURE_UPDATED_AT = '2026-01-02T00:00:00.000Z'
+
 function nowISO() {
   return new Date().toISOString()
 }
 
+function createMockSession(userId: number, accessToken: string): MockSession {
+  return {
+    userId,
+    accessToken,
+    expiresAt: new Date(Date.now() + 10 * 60_000).toISOString(),
+  }
+}
+
+function createAuditEntry(id: number, eventType: string, outcome: 'success' | 'failure', options: Partial<MockAuditEntry> = {}): MockAuditEntry {
+  return {
+    id,
+    actorUserId: options.actorUserId ?? null,
+    subjectUserId: options.subjectUserId ?? null,
+    authSessionId: options.authSessionId ?? null,
+    eventType,
+    outcome,
+    reason: options.reason ?? null,
+    ip: options.ip ?? null,
+    userAgent: options.userAgent ?? null,
+    metadata: options.metadata,
+    occurredAt: options.occurredAt ?? MOCK_FIXTURE_CREATED_AT,
+  }
+}
+
 function createInitialState(): MockState {
+  const users: MockUser[] = [
+    {
+      id: MOCK_OWNER_USER_ID,
+      username: 'owner',
+      email: 'owner@example.com',
+      avatarUrl: null,
+      role: 'owner',
+      status: 'active',
+      password: 'owner1234',
+      createdAt: MOCK_FIXTURE_CREATED_AT,
+      updatedAt: MOCK_FIXTURE_UPDATED_AT,
+    },
+    {
+      id: MOCK_ACTIVE_USER_ID,
+      username: 'member',
+      email: 'member@example.com',
+      avatarUrl: null,
+      role: 'user',
+      status: 'active',
+      password: 'member1234',
+      createdAt: MOCK_FIXTURE_CREATED_AT,
+      updatedAt: MOCK_FIXTURE_UPDATED_AT,
+    },
+    {
+      id: MOCK_DISABLED_USER_ID,
+      username: 'disabled',
+      email: 'disabled@example.com',
+      avatarUrl: null,
+      role: 'user',
+      status: 'disabled',
+      password: 'disabled1234',
+      createdAt: MOCK_FIXTURE_CREATED_AT,
+      updatedAt: MOCK_FIXTURE_UPDATED_AT,
+    },
+  ]
+
   return {
     installState: {
-      setupState: 'pending',
-      setupCompleted: false,
-      ownerUserId: null,
-      completedAt: null,
+      setupState: 'completed',
+      setupCompleted: true,
+      ownerUserId: MOCK_OWNER_USER_ID,
+      completedAt: MOCK_FIXTURE_CREATED_AT,
     },
     accountPolicies: {
       publicRegistrationEnabled: false,
       selfServiceAccountDeletionEnabled: false,
     },
-    users: [],
-    session: null,
-    auditLogs: [],
-    nextUserId: 1,
-    nextAuditId: 1,
+    users,
+    session: createMockSession(MOCK_OWNER_USER_ID, MOCK_DEV_ACCESS_TOKEN),
+    auditLogs: [
+      createAuditEntry(3, 'user_disabled', 'success', {
+        actorUserId: MOCK_OWNER_USER_ID,
+        subjectUserId: MOCK_DISABLED_USER_ID,
+      }),
+      createAuditEntry(2, 'user_created', 'success', {
+        actorUserId: MOCK_OWNER_USER_ID,
+        subjectUserId: MOCK_ACTIVE_USER_ID,
+      }),
+      createAuditEntry(1, 'setup_completed', 'success', {
+        actorUserId: MOCK_OWNER_USER_ID,
+        subjectUserId: MOCK_OWNER_USER_ID,
+        authSessionId: `setup-${MOCK_OWNER_USER_ID}`,
+      }),
+    ],
+    nextUserId: 4,
+    nextAuditId: 4,
     nextLogId: 4,
   }
 }
 
 const state = createInitialState()
+let autoOwnerSessionAvailable = true
 
 const baseSystemLogs = [
   createSystemLogEntry(1, 'INFO', 'mock', 'Mock system log stream connected.'),
-  createSystemLogEntry(2, 'INFO', 'auth', 'No active mock session.'),
-  createSystemLogEntry(3, 'DEBUG', 'setup', 'Mock install state is pending.'),
+  createSystemLogEntry(2, 'INFO', 'auth', 'Mock owner session initialized.'),
+  createSystemLogEntry(3, 'DEBUG', 'setup', 'Mock install state is completed.'),
 ]
 
 function createSystemLogEntry(id: number, level: 'DEBUG' | 'INFO' | 'WARN' | 'ERROR', source: string, text: string) {
@@ -193,25 +275,37 @@ function toViewer(user: MockUser) {
   }
 }
 
-function issueSession(user: MockUser) {
-  const accessToken = `mock-access-${user.id}-${Date.now()}`
-  const expiresAt = new Date(Date.now() + 10 * 60_000).toISOString()
-  state.session = {
-    userId: user.id,
-    accessToken,
-    expiresAt,
-  }
+function issueSession(user: MockUser, accessToken = `mock-access-${user.id}-${Date.now()}`) {
+  state.session = createMockSession(user.id, accessToken)
 
   return {
-    accessToken,
+    accessToken: state.session.accessToken,
     tokenType: 'Bearer',
-    expiresAt,
+    expiresAt: state.session.expiresAt,
     viewer: toViewer(user),
   }
 }
 
-function clearSession() {
+function clearSession(suppressAutoOwnerSession = false) {
   state.session = null
+  if (suppressAutoOwnerSession) {
+    autoOwnerSessionAvailable = false
+  }
+}
+
+function getMockOwner() {
+  return state.users.find((entry) => entry.id === state.installState.ownerUserId && entry.role === 'owner' && entry.status === 'active') ?? null
+}
+
+export function ensureMockOwnerSession() {
+  const owner = getMockOwner()
+  if (owner === null) {
+    throw new Error('Mock owner fixture is unavailable.')
+  }
+
+  autoOwnerSessionAvailable = true
+  const sessionResponse = issueSession(owner, MOCK_DEV_ACCESS_TOKEN)
+  return sessionResponse.accessToken
 }
 
 function appendAudit(eventType: string, outcome: 'success' | 'failure', options: Partial<MockAuditEntry> = {}) {
@@ -480,7 +574,7 @@ export const authHandlers = [
   }),
 
   http.post('/api/auth/refresh', () => {
-    const user = getCurrentUserFromSession()
+    const user = getCurrentUserFromSession() ?? (autoOwnerSessionAvailable ? getMockOwner() : null)
     if (user === null) {
       clearSession()
       appendAudit('refresh_failed', 'failure', { reason: 'invalid_refresh_token' })
@@ -498,7 +592,7 @@ export const authHandlers = [
       appendAudit('logout_succeeded', 'success', { actorUserId: user.id, subjectUserId: user.id, authSessionId: `session-${user.id}` })
     }
 
-    clearSession()
+    clearSession(true)
     return jsonSuccess({ loggedOut: true })
   }),
 
@@ -571,7 +665,7 @@ export const authHandlers = [
     user.password = payload.newPassword
     user.updatedAt = nowISO()
     appendAudit('password_changed', 'success', { actorUserId: user.id, subjectUserId: user.id, authSessionId: `session-${user.id}` })
-    clearSession()
+    clearSession(true)
     return jsonSuccess({ passwordChanged: true })
   }),
 
@@ -586,7 +680,7 @@ export const authHandlers = [
 
     state.users = state.users.filter((entry) => entry.id !== user.id)
     appendAudit('account_deleted', 'success', { actorUserId: user.id, subjectUserId: user.id, authSessionId: `session-${user.id}`, reason: 'self_service' })
-    clearSession()
+    clearSession(true)
     return jsonSuccess({ deleted: true })
   }),
 
