@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { useDocumentVisibility } from '@vueuse/core'
+import { storeToRefs } from 'pinia'
 import { computed, nextTick, onWatcherCleanup, ref, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
-import { Download, RefreshCw } from 'lucide-vue-next'
+import { ArrowDownToLine, Download, Pause, RefreshCw, Trash2 } from 'lucide-vue-next'
 import SystemLogsExportDialog from '@/components/system-logs/SystemLogsExportDialog.vue'
+import SystemLogLevelMultiSelect from '@/components/system-logs/SystemLogLevelMultiSelect.vue'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -17,20 +19,32 @@ import { Table, TableBody, TableCell, TableEmpty, TableHead, TableHeader, TableR
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { APIError } from '@/lib/api/client'
 import { getAPIErrorMessage } from '@/lib/api/error-messages'
-import { listAuditLogs, openSystemLogsStream, SYSTEM_LOG_LEVEL_VALUES, type AuditLogEntry, type SystemLogEntry, type SystemLogLevelFilter } from '@/lib/api/system-logs'
+import {
+  isSystemLogHistoryLimit,
+  isSystemLogLevel,
+  listAuditLogs,
+  openSystemLogsStream,
+  SYSTEM_LOG_HISTORY_LIMIT_VALUES,
+  type AuditLogEntry,
+  type SystemLogEntry,
+  type SystemLogHistoryLimit,
+} from '@/lib/api/system-logs'
 import { CAPABILITY } from '@/lib/auth/roles'
 import { formatSystemLogTimestamp } from '@/lib/system-logs/export'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth'
+import { useSystemLogsPreferencesStore } from '@/stores/system-logs-preferences'
 
-const MAX_LOCAL_ENTRIES = 1000
-const INITIAL_TAIL = 200
+const LOCAL_STREAM_MAX_BYTES = 1 * 1024 * 1024
+const STREAM_ENTRY_BASE_BYTES = 64
 const SCROLL_BOTTOM_THRESHOLD = 24
 const RECONNECT_BASE_DELAY_MS = 1_000
 const RECONNECT_MAX_DELAY_MS = 30_000
 
 const { t, locale } = useI18n()
 const authStore = useAuthStore()
+const systemLogsPreferences = useSystemLogsPreferencesStore()
+const { levels, historyLimit, exportFormat } = storeToRefs(systemLogsPreferences)
 const documentVisibility = useDocumentVisibility()
 
 const activeTab = ref<'console' | 'audit'>('console')
@@ -41,7 +55,6 @@ const connecting = ref(false)
 const connected = ref(false)
 const autoScroll = ref(true)
 const searchQuery = ref('')
-const levelFilter = ref<SystemLogLevelFilter>('ALL')
 const streamError = ref('')
 const exportDialogOpen = ref(false)
 const viewport = useTemplateRef<HTMLDivElement>('viewport')
@@ -57,14 +70,16 @@ const auditPageSize = ref(20)
 const auditTotal = ref(0)
 
 let abortController: AbortController | null = null
+const entryIds = new Set<number>()
+let localBufferedBytes = 0
 
 const canReadAuditLogs = computed(() => authStore.can(CAPABILITY.managementAuditLogsRead))
 const visibleEntries = computed(() => {
   const normalizedQuery = searchQuery.value.trim().toLowerCase()
+  const selectedLevels = new Set(levels.value)
 
-  return entries.value.filter((entry) => {
-    const matchesLevel = levelFilter.value === 'ALL' || entry.level === levelFilter.value
-    if (!matchesLevel) {
+  const filteredEntries = entries.value.filter((entry) => {
+    if (!isSystemLogLevel(entry.level) || !selectedLevels.has(entry.level)) {
       return false
     }
 
@@ -74,6 +89,8 @@ const visibleEntries = computed(() => {
 
     return [entry.text, entry.message, entry.source].some((value) => value.toLowerCase().includes(normalizedQuery))
   })
+
+  return applyHistoryLimit(filteredEntries, historyLimit.value)
 })
 const connectionStatusLabel = computed(() => {
   if (connecting.value) {
@@ -121,6 +138,12 @@ watch(
   { immediate: true },
 )
 
+watch(historyLimit, (nextLimit, previousLimit) => {
+  if (historyLimitRank(nextLimit) > historyLimitRank(previousLimit)) {
+    reconnect()
+  }
+})
+
 watch(
   () => activeTab.value,
   (tab) => {
@@ -143,7 +166,7 @@ async function maintainStreamConnection(sessionSignal: AbortSignal) {
 
     try {
       await openSystemLogsStream({
-        tail: INITIAL_TAIL,
+        tail: historyLimit.value,
         signal: controller.signal,
         onOpen() {
           if (!isCurrentStream(controller)) {
@@ -243,12 +266,16 @@ function disconnect() {
 }
 
 function appendEntry(entry: SystemLogEntry) {
-  // Reconnects replay a recent tail to avoid gaps, so dedupe by server-issued id.
-  if (entries.value.some((existingEntry) => existingEntry.id === entry.id)) {
+  if (entryIds.has(entry.id)) {
     return
   }
 
-  entries.value = [...entries.value, entry].slice(-MAX_LOCAL_ENTRIES)
+  const nextEntries = [...entries.value]
+  nextEntries.splice(findEntryInsertIndex(nextEntries, entry.id), 0, entry)
+  entryIds.add(entry.id)
+  localBufferedBytes += getSystemLogEntrySize(entry)
+  pruneLocalEntries(nextEntries)
+  entries.value = nextEntries
 
   if (autoScroll.value) {
     void scrollToBottom()
@@ -257,6 +284,8 @@ function appendEntry(entry: SystemLogEntry) {
 
 function clearEntries() {
   entries.value = []
+  entryIds.clear()
+  localBufferedBytes = 0
 }
 
 function reconnect() {
@@ -298,6 +327,76 @@ function getLevelBadgeVariant(level: string): 'destructive' | 'warning' | 'outli
     default:
       return 'secondary'
   }
+}
+
+function applyHistoryLimit(sourceEntries: SystemLogEntry[], limit: SystemLogHistoryLimit) {
+  if (limit === 'ALL') {
+    return sourceEntries
+  }
+
+  return sourceEntries.slice(-limit)
+}
+
+function findEntryInsertIndex(sourceEntries: SystemLogEntry[], entryId: number) {
+  let low = 0
+  let high = sourceEntries.length
+  while (low < high) {
+    const middle = Math.floor((low + high) / 2)
+    const middleEntry = sourceEntries[middle]
+    if (middleEntry.id < entryId) {
+      low = middle + 1
+    } else {
+      high = middle
+    }
+  }
+  return low
+}
+
+function pruneLocalEntries(sourceEntries: SystemLogEntry[]) {
+  while (localBufferedBytes > LOCAL_STREAM_MAX_BYTES && sourceEntries.length > 0) {
+    const removedEntry = sourceEntries.shift()
+    if (!removedEntry) {
+      break
+    }
+    entryIds.delete(removedEntry.id)
+    localBufferedBytes -= getSystemLogEntrySize(removedEntry)
+  }
+  if (localBufferedBytes < 0) {
+    localBufferedBytes = 0
+  }
+}
+
+function getSystemLogEntrySize(entry: SystemLogEntry) {
+  return STREAM_ENTRY_BASE_BYTES + entry.level.length + entry.message.length + entry.text.length + entry.source.length
+}
+
+function handleHistoryLimitChange(value: unknown) {
+  const nextLimit = normalizeHistoryLimitSelectValue(value)
+  if (nextLimit === null) {
+    return
+  }
+  systemLogsPreferences.setHistoryLimit(nextLimit)
+}
+
+function normalizeHistoryLimitSelectValue(value: unknown): SystemLogHistoryLimit | null {
+  if (isSystemLogHistoryLimit(value)) {
+    return value
+  }
+  if (typeof value !== 'string') {
+    return null
+  }
+
+  const normalizedValue = value.trim().toUpperCase()
+  if (normalizedValue === 'ALL') {
+    return 'ALL'
+  }
+
+  const numericValue = Number(normalizedValue)
+  return isSystemLogHistoryLimit(numericValue) ? numericValue : null
+}
+
+function historyLimitRank(limit: SystemLogHistoryLimit) {
+  return limit === 'ALL' ? Number.POSITIVE_INFINITY : limit
 }
 
 function getAuditOutcomeVariant(outcome: 'success' | 'failure') {
@@ -450,6 +549,7 @@ async function waitForReconnect(delayMs: number, signal: AbortSignal): Promise<b
                 size="sm"
                 @click="clearEntries"
               >
+                <Trash2 class="block-4 inline-4" />
                 {{ t('systemLogs.actions.clear') }}
               </Button>
               <Button
@@ -457,6 +557,14 @@ async function waitForReconnect(delayMs: number, signal: AbortSignal): Promise<b
                 size="sm"
                 @click="autoScroll ? (autoScroll = false) : resumeAutoScroll()"
               >
+                <Pause
+                  v-if="autoScroll"
+                  class="block-4 inline-4"
+                />
+                <ArrowDownToLine
+                  v-else
+                  class="block-4 inline-4"
+                />
                 {{ autoScroll ? t('systemLogs.actions.pauseFollow') : t('systemLogs.actions.resumeFollow') }}
               </Button>
               <Button
@@ -479,18 +587,25 @@ async function waitForReconnect(delayMs: number, signal: AbortSignal): Promise<b
                 class="flex-1"
               />
 
-              <Select v-model="levelFilter">
-                <SelectTrigger class="inline-full md:inline-40">
-                  <SelectValue :placeholder="t('systemLogs.filters.levelPlaceholder')" />
+              <SystemLogLevelMultiSelect
+                :model-value="levels"
+                @update:model-value="systemLogsPreferences.setLevels"
+              />
+
+              <Select
+                :model-value="historyLimit"
+                @update:model-value="handleHistoryLimitChange"
+              >
+                <SelectTrigger class="inline-full md:inline-auto">
+                  <SelectValue :placeholder="t('systemLogs.filters.historyPlaceholder')" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="ALL">{{ t('systemLogs.filters.level.all') }}</SelectItem>
                   <SelectItem
-                    v-for="level in SYSTEM_LOG_LEVEL_VALUES"
-                    :key="level"
-                    :value="level"
+                    v-for="limit in SYSTEM_LOG_HISTORY_LIMIT_VALUES"
+                    :key="String(limit)"
+                    :value="limit"
                   >
-                    {{ t(`systemLogs.filters.level.${level}`) }}
+                    {{ t(`systemLogs.filters.history.${String(limit)}`) }}
                   </SelectItem>
                 </SelectContent>
               </Select>
@@ -685,7 +800,10 @@ async function waitForReconnect(delayMs: number, signal: AbortSignal): Promise<b
 
     <SystemLogsExportDialog
       v-model:open="exportDialogOpen"
+      v-model:format="exportFormat"
       :entries="entries"
+      :history-limit="historyLimit"
+      :levels="levels"
     />
   </div>
 </template>

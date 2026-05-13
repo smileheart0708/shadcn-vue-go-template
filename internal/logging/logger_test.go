@@ -11,10 +11,10 @@ import (
 	"time"
 )
 
-func TestStreamPublishAndSnapshot(t *testing.T) {
+func TestStreamKeepsEntriesWithinByteBudget(t *testing.T) {
 	t.Parallel()
 
-	stream := NewStream(StreamOptions{Capacity: 3})
+	stream := NewStream(StreamOptions{MaxBytes: 260})
 	base := time.Now().UTC()
 
 	for index := range 5 {
@@ -22,47 +22,119 @@ func TestStreamPublishAndSnapshot(t *testing.T) {
 			Timestamp: base.Add(time.Duration(index) * time.Second).Unix(),
 			Level:     "INFO",
 			Message:   "entry",
-			Text:      "entry",
+			Text:      strings.Repeat(fmt.Sprintf("entry-%d ", index), 4),
 			Source:    "app",
 		})
 	}
 
-	snapshot := stream.Snapshot(10)
-	if len(snapshot) != 3 {
-		t.Fatalf("expected 3 entries, got %d", len(snapshot))
+	if stream.buffered > stream.maxBytes {
+		t.Fatalf("expected buffered bytes <= max bytes, got %d > %d", stream.buffered, stream.maxBytes)
 	}
-	if !(snapshot[0].Timestamp < snapshot[1].Timestamp && snapshot[1].Timestamp < snapshot[2].Timestamp) {
-		t.Fatalf("expected timestamps to increase, got %+v", snapshot)
+
+	snapshot := stream.Snapshot(0)
+	if len(snapshot) == 0 || len(snapshot) >= 5 {
+		t.Fatalf("expected byte budget to prune oldest entries, got %d entries", len(snapshot))
 	}
-	if snapshot[0].ID <= 0 || snapshot[2].ID <= snapshot[0].ID {
+	for index := 1; index < len(snapshot); index++ {
+		if snapshot[index].Timestamp <= snapshot[index-1].Timestamp {
+			t.Fatalf("expected timestamps to increase, got %+v", snapshot)
+		}
+	}
+	if snapshot[0].ID <= 1 {
+		t.Fatalf("expected oldest entries to be pruned, got %+v", snapshot)
+	}
+	if snapshot[0].ID <= 0 || snapshot[len(snapshot)-1].ID <= snapshot[0].ID {
 		t.Fatalf("expected ascending ids, got %+v", snapshot)
+	}
+}
+
+func TestStreamDoesNotApplyEntryCountLimit(t *testing.T) {
+	t.Parallel()
+
+	stream := NewStream(StreamOptions{MaxBytes: 512 * 1024})
+	for range 1100 {
+		stream.Publish(StreamEntry{
+			Level:   "INFO",
+			Message: "entry",
+			Text:    "entry",
+			Source:  "app",
+		})
+	}
+
+	snapshot := stream.Snapshot(0)
+	if len(snapshot) != 1100 {
+		t.Fatalf("expected all entries within byte budget, got %d", len(snapshot))
+	}
+}
+
+func TestStreamSnapshotTail(t *testing.T) {
+	t.Parallel()
+
+	stream := NewStream(StreamOptions{MaxBytes: 16 * 1024})
+	for range 5 {
+		stream.Publish(StreamEntry{
+			Level:   "INFO",
+			Message: "entry",
+			Text:    "entry",
+			Source:  "app",
+		})
+	}
+
+	snapshot := stream.Snapshot(2)
+	if len(snapshot) != 2 {
+		t.Fatalf("expected 2 entries, got %d", len(snapshot))
+	}
+	if snapshot[0].ID != 4 || snapshot[1].ID != 5 {
+		t.Fatalf("expected latest two entries, got %+v", snapshot)
+	}
+	if all := stream.Snapshot(0); len(all) != 5 {
+		t.Fatalf("expected all entries for zero tail, got %d", len(all))
+	}
+}
+
+func TestStreamTruncatesOversizedEntry(t *testing.T) {
+	t.Parallel()
+
+	stream := NewStream(StreamOptions{MaxBytes: 180})
+	entry := stream.Publish(StreamEntry{
+		Timestamp: time.Now().UTC().Unix(),
+		Level:     "INFO",
+		Message:   strings.Repeat("message ", 64),
+		Text:      strings.Repeat("text ", 256),
+		Source:    "app",
+	})
+
+	if size := streamEntrySize(entry); size > stream.maxBytes {
+		t.Fatalf("expected entry size <= max bytes, got %d > %d", size, stream.maxBytes)
+	}
+	if !strings.Contains(entry.Text, "truncated") && !strings.Contains(entry.Message, "truncated") {
+		t.Fatalf("expected entry text or message to be truncated, got %+v", entry)
+	}
+	if snapshot := stream.Snapshot(0); len(snapshot) != 1 {
+		t.Fatalf("expected oversized latest entry to be retained after truncation, got %d", len(snapshot))
 	}
 }
 
 func TestStreamPrunesExpiredEntriesByRetention(t *testing.T) {
 	t.Parallel()
 
-	stream := NewStream(StreamOptions{Capacity: 4, Retention: time.Hour})
+	stream := NewStream(StreamOptions{MaxBytes: 16 * 1024, Retention: time.Hour})
 	now := time.Now().UTC()
 	recentTimestamp := now.Add(-30 * time.Minute).Unix()
-	stream.entries = []StreamEntry{
-		{
-			ID:        1,
-			Timestamp: now.Add(-2 * time.Hour).Unix(),
-			Level:     "INFO",
-			Message:   "expired",
-			Text:      "expired",
-			Source:    "app",
-		},
-		{
-			ID:        2,
-			Timestamp: recentTimestamp,
-			Level:     "INFO",
-			Message:   "recent",
-			Text:      "recent",
-			Source:    "app",
-		},
-	}
+	stream.Publish(StreamEntry{
+		Timestamp: now.Add(-2 * time.Hour).Unix(),
+		Level:     "INFO",
+		Message:   "expired",
+		Text:      "expired",
+		Source:    "app",
+	})
+	stream.Publish(StreamEntry{
+		Timestamp: recentTimestamp,
+		Level:     "INFO",
+		Message:   "recent",
+		Text:      "recent",
+		Source:    "app",
+	})
 
 	snapshot := stream.Snapshot(10)
 	if len(snapshot) != 1 {
@@ -76,16 +148,15 @@ func TestStreamPrunesExpiredEntriesByRetention(t *testing.T) {
 func TestStreamDropsSlowSubscriber(t *testing.T) {
 	t.Parallel()
 
-	stream := NewStream(StreamOptions{Capacity: 4})
+	stream := NewStream(StreamOptions{MaxBytes: 16 * 1024})
 	subscription := stream.Subscribe()
 
-	for index := range defaultSubscriberSize + 1 {
+	for range defaultSubscriberSize + 1 {
 		stream.Publish(StreamEntry{
-			Timestamp: int64(index + 1),
-			Level:     "INFO",
-			Message:   "entry",
-			Text:      "entry",
-			Source:    "app",
+			Level:   "INFO",
+			Message: "entry",
+			Text:    "entry",
+			Source:  "app",
 		})
 	}
 
@@ -100,7 +171,7 @@ func TestStreamDropsSlowSubscriber(t *testing.T) {
 func TestStreamHandlerSanitizesAndRendersEntry(t *testing.T) {
 	t.Parallel()
 
-	stream := NewStream(StreamOptions{Capacity: 10})
+	stream := NewStream(StreamOptions{MaxBytes: 16 * 1024})
 	handler := NewStreamHandler(stream, "app")
 	logger := slog.New(handler)
 
@@ -135,7 +206,7 @@ func TestStreamHandlerSanitizesAndRendersEntry(t *testing.T) {
 func TestStreamHandlerRendersErrorValuesAsMessages(t *testing.T) {
 	t.Parallel()
 
-	stream := NewStream(StreamOptions{Capacity: 10})
+	stream := NewStream(StreamOptions{MaxBytes: 16 * 1024})
 	logger := slog.New(NewStreamHandler(stream, "app"))
 
 	logger.ErrorContext(
@@ -161,7 +232,7 @@ func TestStreamHandlerRendersErrorValuesAsMessages(t *testing.T) {
 func TestStreamHandlerRendersGroupsAndLogValuers(t *testing.T) {
 	t.Parallel()
 
-	stream := NewStream(StreamOptions{Capacity: 10})
+	stream := NewStream(StreamOptions{MaxBytes: 16 * 1024})
 	logger := slog.New(NewStreamHandler(stream, "app"))
 
 	logger.InfoContext(

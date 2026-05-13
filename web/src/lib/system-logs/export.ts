@@ -1,15 +1,13 @@
-import type { SystemLogEntry, SystemLogLevelFilter } from '@/lib/api/system-logs'
+import { isSystemLogLevel, type SystemLogEntry, type SystemLogHistoryLimit, type SystemLogLevel } from '@/lib/api/system-logs'
 
-export const SYSTEM_LOG_EXPORT_COUNT_VALUES = ['ALL', 10, 20, 50, 100] as const
 export const SYSTEM_LOG_EXPORT_FORMAT_VALUES = ['csv', 'txt', 'json'] as const
 
-export type SystemLogExportCount = (typeof SYSTEM_LOG_EXPORT_COUNT_VALUES)[number]
 export type SystemLogExportFormat = (typeof SYSTEM_LOG_EXPORT_FORMAT_VALUES)[number]
 
 interface ExportSystemLogsOptions {
   entries: SystemLogEntry[]
-  count: SystemLogExportCount
-  level: SystemLogLevelFilter
+  historyLimit: SystemLogHistoryLimit
+  levels: readonly SystemLogLevel[]
   format: SystemLogExportFormat
 }
 
@@ -30,13 +28,14 @@ export function formatSystemLogTimestamp(timestamp: number | null | undefined): 
 }
 
 export function selectSystemLogEntries(options: ExportSystemLogsOptions): SystemLogEntry[] {
-  const filteredEntries = options.entries.filter((entry) => options.level === 'ALL' || entry.level === options.level)
+  const selectedLevels = new Set(options.levels)
+  const filteredEntries = options.entries.filter((entry) => isSystemLogLevel(entry.level) && selectedLevels.has(entry.level))
 
-  if (options.count === 'ALL') {
+  if (options.historyLimit === 'ALL') {
     return filteredEntries
   }
 
-  return filteredEntries.slice(-options.count)
+  return filteredEntries.slice(-options.historyLimit)
 }
 
 export function downloadSystemLogs(options: ExportSystemLogsOptions): number {

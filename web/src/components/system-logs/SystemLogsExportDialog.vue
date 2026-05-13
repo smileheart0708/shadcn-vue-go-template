@@ -6,18 +6,18 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { SYSTEM_LOG_LEVEL_VALUES, type SystemLogEntry, type SystemLogLevelFilter } from '@/lib/api/system-logs'
+import type { SystemLogEntry, SystemLogHistoryLimit, SystemLogLevel } from '@/lib/api/system-logs'
 import {
   downloadSystemLogs,
   selectSystemLogEntries,
-  SYSTEM_LOG_EXPORT_COUNT_VALUES,
   SYSTEM_LOG_EXPORT_FORMAT_VALUES,
-  type SystemLogExportCount,
   type SystemLogExportFormat,
 } from '@/lib/system-logs/export'
 
 interface Props {
   entries: SystemLogEntry[]
+  historyLimit: SystemLogHistoryLimit
+  levels: readonly SystemLogLevel[]
   open: boolean
 }
 
@@ -29,8 +29,6 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 
-const exportCount = defineModel<SystemLogExportCount>('count', { default: 'ALL' })
-const exportLevel = defineModel<SystemLogLevelFilter>('level', { default: 'ALL' })
 const exportFormat = defineModel<SystemLogExportFormat>('format', { default: 'csv' })
 
 const openModel = computed({
@@ -44,8 +42,8 @@ const exportableCount = computed(
   () =>
     selectSystemLogEntries({
       entries: props.entries,
-      count: exportCount.value,
-      level: exportLevel.value,
+      historyLimit: props.historyLimit,
+      levels: props.levels,
       format: exportFormat.value,
     }).length,
 )
@@ -59,8 +57,8 @@ function handleExport() {
 
   const exportedCount = downloadSystemLogs({
     entries: props.entries,
-    count: exportCount.value,
-    level: exportLevel.value,
+    historyLimit: props.historyLimit,
+    levels: props.levels,
     format: exportFormat.value,
   })
 
@@ -75,50 +73,11 @@ function handleExport() {
       <DialogHeader>
         <DialogTitle>{{ t('systemLogs.export.title') }}</DialogTitle>
         <DialogDescription>
-          {{ t('systemLogs.export.description', { count: entries.length }) }}
+          {{ t('systemLogs.export.description', { count: exportableCount }) }}
         </DialogDescription>
       </DialogHeader>
 
       <div class="space-y-4">
-        <div class="space-y-2">
-          <Label>{{ t('systemLogs.export.fields.count') }}</Label>
-          <Select v-model="exportCount">
-            <SelectTrigger>
-              <SelectValue :placeholder="t('systemLogs.export.fields.count')" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem
-                v-for="count in SYSTEM_LOG_EXPORT_COUNT_VALUES"
-                :key="String(count)"
-                :value="count"
-              >
-                {{ t(`systemLogs.export.counts.${String(count)}`) }}
-              </SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div class="space-y-2">
-          <Label>{{ t('systemLogs.export.fields.level') }}</Label>
-          <Select v-model="exportLevel">
-            <SelectTrigger>
-              <SelectValue :placeholder="t('systemLogs.export.fields.level')" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">
-                {{ t('systemLogs.filters.level.all') }}
-              </SelectItem>
-              <SelectItem
-                v-for="level in SYSTEM_LOG_LEVEL_VALUES"
-                :key="level"
-                :value="level"
-              >
-                {{ t(`systemLogs.filters.level.${level}`) }}
-              </SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
         <div class="space-y-2">
           <Label>{{ t('systemLogs.export.fields.format') }}</Label>
           <Select v-model="exportFormat">

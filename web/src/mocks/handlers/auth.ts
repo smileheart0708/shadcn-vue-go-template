@@ -415,16 +415,17 @@ function readPositiveInt(url: URL, key: string, fallback: number) {
 }
 
 function formatSystemLogEvent(entry: ReturnType<typeof createSystemLogEntry>) {
-  return `event: log\ndata: ${JSON.stringify(entry)}\n\n`
+  return `event: log\nid: ${String(entry.id)}\ndata: ${JSON.stringify(entry)}\n\n`
 }
 
-function buildSystemLogStreamResponse() {
+function buildSystemLogStreamResponse(rawTail: string | null) {
   const encoder = new TextEncoder()
   let intervalId: ReturnType<typeof setInterval> | null = null
+  const replayEntries = selectSystemLogReplayEntries(rawTail)
 
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {
-      for (const entry of baseSystemLogs) {
+      for (const entry of replayEntries) {
         controller.enqueue(encoder.encode(formatSystemLogEvent(entry)))
       }
 
@@ -447,6 +448,20 @@ function buildSystemLogStreamResponse() {
       Connection: 'keep-alive',
     },
   })
+}
+
+function selectSystemLogReplayEntries(rawTail: string | null) {
+  const normalizedTail = rawTail?.trim().toLowerCase()
+  if (normalizedTail === undefined || normalizedTail === '' || normalizedTail === 'all') {
+    return baseSystemLogs
+  }
+
+  const tail = Number(normalizedTail)
+  if (tail === 100 || tail === 200 || tail === 500 || tail === 1000) {
+    return baseSystemLogs.slice(-tail)
+  }
+
+  return baseSystemLogs
 }
 
 async function readJSON(request: Request) {
@@ -935,7 +950,8 @@ export const authHandlers = [
       return jsonError(403, 'forbidden', 'Forbidden.')
     }
 
-    return buildSystemLogStreamResponse()
+    const url = new URL(request.url)
+    return buildSystemLogStreamResponse(url.searchParams.get('tail'))
   }),
 ]
 

@@ -421,7 +421,7 @@ func newTestContext(t *testing.T) *testContext {
 	})
 
 	logStream := logging.NewStream(logging.StreamOptions{
-		Capacity:  logging.DefaultStreamCapacity,
+		MaxBytes:  logging.DefaultStreamMaxBytes,
 		Retention: 3650 * 24 * time.Hour,
 	})
 

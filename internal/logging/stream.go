@@ -8,13 +8,15 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 )
 
 const (
-	DefaultReplayLimit    = 200
-	DefaultStreamCapacity = 1000
+	DefaultStreamMaxBytes = 1 * 1024 * 1024
 	DefaultRetention      = 7 * 24 * time.Hour
 	defaultSubscriberSize = 128
+	streamEntryBaseSize   = 64
+	truncationMarker      = " [truncated]"
 )
 
 type StreamEntry struct {
@@ -27,7 +29,7 @@ type StreamEntry struct {
 }
 
 type StreamOptions struct {
-	Capacity  int
+	MaxBytes  int
 	Retention time.Duration
 }
 
@@ -35,9 +37,12 @@ type Stream struct {
 	mu          sync.RWMutex
 	nextEntryID int64
 	nextSubID   int64
-	capacity    int
+	maxBytes    int
 	retention   time.Duration
 	entries     []StreamEntry
+	entrySizes  []int
+	headIndex   int
+	buffered    int
 	subscribers map[int64]*StreamSubscription
 }
 
@@ -52,9 +57,9 @@ type StreamSubscription struct {
 }
 
 func NewStream(options StreamOptions) *Stream {
-	capacity := options.Capacity
-	if capacity <= 0 {
-		capacity = DefaultStreamCapacity
+	maxBytes := options.MaxBytes
+	if maxBytes <= 0 {
+		maxBytes = DefaultStreamMaxBytes
 	}
 	retention := options.Retention
 	if retention <= 0 {
@@ -62,9 +67,10 @@ func NewStream(options StreamOptions) *Stream {
 	}
 
 	return &Stream{
-		capacity:    capacity,
+		maxBytes:    maxBytes,
 		retention:   retention,
-		entries:     make([]StreamEntry, 0, capacity),
+		entries:     make([]StreamEntry, 0, 128),
+		entrySizes:  make([]int, 0, 128),
 		subscribers: make(map[int64]*StreamSubscription),
 	}
 }
@@ -89,12 +95,13 @@ func (s *Stream) Publish(entry StreamEntry) StreamEntry {
 	if entry.Source == "" {
 		entry.Source = "app"
 	}
+	entry = truncateStreamEntry(entry, s.maxBytes)
 
 	s.entries = append(s.entries, entry)
+	entrySize := streamEntrySize(entry)
+	s.entrySizes = append(s.entrySizes, entrySize)
+	s.buffered += entrySize
 	s.pruneLocked(now)
-	if len(s.entries) > s.capacity {
-		s.entries = append([]StreamEntry(nil), s.entries[len(s.entries)-s.capacity:]...)
-	}
 
 	for id, subscription := range s.subscribers {
 		select {
@@ -117,31 +124,135 @@ func (s *Stream) Snapshot(tail int) []StreamEntry {
 	defer s.mu.Unlock()
 
 	s.pruneLocked(time.Now().UTC())
-	if tail <= 0 || tail > len(s.entries) {
-		tail = len(s.entries)
+	activeLen := s.activeLenLocked()
+	if tail <= 0 || tail > activeLen {
+		tail = activeLen
 	}
 
-	start := len(s.entries) - tail
+	start := s.headIndex + activeLen - tail
 	snapshot := make([]StreamEntry, tail)
-	copy(snapshot, s.entries[start:])
+	copy(snapshot, s.entries[start:s.headIndex+activeLen])
 	return snapshot
 }
 
 func (s *Stream) pruneLocked(now time.Time) {
-	if s == nil || s.retention <= 0 || len(s.entries) == 0 {
+	if s == nil || len(s.entries) == s.headIndex {
 		return
 	}
 
-	// Retain the recent window on both read and write paths so quiet periods
-	// still drop stale log entries instead of waiting for the next burst.
-	cutoff := now.Add(-s.retention).Unix()
-	kept := s.entries[:0]
-	for _, entry := range s.entries {
-		if entry.Timestamp >= cutoff {
-			kept = append(kept, entry)
+	if s.retention > 0 {
+		cutoff := now.Add(-s.retention).Unix()
+		for s.headIndex < len(s.entries) && s.entries[s.headIndex].Timestamp < cutoff {
+			s.dropOldestLocked(1)
 		}
 	}
-	s.entries = kept
+	for s.buffered > s.maxBytes && s.headIndex < len(s.entries) {
+		s.dropOldestLocked(1)
+	}
+	s.compactIfNeededLocked()
+}
+
+func (s *Stream) activeLenLocked() int {
+	if s == nil || s.headIndex >= len(s.entries) {
+		return 0
+	}
+	return len(s.entries) - s.headIndex
+}
+
+func (s *Stream) dropOldestLocked(count int) {
+	for count > 0 && s.headIndex < len(s.entries) {
+		s.buffered -= s.entrySizes[s.headIndex]
+		s.entries[s.headIndex] = StreamEntry{}
+		s.entrySizes[s.headIndex] = 0
+		s.headIndex++
+		count--
+	}
+	if s.buffered < 0 {
+		s.buffered = 0
+	}
+}
+
+func (s *Stream) compactIfNeededLocked() {
+	if s == nil || s.headIndex == 0 {
+		return
+	}
+	if s.headIndex == len(s.entries) {
+		s.entries = s.entries[:0]
+		s.entrySizes = s.entrySizes[:0]
+		s.headIndex = 0
+		return
+	}
+	if s.headIndex < 1024 && s.headIndex < len(s.entries)/2 {
+		return
+	}
+
+	activeEntries := copy(s.entries, s.entries[s.headIndex:])
+	clear(s.entries[activeEntries:])
+	s.entries = s.entries[:activeEntries]
+
+	activeSizes := copy(s.entrySizes, s.entrySizes[s.headIndex:])
+	clear(s.entrySizes[activeSizes:])
+	s.entrySizes = s.entrySizes[:activeSizes]
+	s.headIndex = 0
+}
+
+func truncateStreamEntry(entry StreamEntry, maxBytes int) StreamEntry {
+	if maxBytes <= 0 {
+		return entry
+	}
+	for streamEntrySize(entry) > maxBytes {
+		overflow := streamEntrySize(entry) - maxBytes
+		field := &entry.Text
+		currentLength := len(entry.Text)
+		if len(entry.Message) > currentLength {
+			field = &entry.Message
+			currentLength = len(entry.Message)
+		}
+		if len(entry.Source) > currentLength {
+			field = &entry.Source
+			currentLength = len(entry.Source)
+		}
+		if len(entry.Level) > currentLength {
+			field = &entry.Level
+			currentLength = len(entry.Level)
+		}
+		if currentLength == 0 {
+			break
+		}
+
+		targetLength := currentLength - overflow
+		if targetLength < 0 {
+			targetLength = 0
+		}
+		nextValue := truncateStringBytes(*field, targetLength)
+		if len(nextValue) >= currentLength {
+			nextValue = ""
+		}
+		*field = nextValue
+	}
+	return entry
+}
+
+func streamEntrySize(entry StreamEntry) int {
+	return streamEntryBaseSize + len(entry.Level) + len(entry.Message) + len(entry.Text) + len(entry.Source)
+}
+
+func truncateStringBytes(value string, maxBytes int) string {
+	if len(value) <= maxBytes {
+		return value
+	}
+	if maxBytes <= 0 {
+		return ""
+	}
+	if maxBytes <= len(truncationMarker) {
+		return truncationMarker[:maxBytes]
+	}
+
+	prefixLength := maxBytes - len(truncationMarker)
+	for prefixLength > 0 && prefixLength < len(value) && !utf8.RuneStart(value[prefixLength]) {
+		prefixLength--
+	}
+	return value[:prefixLength] + truncationMarker
 }
 
 func (s *Stream) Subscribe() *StreamSubscription {

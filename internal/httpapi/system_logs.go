@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"main/internal/logging"
@@ -75,23 +76,23 @@ func (api *API) streamSystemLogsHandler(w http.ResponseWriter, r *http.Request) 
 }
 
 func parseSystemLogTail(r *http.Request, logger *slog.Logger) int {
-	rawTail := r.URL.Query().Get("tail")
-	if rawTail == "" {
-		return logging.DefaultReplayLimit
+	rawTail := strings.TrimSpace(strings.ToLower(r.URL.Query().Get("tail")))
+	if rawTail == "" || rawTail == "all" {
+		return 0
 	}
 
 	tail, err := strconv.Atoi(rawTail)
 	if err != nil {
 		logger.WarnContext(r.Context(), "invalid system log tail parameter", "tail", rawTail, "error", err)
-		return logging.DefaultReplayLimit
+		return 0
 	}
-	if tail <= 0 {
-		return logging.DefaultReplayLimit
+	switch tail {
+	case 100, 200, 500, 1000:
+		return tail
+	default:
+		logger.WarnContext(r.Context(), "unsupported system log tail parameter", "tail", rawTail)
+		return 0
 	}
-	if tail > logging.DefaultStreamCapacity {
-		return logging.DefaultStreamCapacity
-	}
-	return tail
 }
 
 func writeSystemLogSSEEvent(w http.ResponseWriter, entry logging.StreamEntry) error {

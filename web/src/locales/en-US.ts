@@ -361,18 +361,9 @@ const enUS = {
     },
     export: {
       title: 'Export System Logs',
-      description: 'Choose the range, level, and format to export from the current buffer of {count} logs.',
+      description: 'Export {count} logs using the current console filters.',
       fields: {
-        count: 'Export Range',
-        level: 'Log Level',
         format: 'File Format',
-      },
-      counts: {
-        ALL: 'All',
-        10: 'Latest 10',
-        20: 'Latest 20',
-        50: 'Latest 50',
-        100: 'Latest 100',
       },
       formats: {
         csv: 'CSV',
@@ -383,13 +374,21 @@ const enUS = {
     },
     filters: {
       searchPlaceholder: 'Search message, source, or context',
-      levelPlaceholder: 'Filter level',
+      historyPlaceholder: 'Log count',
       level: {
-        all: 'All levels',
+        allSelected: 'All levels',
+        noneSelected: 'No levels',
         DEBUG: 'Debug',
         INFO: 'Info',
         WARN: 'Warn',
         ERROR: 'Error',
+      },
+      history: {
+        ALL: 'All buffered',
+        100: 'Latest 100',
+        200: 'Latest 200',
+        500: 'Latest 500',
+        1000: 'Latest 1000',
       },
     },
     empty: {

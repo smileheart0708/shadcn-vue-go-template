@@ -361,18 +361,9 @@ const zhCN = {
     },
     export: {
       title: '导出系统日志',
-      description: '从当前缓冲的 {count} 条日志里选择导出范围、等级和格式。',
+      description: '将按当前控制台筛选导出 {count} 条日志。',
       fields: {
-        count: '导出范围',
-        level: '日志等级',
         format: '文件格式',
-      },
-      counts: {
-        ALL: '全部',
-        10: '最近 10 条',
-        20: '最近 20 条',
-        50: '最近 50 条',
-        100: '最近 100 条',
       },
       formats: {
         csv: 'CSV',
@@ -383,13 +374,21 @@ const zhCN = {
     },
     filters: {
       searchPlaceholder: '搜索消息、来源或上下文',
-      levelPlaceholder: '筛选等级',
+      historyPlaceholder: '日志数量',
       level: {
-        all: '全部等级',
+        allSelected: '全部等级',
+        noneSelected: '未选择等级',
         DEBUG: '调试',
         INFO: '信息',
         WARN: '警告',
         ERROR: '错误',
+      },
+      history: {
+        ALL: '全部缓存',
+        100: '最近 100 条',
+        200: '最近 200 条',
+        500: '最近 500 条',
+        1000: '最近 1000 条',
       },
     },
     empty: {

@@ -320,15 +320,15 @@ export interface MessageSchema {
     export: {
       title: string
       description: string
-      fields: { count: string; level: string; format: string }
-      counts: { ALL: string; 10: string; 20: string; 50: string; 100: string }
+      fields: { format: string }
       formats: { csv: string; txt: string; json: string }
       preview: string
     }
     filters: {
       searchPlaceholder: string
-      levelPlaceholder: string
-      level: { all: string; DEBUG: string; INFO: string; WARN: string; ERROR: string }
+      historyPlaceholder: string
+      level: { allSelected: string; noneSelected: string; DEBUG: string; INFO: string; WARN: string; ERROR: string }
+      history: { ALL: string; 100: string; 200: string; 500: string; 1000: string }
     }
     empty: { title: string; description: string }
     audit: {

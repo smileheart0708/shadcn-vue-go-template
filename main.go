@@ -35,7 +35,7 @@ func main() {
 
 func run() error {
 	logger, logStream := logging.NewWithStream(logging.StreamOptions{
-		Capacity:  logging.DefaultStreamCapacity,
+		MaxBytes:  logging.DefaultStreamMaxBytes,
 		Retention: logging.DefaultRetention,
 	})
 	slog.SetDefault(logger)
