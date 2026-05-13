@@ -68,7 +68,9 @@ const { isMobile, state, openMobile, setOpenMobile } = useSidebar()
           'relative bg-transparent transition-[width] duration-200 ease-linear inline-(--sidebar-width)',
           'group-data-[collapsible=offcanvas]:inline-0',
           'group-data-[side=right]:rotate-180',
-          variant === 'floating' || variant === 'inset' ? 'group-data-[collapsible=icon]:inline-[calc(var(--sidebar-width-icon)+(--spacing(4)))]' : 'group-data-[collapsible=icon]:inline-(--sidebar-width-icon)',
+          variant === 'floating' || variant === 'inset'
+            ? 'group-data-[collapsible=icon]:inline-[calc(var(--sidebar-width-icon)+(--spacing(4)))]'
+            : 'group-data-[collapsible=icon]:inline-(--sidebar-width-icon)',
         )
       "
     />
@@ -76,9 +78,7 @@ const { isMobile, state, openMobile, setOpenMobile } = useSidebar()
       :class="
         cn(
           'fixed inset-y-0 z-10 hidden transition-[left,right,width] duration-200 ease-linear block-svh inline-(--sidebar-width) md:flex',
-          side === 'left'
-            ? 'inset-s-0 group-data-[collapsible=offcanvas]:-inset-s-(--sidebar-width)'
-            : 'inset-e-0 group-data-[collapsible=offcanvas]:-inset-e-(--sidebar-width)',
+          side === 'left' ? 'inset-s-0 group-data-[collapsible=offcanvas]:-inset-s-(--sidebar-width)' : 'inset-e-0 group-data-[collapsible=offcanvas]:-inset-e-(--sidebar-width)',
           // Adjust the padding for floating and inset variants.
           variant === 'floating' || variant === 'inset'
             ? 'p-2 group-data-[collapsible=icon]:inline-[calc(var(--sidebar-width-icon)+(--spacing(4))+2px)]'
