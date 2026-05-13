@@ -8,7 +8,7 @@ require (
 	github.com/mattn/go-isatty v0.0.22
 	github.com/ysmood/goe v0.8.4
 	golang.org/x/crypto v0.51.0
-	modernc.org/sqlite v1.50.0
+	modernc.org/sqlite v1.50.1
 )
 
 require (
