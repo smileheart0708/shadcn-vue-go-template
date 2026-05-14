@@ -1,4 +1,5 @@
-import ky, { HTTPError, type Options } from 'ky'
+import ky, { HTTPError } from 'ky'
+import type { AfterResponseHook, BeforeRequestHook, Hooks, RetryOptions } from 'ky'
 import { readAuthToken } from '@/lib/auth/token'
 
 interface APIErrorPayload {
@@ -8,7 +9,6 @@ interface APIErrorPayload {
 export const BACKGROUND_REQUEST_HEADER = 'X-App-Background-Request'
 
 interface APIClientContext {
-  authRetryAttempted?: boolean
   skipAuthRefresh?: boolean
   backgroundRequest?: boolean
 }
@@ -45,25 +45,61 @@ export function clearAuthClientHandlers() {
   refreshPromise = null
 }
 
-const sharedHooks = {
-  beforeRequest: [
-    (request: Request, options: Options) => {
-      const context = readAPIClientContext(options)
+const applySharedRequestHeaders: BeforeRequestHook = ({ request, options }) => {
+  const context = readAPIClientContext(options.context)
 
-      if (!request.headers.has('Accept')) {
-        request.headers.set('Accept', 'application/json')
-      }
+  if (!request.headers.has('Accept')) {
+    request.headers.set('Accept', 'application/json')
+  }
 
-      const requestHasJSONBody = 'json' in options && options.json !== undefined && !request.headers.has('Content-Type')
-      if (requestHasJSONBody) {
-        request.headers.set('Content-Type', 'application/json')
-      }
+  if (context.backgroundRequest === true) {
+    request.headers.set(BACKGROUND_REQUEST_HEADER, '1')
+  }
+}
 
-      if (context.backgroundRequest === true) {
-        request.headers.set(BACKGROUND_REQUEST_HEADER, '1')
-      }
-    },
-  ],
+const applyAuthHeader: BeforeRequestHook = ({ request }) => {
+  const token = readAuthToken()
+  if (token !== null && !request.headers.has('Authorization')) {
+    request.headers.set('Authorization', `Bearer ${token}`)
+  }
+}
+
+const refreshUnauthorizedResponse: AfterResponseHook = async ({ request, options, response, retryCount }) => {
+  const context = readAPIClientContext(options.context)
+  if (response.status !== 401 || retryCount > 0 || context.skipAuthRefresh === true || isAuthLifecycleRequest(request)) {
+    return response
+  }
+
+  if (!refreshAccessTokenHandler) {
+    return response
+  }
+
+  let refreshedToken: string
+  try {
+    refreshedToken = await refreshAccessTokenSingleFlight()
+  } catch {
+    await unauthorizedHandler?.()
+    return response
+  }
+
+  return ky.retry({
+    code: 'AUTH_TOKEN_REFRESHED',
+    delay: 0,
+    request: createRetriedAuthRequest(request, refreshedToken),
+  })
+}
+
+const sharedBeforeRequestHooks: BeforeRequestHook[] = [applySharedRequestHeaders]
+
+const sharedHooks: Hooks = {
+  beforeRequest: sharedBeforeRequestHooks,
+}
+
+const authRefreshRetry: RetryOptions = {
+  limit: 1,
+  methods: [],
+  statusCodes: [],
+  delay: () => 0,
 }
 
 export const baseApi = ky.create({
@@ -72,54 +108,11 @@ export const baseApi = ky.create({
   hooks: sharedHooks,
 })
 
-export const authApi = ky.create({
-  retry: 0,
-  credentials: 'same-origin',
+export const authApi = baseApi.extend({
+  retry: authRefreshRetry,
   hooks: {
-    ...sharedHooks,
-    beforeRequest: [
-      ...sharedHooks.beforeRequest,
-      (request) => {
-        const token = readAuthToken()
-        if (token !== null && !request.headers.has('Authorization')) {
-          request.headers.set('Authorization', `Bearer ${token}`)
-        }
-      },
-    ],
-    afterResponse: [
-      async (request, options, response) => {
-        const context = readAPIClientContext(options)
-        if (response.status !== 401 || context.skipAuthRefresh === true || context.authRetryAttempted === true || isAuthLifecycleRequest(request)) {
-          return response
-        }
-
-        if (!refreshAccessTokenHandler) {
-          return response
-        }
-
-        try {
-          await refreshAccessTokenSingleFlight()
-        } catch {
-          await unauthorizedHandler?.()
-          return response
-        }
-
-        const headers = new Headers(options.headers ?? request.headers)
-        const nextToken = readAuthToken()
-        if (nextToken !== null) {
-          headers.set('Authorization', `Bearer ${nextToken}`)
-        }
-
-        return authApi(request.url, {
-          ...options,
-          headers,
-          context: {
-            ...context,
-            authRetryAttempted: true,
-          } satisfies APIClientContext,
-        })
-      },
-    ],
+    beforeRequest: [applyAuthHeader],
+    afterResponse: [refreshUnauthorizedResponse],
   },
 })
 
@@ -172,17 +165,23 @@ async function readResponsePayload(response: Response): Promise<unknown> {
   return text
 }
 
-function readAPIClientContext(options: Options): APIClientContext {
-  if (!isRecord(options.context)) {
+function readAPIClientContext(context: Record<string, unknown> | undefined): APIClientContext {
+  if (context === undefined) {
     return {}
   }
 
-  const { authRetryAttempted, skipAuthRefresh, backgroundRequest } = options.context
+  const { skipAuthRefresh, backgroundRequest } = context
   return {
-    authRetryAttempted: authRetryAttempted === true,
     skipAuthRefresh: skipAuthRefresh === true,
     backgroundRequest: backgroundRequest === true,
   }
+}
+
+function createRetriedAuthRequest(request: Request, accessToken: string): Request {
+  const headers = new Headers(request.headers)
+  headers.set('Authorization', `Bearer ${accessToken}`)
+
+  return new Request(request, { headers })
 }
 
 function isAuthLifecycleRequest(request: Request): boolean {
