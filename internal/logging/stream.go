@@ -220,10 +220,7 @@ func truncateStreamEntry(entry StreamEntry, maxBytes int) StreamEntry {
 			break
 		}
 
-		targetLength := currentLength - overflow
-		if targetLength < 0 {
-			targetLength = 0
-		}
+		targetLength := max(currentLength-overflow, 0)
 		nextValue := truncateStringBytes(*field, targetLength)
 		if len(nextValue) >= currentLength {
 			nextValue = ""
