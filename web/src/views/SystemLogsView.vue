@@ -508,7 +508,7 @@ async function waitForReconnect(delayMs: number, signal: AbortSignal): Promise<b
     >
       <TabsContent
         value="console"
-        class="flex flex-col gap-6 lg:flex-1 lg:min-block-0"
+        class="flex flex-col gap-4 lg:flex-1 lg:min-block-0"
       >
         <Card class="lg:flex-1 lg:overflow-hidden lg:min-block-0">
           <CardHeader class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -580,11 +580,11 @@ async function waitForReconnect(delayMs: number, signal: AbortSignal): Promise<b
           </CardHeader>
 
           <CardContent class="flex flex-col gap-4 lg:flex-1 lg:min-block-0">
-            <div class="flex flex-col gap-3 md:flex-row md:items-center">
+            <div class="flex flex-col gap-2 md:flex-row md:items-center">
               <Input
                 v-model="searchQuery"
                 :placeholder="t('systemLogs.filters.searchPlaceholder')"
-                class="flex-1"
+                class="md:flex-1"
               />
 
               <SystemLogLevelMultiSelect
@@ -665,15 +665,15 @@ async function waitForReconnect(delayMs: number, signal: AbortSignal): Promise<b
       <TabsContent
         v-if="canReadAuditLogs"
         value="audit"
-        class="space-y-4"
+        class="flex flex-col gap-4"
       >
         <Card>
-          <CardHeader class="space-y-1">
+          <CardHeader class="flex flex-col gap-2">
             <CardTitle class="text-lg">{{ t('systemLogs.audit.title') }}</CardTitle>
             <p class="text-sm text-muted-foreground">{{ t('systemLogs.audit.description') }}</p>
           </CardHeader>
 
-          <CardContent class="space-y-4">
+          <CardContent class="flex flex-col gap-4">
             <div
               v-if="auditLoading"
               class="overflow-hidden rounded-lg border"
@@ -722,7 +722,7 @@ async function waitForReconnect(delayMs: number, signal: AbortSignal): Promise<b
 
             <div
               v-else
-              class="space-y-4"
+              class="flex flex-col gap-4"
             >
               <div class="overflow-hidden rounded-lg border">
                 <Table>
