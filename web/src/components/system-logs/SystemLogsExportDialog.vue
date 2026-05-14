@@ -7,12 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import type { SystemLogEntry, SystemLogHistoryLimit, SystemLogLevel } from '@/lib/api/system-logs'
-import {
-  downloadSystemLogs,
-  selectSystemLogEntries,
-  SYSTEM_LOG_EXPORT_FORMAT_VALUES,
-  type SystemLogExportFormat,
-} from '@/lib/system-logs/export'
+import { downloadSystemLogs, selectSystemLogEntries, SYSTEM_LOG_EXPORT_FORMAT_VALUES, type SystemLogExportFormat } from '@/lib/system-logs/export'
 
 interface Props {
   entries: SystemLogEntry[]

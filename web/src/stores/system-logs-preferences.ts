@@ -1,12 +1,7 @@
 import { watch, ref } from 'vue'
 import { defineStore } from 'pinia'
 import { z } from 'zod'
-import {
-  isSystemLogLevel,
-  SYSTEM_LOG_LEVEL_VALUES,
-  type SystemLogHistoryLimit,
-  type SystemLogLevel,
-} from '@/lib/api/system-logs'
+import { isSystemLogLevel, SYSTEM_LOG_LEVEL_VALUES, type SystemLogHistoryLimit, type SystemLogLevel } from '@/lib/api/system-logs'
 import { SYSTEM_LOG_EXPORT_FORMAT_VALUES, type SystemLogExportFormat } from '@/lib/system-logs/export'
 
 const STORAGE_KEY = 'app.system-logs.preferences'
