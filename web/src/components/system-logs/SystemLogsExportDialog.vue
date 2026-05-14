@@ -7,10 +7,11 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import type { SystemLogEntry, SystemLogHistoryLimit, SystemLogLevel } from '@/lib/api/system-logs'
-import { downloadSystemLogs, selectSystemLogEntries, SYSTEM_LOG_EXPORT_FORMAT_VALUES, type SystemLogExportFormat } from '@/lib/system-logs/export'
+import { SYSTEM_LOG_EXPORT_FORMAT_VALUES, type SystemLogExportFormat } from '@/stores/system-logs-preferences'
+import { createSystemLogExportBlob, getSystemLogExportFileName, selectSystemLogEntries } from '@/utils/system-logs/export'
 
 interface Props {
-  entries: SystemLogEntry[]
+  entries: readonly SystemLogEntry[]
   historyLimit: SystemLogHistoryLimit
   levels: readonly SystemLogLevel[]
   open: boolean
@@ -33,15 +34,14 @@ const openModel = computed({
   },
 })
 
-const exportableCount = computed(
-  () =>
-    selectSystemLogEntries({
-      entries: props.entries,
-      historyLimit: props.historyLimit,
-      levels: props.levels,
-      format: exportFormat.value,
-    }).length,
+const exportableEntries = computed(() =>
+  selectSystemLogEntries({
+    entries: props.entries,
+    historyLimit: props.historyLimit,
+    levels: props.levels,
+  }),
 )
+const exportableCount = computed(() => exportableEntries.value.length)
 
 function handleExport() {
   const count = exportableCount.value
@@ -50,15 +50,21 @@ function handleExport() {
     return
   }
 
-  const exportedCount = downloadSystemLogs({
-    entries: props.entries,
-    historyLimit: props.historyLimit,
-    levels: props.levels,
-    format: exportFormat.value,
-  })
+  downloadSystemLogs(exportableEntries.value, exportFormat.value)
 
-  toast.success(t('systemLogs.feedback.exportSuccess', { count: exportedCount }))
+  toast.success(t('systemLogs.feedback.exportSuccess', { count }))
   openModel.value = false
+}
+
+function downloadSystemLogs(entries: readonly SystemLogEntry[], format: SystemLogExportFormat) {
+  const blob = createSystemLogExportBlob(entries, format)
+  const url = window.URL.createObjectURL(blob)
+  const link = document.createElement('a')
+
+  link.href = url
+  link.download = getSystemLogExportFileName(format)
+  link.click()
+  window.URL.revokeObjectURL(url)
 }
 </script>
 

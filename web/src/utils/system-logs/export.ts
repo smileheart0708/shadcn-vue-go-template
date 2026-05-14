@@ -1,58 +1,20 @@
 import { isSystemLogLevel, type SystemLogEntry, type SystemLogHistoryLimit, type SystemLogLevel } from '@/lib/api/system-logs'
-
-export const SYSTEM_LOG_EXPORT_FORMAT_VALUES = ['csv', 'txt', 'json'] as const
-
-export type SystemLogExportFormat = (typeof SYSTEM_LOG_EXPORT_FORMAT_VALUES)[number]
+import type { SystemLogExportFormat } from '@/stores/system-logs-preferences'
+import { applyHistoryLimit, formatSystemLogTimestamp } from './console'
 
 interface ExportSystemLogsOptions {
-  entries: SystemLogEntry[]
+  entries: readonly SystemLogEntry[]
   historyLimit: SystemLogHistoryLimit
   levels: readonly SystemLogLevel[]
-  format: SystemLogExportFormat
-}
-
-export function formatSystemLogTimestamp(timestamp: number | null | undefined): string {
-  if (timestamp === null || timestamp === undefined) {
-    return ''
-  }
-
-  return new Intl.DateTimeFormat(undefined, {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false,
-  }).format(new Date(timestamp * 1000))
 }
 
 export function selectSystemLogEntries(options: ExportSystemLogsOptions): SystemLogEntry[] {
   const selectedLevels = new Set(options.levels)
   const filteredEntries = options.entries.filter((entry) => isSystemLogLevel(entry.level) && selectedLevels.has(entry.level))
-
-  if (options.historyLimit === 'ALL') {
-    return filteredEntries
-  }
-
-  return filteredEntries.slice(-options.historyLimit)
+  return applyHistoryLimit(filteredEntries, options.historyLimit)
 }
 
-export function downloadSystemLogs(options: ExportSystemLogsOptions): number {
-  const selectedEntries = selectSystemLogEntries(options)
-  const blob = createSystemLogExportBlob(selectedEntries, options.format)
-  const url = window.URL.createObjectURL(blob)
-  const link = document.createElement('a')
-
-  link.href = url
-  link.download = `system-logs-${formatExportFileDate(new Date())}.${options.format}`
-  link.click()
-  window.URL.revokeObjectURL(url)
-
-  return selectedEntries.length
-}
-
-function createSystemLogExportBlob(entries: SystemLogEntry[], format: SystemLogExportFormat): Blob {
+export function createSystemLogExportBlob(entries: readonly SystemLogEntry[], format: SystemLogExportFormat): Blob {
   switch (format) {
     case 'json':
       return new Blob([JSON.stringify(entries, null, 2)], { type: 'application/json;charset=utf-8' })
@@ -64,14 +26,18 @@ function createSystemLogExportBlob(entries: SystemLogEntry[], format: SystemLogE
   }
 }
 
-function serializeSystemLogsCSV(entries: SystemLogEntry[]): string {
+export function getSystemLogExportFileName(format: SystemLogExportFormat): string {
+  return `system-logs-${formatExportFileDate(new Date())}.${format}`
+}
+
+function serializeSystemLogsCSV(entries: readonly SystemLogEntry[]): string {
   const header = ['timestamp', 'level', 'source', 'message', 'text']
   const rows = entries.map((entry) => [formatSystemLogTimestamp(entry.timestamp), entry.level, entry.source, entry.message, entry.text])
 
   return [header, ...rows].map((row) => row.map(escapeCSVValue).join(',')).join('\r\n')
 }
 
-function serializeSystemLogsTXT(entries: SystemLogEntry[]): string {
+function serializeSystemLogsTXT(entries: readonly SystemLogEntry[]): string {
   return entries.map((entry) => `[${formatSystemLogTimestamp(entry.timestamp)}] [${entry.level}] [${entry.source}] ${entry.text}`).join('\r\n')
 }
 
