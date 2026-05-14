@@ -1,0 +1,60 @@
+import { ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
+import { toast } from 'vue-sonner'
+import { getAPIErrorMessage } from '@/lib/api/error-messages'
+import { useAuthStore } from '@/stores/auth'
+
+export function usePasswordSettings() {
+  const { t } = useI18n()
+  const router = useRouter()
+  const authStore = useAuthStore()
+
+  const passwordError = ref('')
+  const passwordForm = ref({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  })
+  const isUpdatingPassword = ref(false)
+
+  async function updatePassword() {
+    passwordError.value = ''
+
+    if (passwordForm.value.newPassword !== passwordForm.value.confirmPassword) {
+      passwordError.value = t('settings.account.passwordMismatch')
+      return
+    }
+
+    isUpdatingPassword.value = true
+
+    try {
+      await authStore.changePassword({
+        currentPassword: passwordForm.value.currentPassword,
+        newPassword: passwordForm.value.newPassword,
+      })
+
+      passwordForm.value = {
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: '',
+      }
+
+      toast.success(t('settings.account.passwordUpdated'))
+      await router.push({ name: 'login' })
+    } catch (error) {
+      const message = getAPIErrorMessage(t, error, 'apiError.passwordUpdateFailed')
+      passwordError.value = message
+      toast.error(message)
+    } finally {
+      isUpdatingPassword.value = false
+    }
+  }
+
+  return {
+    passwordForm,
+    passwordError,
+    isUpdatingPassword,
+    updatePassword,
+  }
+}
