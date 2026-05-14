@@ -72,8 +72,6 @@ func run() error {
 	}
 	defer closeDB(dbContainer)
 
-	slog.Info("database ready", "path", dbPath)
-
 	authorizationService := authorization.NewService()
 	identityService := identity.NewService(dbContainer.DB())
 	accountPoliciesService := accountpolicies.NewService(dbContainer.DB())
