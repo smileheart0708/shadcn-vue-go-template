@@ -232,10 +232,11 @@ export interface MessageSchema {
       statusAll: string
     }
     table: {
-      username: string
+      user: string
       email: string
       role: string
       status: string
+      lastActiveAt: string
       createdAt: string
       actions: string
       empty: string

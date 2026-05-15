@@ -23,6 +23,7 @@ interface MockUser {
   role: RoleKey
   status: UserStatus
   password: string
+  lastActiveAt: string | null
   createdAt: string
   updatedAt: string
 }
@@ -111,6 +112,7 @@ function createInitialState(): MockState {
       role: 'owner',
       status: 'active',
       password: 'owner1234',
+      lastActiveAt: MOCK_FIXTURE_UPDATED_AT,
       createdAt: MOCK_FIXTURE_CREATED_AT,
       updatedAt: MOCK_FIXTURE_UPDATED_AT,
     },
@@ -122,6 +124,7 @@ function createInitialState(): MockState {
       role: 'user',
       status: 'active',
       password: 'member1234',
+      lastActiveAt: null,
       createdAt: MOCK_FIXTURE_CREATED_AT,
       updatedAt: MOCK_FIXTURE_UPDATED_AT,
     },
@@ -133,6 +136,7 @@ function createInitialState(): MockState {
       role: 'user',
       status: 'disabled',
       password: 'disabled1234',
+      lastActiveAt: null,
       createdAt: MOCK_FIXTURE_CREATED_AT,
       updatedAt: MOCK_FIXTURE_UPDATED_AT,
     },
@@ -276,6 +280,7 @@ function toViewer(user: MockUser) {
 }
 
 function issueSession(user: MockUser, accessToken = `mock-access-${user.id}-${Date.now()}`) {
+  user.lastActiveAt = nowISO()
   state.session = createMockSession(user.id, accessToken)
 
   return {
@@ -402,6 +407,7 @@ function toManagedUser(user: MockUser, actor: MockUser) {
     avatarUrl: user.avatarUrl,
     role: user.role,
     status: user.status,
+    lastActiveAt: user.lastActiveAt,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
     actions: managedUserActions(actor, user),
@@ -501,6 +507,7 @@ export const authHandlers = [
       role: 'owner',
       status: 'active',
       password: payload.password,
+      lastActiveAt: null,
       createdAt,
       updatedAt: createdAt,
     }
@@ -594,6 +601,7 @@ export const authHandlers = [
       role: 'user',
       status: 'active',
       password: payload.password,
+      lastActiveAt: null,
       createdAt,
       updatedAt: createdAt,
     }
@@ -825,6 +833,7 @@ export const authHandlers = [
       role: 'user',
       status: 'active',
       password: payload.password,
+      lastActiveAt: null,
       createdAt,
       updatedAt: createdAt,
     }

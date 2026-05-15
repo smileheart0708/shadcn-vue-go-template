@@ -10,6 +10,7 @@ export const managedUserSchema = z.object({
   avatarUrl: z.string().nullable(),
   role: roleKeySchema,
   status: z.enum(['active', 'disabled']),
+  lastActiveAt: z.string().nullable(),
   createdAt: z.string(),
   updatedAt: z.string(),
   actions: z.array(z.enum(['update', 'disable', 'enable'])),

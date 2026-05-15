@@ -257,10 +257,11 @@ const enUS = {
       statusAll: 'All statuses',
     },
     table: {
-      username: 'Username',
+      user: 'User',
       email: 'Email',
       role: 'Role',
       status: 'Status',
+      lastActiveAt: 'Last Active',
       createdAt: 'Registered At',
       actions: 'Actions',
       empty: 'No matching users found.',

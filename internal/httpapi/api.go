@@ -49,15 +49,16 @@ type sessionResponse struct {
 }
 
 type managedUserResponse struct {
-	ID        int64     `json:"id"`
-	Username  string    `json:"username"`
-	Email     *string   `json:"email"`
-	AvatarURL *string   `json:"avatarUrl"`
-	Role      string    `json:"role"`
-	Status    string    `json:"status"`
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
-	Actions   []string  `json:"actions"`
+	ID           int64      `json:"id"`
+	Username     string     `json:"username"`
+	Email        *string    `json:"email"`
+	AvatarURL    *string    `json:"avatarUrl"`
+	Role         string     `json:"role"`
+	Status       string     `json:"status"`
+	LastActiveAt *time.Time `json:"lastActiveAt"`
+	CreatedAt    time.Time  `json:"createdAt"`
+	UpdatedAt    time.Time  `json:"updatedAt"`
+	Actions      []string   `json:"actions"`
 }
 
 type installStateResponse struct {
@@ -95,15 +96,16 @@ func (api *API) toSessionResponse(result auth.SessionResult) sessionResponse {
 
 func (api *API) toManagedUserResponse(user identity.User, actions []string) managedUserResponse {
 	return managedUserResponse{
-		ID:        user.ID,
-		Username:  user.Username,
-		Email:     user.Email,
-		AvatarURL: api.toAvatarURL(user.AvatarPath),
-		Role:      user.Role,
-		Status:    user.Status,
-		CreatedAt: user.CreatedAt,
-		UpdatedAt: user.UpdatedAt,
-		Actions:   cloneStringSlice(actions),
+		ID:           user.ID,
+		Username:     user.Username,
+		Email:        user.Email,
+		AvatarURL:    api.toAvatarURL(user.AvatarPath),
+		Role:         user.Role,
+		Status:       user.Status,
+		LastActiveAt: user.LastActiveAt,
+		CreatedAt:    user.CreatedAt,
+		UpdatedAt:    user.UpdatedAt,
+		Actions:      cloneStringSlice(actions),
 	}
 }
 

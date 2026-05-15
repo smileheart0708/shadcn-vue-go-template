@@ -351,6 +351,47 @@ func TestManagedUserResponsesEncodeEmptySlicesAsJSONArrays(t *testing.T) {
 	}
 }
 
+func TestManagedUserResponsesIncludeLastActiveAt(t *testing.T) {
+	t.Parallel()
+
+	ctx := newTestContext(t)
+	ownerSession, _ := performSetup(t, ctx)
+
+	created := createManagedUser(t, ctx, ownerSession.AccessToken, `{"username":"member","password":"member1234"}`)
+	if created.LastActiveAt != nil {
+		t.Fatalf("expected newly created managed user to have no last active time, got %v", created.LastActiveAt)
+	}
+
+	_, memberCookie := loginUser(t, ctx, "member", "member1234")
+	if memberCookie == nil {
+		t.Fatal("expected login to create a refresh session")
+	}
+
+	listReq := httptest.NewRequest(http.MethodGet, "/api/management/users?page=1&pageSize=20", nil)
+	listReq.Header.Set("Authorization", "Bearer "+ownerSession.AccessToken)
+	listRec := httptest.NewRecorder()
+	ctx.handler.ServeHTTP(listRec, listReq)
+
+	if listRec.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, listRec.Code, listRec.Body.String())
+	}
+
+	var envelope testSuccessEnvelope[managementUsersPageResponse]
+	decodeJSONResponse(t, listRec.Body.Bytes(), &envelope)
+
+	for _, item := range envelope.Data.Items {
+		if item.ID != created.ID {
+			continue
+		}
+		if item.LastActiveAt == nil {
+			t.Fatalf("expected logged-in managed user to have a last active time, got %+v", item)
+		}
+		return
+	}
+
+	t.Fatalf("expected to find managed user %d in list response", created.ID)
+}
+
 func TestAuditLogsEndpointIncludesSecurityEvents(t *testing.T) {
 	t.Parallel()
 

@@ -35,6 +35,7 @@ type User struct {
 	Role            string
 	SecurityVersion int64
 	DisabledAt      *time.Time
+	LastActiveAt    *time.Time
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
 }
@@ -508,6 +509,7 @@ func (s *Service) getUserQuerier(ctx context.Context, db database.DBTX, userID i
 			u.role,
 			u.security_version,
 			u.disabled_at,
+			(SELECT MAX(s.last_used_at) FROM auth_sessions s WHERE s.user_id = u.id) AS last_active_at,
 			u.created_at,
 			u.updated_at
 		FROM users u
@@ -580,6 +582,7 @@ func scanUser(scanner interface{ Scan(dest ...any) error }) (User, error) {
 	var email sql.NullString
 	var avatarPath sql.NullString
 	var disabledAt sql.NullInt64
+	var lastActiveAt sql.NullInt64
 	var createdAt int64
 	var updatedAt int64
 
@@ -592,6 +595,7 @@ func scanUser(scanner interface{ Scan(dest ...any) error }) (User, error) {
 		&user.Role,
 		&user.SecurityVersion,
 		&disabledAt,
+		&lastActiveAt,
 		&createdAt,
 		&updatedAt,
 	)
@@ -605,6 +609,7 @@ func scanUser(scanner interface{ Scan(dest ...any) error }) (User, error) {
 	user.Email = nullableStringPointer(email)
 	user.AvatarPath = nullableStringPointer(avatarPath)
 	user.DisabledAt = nullableUnixTimePointer(disabledAt)
+	user.LastActiveAt = nullableUnixTimePointer(lastActiveAt)
 	user.CreatedAt = time.Unix(createdAt, 0).UTC()
 	user.UpdatedAt = time.Unix(updatedAt, 0).UTC()
 	return user, nil
@@ -723,6 +728,7 @@ const listUsersSQL = `SELECT
 			u.role,
 			u.security_version,
 			u.disabled_at,
+			(SELECT MAX(s.last_used_at) FROM auth_sessions s WHERE s.user_id = u.id) AS last_active_at,
 			u.created_at,
 			u.updated_at
 		FROM users u
@@ -738,6 +744,7 @@ const listUsersSQLSearch = `SELECT
 			u.role,
 			u.security_version,
 			u.disabled_at,
+			(SELECT MAX(s.last_used_at) FROM auth_sessions s WHERE s.user_id = u.id) AS last_active_at,
 			u.created_at,
 			u.updated_at
 		FROM users u
@@ -754,6 +761,7 @@ const listUsersSQLStatus = `SELECT
 			u.role,
 			u.security_version,
 			u.disabled_at,
+			(SELECT MAX(s.last_used_at) FROM auth_sessions s WHERE s.user_id = u.id) AS last_active_at,
 			u.created_at,
 			u.updated_at
 		FROM users u
@@ -770,6 +778,7 @@ const listUsersSQLSearchStatus = `SELECT
 			u.role,
 			u.security_version,
 			u.disabled_at,
+			(SELECT MAX(s.last_used_at) FROM auth_sessions s WHERE s.user_id = u.id) AS last_active_at,
 			u.created_at,
 			u.updated_at
 		FROM users u

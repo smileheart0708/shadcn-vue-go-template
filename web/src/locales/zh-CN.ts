@@ -257,10 +257,11 @@ const zhCN = {
       statusAll: '全部状态',
     },
     table: {
-      username: '用户名',
+      user: '用户',
       email: '邮箱',
       role: '角色',
       status: '状态',
+      lastActiveAt: '最后活跃时间',
       createdAt: '注册时间',
       actions: '操作',
       empty: '没有匹配的用户。',
