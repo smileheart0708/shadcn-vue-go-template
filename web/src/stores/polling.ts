@@ -1,11 +1,14 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
+import { z } from 'zod'
+import { parseExternalValueOrDefault } from '@/lib/external-input'
 
 const CURRENT_USER_INTERVAL_STORAGE_KEY = 'app.polling.current-user-interval-seconds'
 
 export const POLLING_INTERVAL_MIN_SECONDS = 5
 export const POLLING_INTERVAL_MAX_SECONDS = 60
 export const POLLING_INTERVAL_DEFAULT_SECONDS = 10
+const storedPollingIntervalSecondsSchema = z.coerce.number().transform(normalizePollingIntervalSeconds)
 
 export function normalizePollingIntervalSeconds(value: number) {
   if (!Number.isFinite(value)) {
@@ -21,12 +24,7 @@ function readStoredCurrentUserIntervalSeconds() {
   }
 
   const rawValue = window.localStorage.getItem(CURRENT_USER_INTERVAL_STORAGE_KEY)
-
-  if (rawValue === null) {
-    return POLLING_INTERVAL_DEFAULT_SECONDS
-  }
-
-  return normalizePollingIntervalSeconds(Number(rawValue))
+  return parseExternalValueOrDefault(storedPollingIntervalSecondsSchema, rawValue, POLLING_INTERVAL_DEFAULT_SECONDS)
 }
 
 function persistCurrentUserIntervalSeconds(value: number) {

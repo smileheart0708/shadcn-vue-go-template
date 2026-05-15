@@ -1,5 +1,7 @@
 import { defaultDocument, useMediaQuery } from '@vueuse/core'
 import { computed, getCurrentInstance, ref, watch, type ComputedRef, type Ref } from 'vue'
+import { z } from 'zod'
+import { parseExternalValueOrDefault } from '@/lib/external-input'
 import { SIDEBAR_COOKIE_MAX_AGE, SIDEBAR_COOKIE_NAME } from './utils'
 
 export interface SidebarControllerProps {
@@ -16,6 +18,8 @@ export interface SidebarController {
   setOpenMobile: (value: boolean) => void
   toggleSidebar: () => void
 }
+
+const storedSidebarOpenSchema = z.enum(['true', 'false']).transform((value) => value === 'true')
 
 export function useSidebarController(props: SidebarControllerProps, emitUpdateOpen: (value: boolean) => void): SidebarController {
   const isMobile = useMediaQuery('(max-width: 768px)')
@@ -96,5 +100,16 @@ function readStoredSidebarOpen(): boolean {
     return true
   }
 
-  return !defaultDocument.cookie.includes(`${SIDEBAR_COOKIE_NAME}=false`)
+  return parseExternalValueOrDefault(storedSidebarOpenSchema, readCookieValue(SIDEBAR_COOKIE_NAME), true)
+}
+
+function readCookieValue(name: string): string | null {
+  for (const cookie of defaultDocument?.cookie.split(';') ?? []) {
+    const [cookieName, ...cookieValueParts] = cookie.trim().split('=')
+    if (cookieName === name) {
+      return cookieValueParts.join('=')
+    }
+  }
+
+  return null
 }

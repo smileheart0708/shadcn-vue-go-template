@@ -4,7 +4,9 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
+import { z } from 'zod'
 import { getAPIErrorMessage } from '@/lib/api/error-messages'
+import { parseExternalValue } from '@/lib/external-input'
 import { useAuthStore } from '@/stores/auth'
 
 import { cn } from '@/lib/utils'
@@ -23,6 +25,9 @@ const identifier = ref('')
 const password = ref('')
 const isSubmitting = ref(false)
 const canRegister = computed(() => authStore.publicAuthConfig?.registrationEnabled === true)
+
+const internalRedirectPathSchema = z.string().refine(isInternalRedirectPath)
+const dashboardRedirectTarget = { name: 'dashboard' as const }
 
 onMounted(() => {
   void authStore.refreshPublicState()
@@ -44,13 +49,17 @@ async function handleSubmit() {
 
   try {
     await loginPromise
-    const redirectTarget = typeof route.query.redirect === 'string' && route.query.redirect.startsWith('/') ? route.query.redirect : { name: 'dashboard' as const }
+    const redirectTarget = parseExternalValue(internalRedirectPathSchema, route.query.redirect) ?? dashboardRedirectTarget
     await router.push(redirectTarget)
   } catch {
     return
   } finally {
     isSubmitting.value = false
   }
+}
+
+function isInternalRedirectPath(value: string) {
+  return value.startsWith('/') && !value.startsWith('//') && !value.startsWith('/\\') && !/^[A-Za-z][A-Za-z\d+.-]*:/.test(value)
 }
 </script>
 

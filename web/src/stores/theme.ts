@@ -1,5 +1,7 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
+import { z } from 'zod'
+import { parseExternalValueOrDefault } from '@/lib/external-input'
 
 const THEME_STORAGE_KEY = 'app.theme'
 const SYSTEM_THEME_MEDIA_QUERY = '(prefers-color-scheme: dark)'
@@ -9,17 +11,18 @@ const THEME_OPTIONS = {
   dark: 'dark',
   system: 'system',
 } as const
+const themePreferenceSchema = z.enum([THEME_OPTIONS.light, THEME_OPTIONS.dark, THEME_OPTIONS.system])
 
-export type ThemePreference = (typeof THEME_OPTIONS)[keyof typeof THEME_OPTIONS]
+export type ThemePreference = z.infer<typeof themePreferenceSchema>
 type ResolvedTheme = Exclude<ThemePreference, 'system'>
 
-function isThemePreference(value: string | null): value is ThemePreference {
-  return value === THEME_OPTIONS.light || value === THEME_OPTIONS.dark || value === THEME_OPTIONS.system
-}
-
 function readStoredTheme(): ThemePreference {
+  if (typeof window === 'undefined') {
+    return THEME_OPTIONS.system
+  }
+
   const storedTheme = window.localStorage.getItem(THEME_STORAGE_KEY)
-  return isThemePreference(storedTheme) ? storedTheme : THEME_OPTIONS.system
+  return parseExternalValueOrDefault(themePreferenceSchema, storedTheme, THEME_OPTIONS.system)
 }
 
 function getSystemTheme(): ResolvedTheme {

@@ -1,6 +1,7 @@
 import { watch, ref } from 'vue'
 import { defineStore } from 'pinia'
 import { z } from 'zod'
+import { parseExternalJsonOrDefault } from '@/lib/external-input'
 import { isSystemLogLevel, SYSTEM_LOG_LEVEL_VALUES, type SystemLogHistoryLimit, type SystemLogLevel } from '@/lib/api/system-logs'
 
 const STORAGE_KEY = 'app.system-logs.preferences'
@@ -89,19 +90,11 @@ function readStoredPreferences(): SystemLogsPreferences {
     return defaultPreferences
   }
 
-  try {
-    const parsedPayload = storedPreferencesSchema.safeParse(JSON.parse(rawValue))
-    if (!parsedPayload.success) {
-      return defaultPreferences
-    }
-
-    return {
-      levels: normalizeLevels(parsedPayload.data.levels ?? defaultPreferences.levels),
-      historyLimit: parsedPayload.data.historyLimit ?? defaultPreferences.historyLimit,
-      exportFormat: normalizeExportFormat(parsedPayload.data.exportFormat),
-    }
-  } catch {
-    return defaultPreferences
+  const parsedPayload = parseExternalJsonOrDefault(storedPreferencesSchema, rawValue, {})
+  return {
+    levels: normalizeLevels(parsedPayload.levels ?? defaultPreferences.levels),
+    historyLimit: parsedPayload.historyLimit ?? defaultPreferences.historyLimit,
+    exportFormat: normalizeExportFormat(parsedPayload.exportFormat),
   }
 }
 
