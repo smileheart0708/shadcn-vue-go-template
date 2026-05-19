@@ -65,19 +65,6 @@ func TestRunMigrationsAppliesCurrentSchema(t *testing.T) {
 		"ip",
 		"user_agent",
 	})
-	assertTableColumns(t, db, "audit_logs", []string{
-		"id",
-		"actor_user_id",
-		"subject_user_id",
-		"auth_session_id",
-		"event_type",
-		"outcome",
-		"reason",
-		"ip",
-		"user_agent",
-		"metadata_json",
-		"occurred_at",
-	})
 	assertTableColumns(t, db, "install_state", []string{
 		"id",
 		"setup_state",

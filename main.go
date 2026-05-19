@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"main/internal/accountpolicies"
-	"main/internal/audit"
 	"main/internal/auth"
 	"main/internal/authorization"
 	"main/internal/config"
@@ -76,7 +75,6 @@ func run() error {
 	identityService := identity.NewService(dbContainer.DB())
 	accountPoliciesService := accountpolicies.NewService(dbContainer.DB())
 	setupService := setup.NewService(dbContainer.DB(), identityService)
-	auditService := audit.NewService(dbContainer.DB())
 	authService := auth.NewService(auth.Options{
 		Secret:             []byte(cfg.JWTSecret),
 		TTL:                cfg.JWTTTL,
@@ -95,7 +93,6 @@ func run() error {
 			Identity:        identityService,
 			Setup:           setupService,
 			AccountPolicies: accountPoliciesService,
-			Audit:           auditService,
 			DataDir:         dataDir,
 			FrontendFS:      frontendAssets,
 			LogAPIRequests:  cfg.APIRequestLogEnabled,

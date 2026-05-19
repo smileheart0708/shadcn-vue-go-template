@@ -13,7 +13,6 @@ export const CAPABILITY = {
   managementUsersUpdate: 'management.users.update',
   managementUsersDisable: 'management.users.disable',
   managementUsersEnable: 'management.users.enable',
-  managementAuditLogsRead: 'management.audit_logs.read',
   managementSystemLogsRead: 'management.system_logs.read',
   accountDeleteSelf: 'account.delete_self',
 } as const satisfies Record<string, Capability>

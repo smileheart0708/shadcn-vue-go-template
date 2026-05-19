@@ -7,7 +7,6 @@ import { openSystemLogsStream, type SystemLogEntry, type SystemLogHistoryLimit }
 import { appendSystemLogEntry, clearSystemLogEntries, getReconnectDelayMs, historyLimitRank, shouldRetryStreamError } from '@/utils/system-logs/console'
 
 interface UseSystemLogStreamOptions {
-  activeTab: Ref<'console' | 'audit'>
   historyLimit: Ref<SystemLogHistoryLimit>
 }
 
@@ -26,9 +25,9 @@ export function useSystemLogStream(options: UseSystemLogStreamOptions) {
   let abortController: AbortController | null = null
 
   watch(
-    () => [pageVisible.value, reconnectKey.value, options.activeTab.value] as const,
-    ([visible, , tab]) => {
-      if (!visible || tab !== 'console') {
+    () => [pageVisible.value, reconnectKey.value] as const,
+    ([visible]) => {
+      if (!visible) {
         disconnect()
         loading.value = entries.value.length === 0
         return

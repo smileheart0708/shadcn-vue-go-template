@@ -1,7 +1,6 @@
 import { createParser, type EventSourceMessage } from 'eventsource-parser'
 import { z } from 'zod'
 import { APIError, authApi, normalizeAPIError } from '@/lib/api/client'
-import { successEnvelopeSchema } from '@/lib/api/envelope'
 
 export const SYSTEM_LOG_LEVEL_VALUES = ['DEBUG', 'INFO', 'WARN', 'ERROR'] as const
 export const SYSTEM_LOG_HISTORY_LIMIT_VALUES = [100, 200, 500, 1000, 'ALL'] as const
@@ -23,52 +22,11 @@ export const systemLogEntrySchema = z.object({
 
 export type SystemLogEntry = z.infer<typeof systemLogEntrySchema>
 
-export const auditLogEntrySchema = z.object({
-  id: z.number().int().positive(),
-  actorUserId: z.number().int().positive().nullable(),
-  subjectUserId: z.number().int().positive().nullable(),
-  authSessionId: z.string().nullable(),
-  eventType: z.string(),
-  outcome: z.enum(['success', 'failure']),
-  reason: z.string().nullable(),
-  ip: z.string().nullable(),
-  userAgent: z.string().nullable(),
-  metadata: z.record(z.string(), z.unknown()).nullish(),
-  occurredAt: z.string(),
-})
-
-export type AuditLogEntry = z.infer<typeof auditLogEntrySchema>
-
-const auditLogsEnvelopeSchema = successEnvelopeSchema(
-  z.object({
-    items: z.array(auditLogEntrySchema),
-    page: z.number().int().positive(),
-    pageSize: z.number().int().positive(),
-    total: z.number().int().nonnegative(),
-  }),
-)
-
 interface OpenSystemLogsStreamOptions {
   tail?: SystemLogHistoryLimit
   signal: AbortSignal
   onOpen?: () => void
   onEntry: (entry: SystemLogEntry) => void
-}
-
-export async function listAuditLogs(page = 1, pageSize = 50) {
-  try {
-    const payload = await authApi
-      .get('/api/management/audit-logs', {
-        searchParams: {
-          page: String(page),
-          pageSize: String(pageSize),
-        },
-      })
-      .json<unknown>()
-    return auditLogsEnvelopeSchema.parse(payload).data
-  } catch (error) {
-    return normalizeAPIError(error)
-  }
 }
 
 export async function openSystemLogsStream(options: OpenSystemLogsStreamOptions): Promise<void> {

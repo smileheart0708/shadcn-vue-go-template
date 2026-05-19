@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"main/internal/accountpolicies"
-	"main/internal/audit"
 	"main/internal/auth"
 	"main/internal/authorization"
 	"main/internal/identity"
@@ -22,7 +21,6 @@ type API struct {
 	identities    *identity.Service
 	setup         *setup.Service
 	policies      *accountpolicies.Service
-	audit         *audit.Service
 	dataDir       string
 	logger        *slog.Logger
 	logStream     *logging.Stream

@@ -11,7 +11,6 @@ export const capabilitySchema = z.enum([
   'management.users.update',
   'management.users.disable',
   'management.users.enable',
-  'management.audit_logs.read',
   'management.system_logs.read',
   'account.delete_self',
 ])

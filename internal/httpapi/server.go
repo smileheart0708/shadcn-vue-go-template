@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"main/internal/accountpolicies"
-	"main/internal/audit"
 	"main/internal/auth"
 	"main/internal/authorization"
 	"main/internal/identity"
@@ -29,7 +28,6 @@ type HandlerOptions struct {
 	Identity        *identity.Service
 	Setup           *setup.Service
 	AccountPolicies *accountpolicies.Service
-	Audit           *audit.Service
 	DataDir         string
 	FrontendFS      fs.FS
 	LogAPIRequests  bool
@@ -47,7 +45,6 @@ func NewHandlerWithOptions(options HandlerOptions) http.Handler {
 		identities:    options.Identity,
 		setup:         options.Setup,
 		policies:      options.AccountPolicies,
-		audit:         options.Audit,
 		dataDir:       options.DataDir,
 		logger:        logger,
 		logStream:     options.LogStream,
@@ -148,15 +145,6 @@ func newAPIMux(api *API) http.Handler {
 			RequireSetupCompleted(api.setup),
 			RequireAuth(api.auth),
 			RequireCapability(authorization.CapabilityManagementUsersEnable),
-		),
-	)
-	mux.Handle(
-		"GET /api/management/audit-logs",
-		Chain(
-			http.HandlerFunc(api.listAuditLogsHandler),
-			RequireSetupCompleted(api.setup),
-			RequireAuth(api.auth),
-			RequireCapability(authorization.CapabilityManagementAuditLogsRead),
 		),
 	)
 	mux.Handle(

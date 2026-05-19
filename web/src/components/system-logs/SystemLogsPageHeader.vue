@@ -1,14 +1,10 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import { Badge } from '@/components/ui/badge'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 defineProps<{
   bufferedCount: number
-  canReadAuditLogs: boolean
 }>()
-
-const activeTab = defineModel<'console' | 'audit'>('activeTab', { required: true })
 
 const { t } = useI18n()
 </script>
@@ -21,20 +17,5 @@ const { t } = useI18n()
         {{ t('systemLogs.summary.buffered', { count: bufferedCount }) }}
       </Badge>
     </div>
-
-    <Tabs
-      v-model="activeTab"
-      class="inline-full lg:inline-auto"
-    >
-      <TabsList class="inline-full lg:inline-auto">
-        <TabsTrigger value="console">{{ t('systemLogs.tabs.console') }}</TabsTrigger>
-        <TabsTrigger
-          v-if="canReadAuditLogs"
-          value="audit"
-        >
-          {{ t('systemLogs.tabs.audit') }}
-        </TabsTrigger>
-      </TabsList>
-    </Tabs>
   </section>
 </template>

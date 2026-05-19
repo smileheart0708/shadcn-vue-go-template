@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"main/internal/audit"
 	"main/internal/authorization"
 	"main/internal/database"
 )
@@ -75,13 +74,6 @@ type ListUsersResult struct {
 	Total    int
 }
 
-type ActionAuditContext struct {
-	ActorUserID   *int64
-	AuthSessionID *string
-	IP            *string
-	UserAgent     *string
-}
-
 type Service struct {
 	db *sql.DB
 }
@@ -97,7 +89,7 @@ func (s *Service) DB() *sql.DB {
 	return s.db
 }
 
-func (s *Service) CreateUser(ctx context.Context, params CreateUserParams, action ActionAuditContext) (User, error) {
+func (s *Service) CreateUser(ctx context.Context, params CreateUserParams) (User, error) {
 	if s == nil || s.db == nil {
 		return User{}, errors.New("identity: nil service")
 	}
@@ -164,25 +156,6 @@ func (s *Service) CreateUser(ctx context.Context, params CreateUserParams, actio
 		)
 		if err != nil {
 			return fmt.Errorf("identity: insert credential: %w", err)
-		}
-
-		if action.ActorUserID != nil {
-			err = audit.NewService(tx).Log(ctx, audit.Entry{
-				ActorUserID:   action.ActorUserID,
-				SubjectUserID: new(userID),
-				AuthSessionID: action.AuthSessionID,
-				EventType:     audit.EventUserCreated,
-				Outcome:       audit.OutcomeSuccess,
-				IP:            action.IP,
-				UserAgent:     action.UserAgent,
-				Metadata: map[string]any{
-					"role": role,
-				},
-				OccurredAt: now,
-			})
-			if err != nil {
-				return err
-			}
 		}
 
 		created, err = s.getUserQuerier(ctx, tx, userID)
@@ -294,7 +267,7 @@ func (s *Service) UpdateAvatar(ctx context.Context, userID int64, avatarPath *st
 	return s.GetUserByID(ctx, userID)
 }
 
-func (s *Service) UpdateManagedUser(ctx context.Context, userID int64, params UpdateManagedUserParams, action ActionAuditContext) (User, error) {
+func (s *Service) UpdateManagedUser(ctx context.Context, userID int64, params UpdateManagedUserParams) (User, error) {
 	if s == nil || s.db == nil {
 		return User{}, errors.New("identity: nil service")
 	}
@@ -323,21 +296,6 @@ func (s *Service) UpdateManagedUser(ctx context.Context, userID int64, params Up
 			return affectedErr
 		}
 
-		if action.ActorUserID != nil {
-			if auditErr := audit.NewService(tx).Log(ctx, audit.Entry{
-				ActorUserID:   action.ActorUserID,
-				SubjectUserID: new(userID),
-				AuthSessionID: action.AuthSessionID,
-				EventType:     audit.EventUserUpdated,
-				Outcome:       audit.OutcomeSuccess,
-				IP:            action.IP,
-				UserAgent:     action.UserAgent,
-				OccurredAt:    now,
-			}); auditErr != nil {
-				return auditErr
-			}
-		}
-
 		updated, err = s.getUserQuerier(ctx, tx, userID)
 		return err
 	})
@@ -348,7 +306,7 @@ func (s *Service) UpdateManagedUser(ctx context.Context, userID int64, params Up
 	return updated, nil
 }
 
-func (s *Service) SetUserStatus(ctx context.Context, userID int64, status string, action ActionAuditContext) (User, error) {
+func (s *Service) SetUserStatus(ctx context.Context, userID int64, status string) (User, error) {
 	if s == nil || s.db == nil {
 		return User{}, errors.New("identity: nil service")
 	}
@@ -398,24 +356,6 @@ func (s *Service) SetUserStatus(ctx context.Context, userID int64, status string
 			return revokeErr
 		}
 
-		eventType := audit.EventUserDisabled
-		if status == StatusActive {
-			eventType = audit.EventUserEnabled
-		}
-
-		if auditErr := audit.NewService(tx).Log(ctx, audit.Entry{
-			ActorUserID:   action.ActorUserID,
-			SubjectUserID: new(userID),
-			AuthSessionID: action.AuthSessionID,
-			EventType:     eventType,
-			Outcome:       audit.OutcomeSuccess,
-			IP:            action.IP,
-			UserAgent:     action.UserAgent,
-			OccurredAt:    now,
-		}); auditErr != nil {
-			return auditErr
-		}
-
 		updated, err = s.getUserQuerier(ctx, tx, userID)
 		return err
 	})
@@ -426,7 +366,7 @@ func (s *Service) SetUserStatus(ctx context.Context, userID int64, status string
 	return updated, nil
 }
 
-func (s *Service) DeleteUser(ctx context.Context, userID int64, action ActionAuditContext, reason string) error {
+func (s *Service) DeleteUser(ctx context.Context, userID int64) error {
 	if s == nil || s.db == nil {
 		return errors.New("identity: nil service")
 	}
@@ -436,7 +376,6 @@ func (s *Service) DeleteUser(ctx context.Context, userID int64, action ActionAud
 	}
 
 	return database.WithTx(ctx, s.db, func(tx *sql.Tx) error {
-		now := time.Now().UTC()
 		result, err := tx.ExecContext(ctx, `DELETE FROM users WHERE id = ?`, userID)
 		if err != nil {
 			return fmt.Errorf("identity: delete user: %w", err)
@@ -444,18 +383,7 @@ func (s *Service) DeleteUser(ctx context.Context, userID int64, action ActionAud
 		if affectedErr := ensureRowsAffected(result); affectedErr != nil {
 			return affectedErr
 		}
-
-		return audit.NewService(tx).Log(ctx, audit.Entry{
-			ActorUserID:   action.ActorUserID,
-			SubjectUserID: new(userID),
-			AuthSessionID: action.AuthSessionID,
-			EventType:     audit.EventAccountDeleted,
-			Outcome:       audit.OutcomeSuccess,
-			Reason:        stringPointerOrNil(reason),
-			IP:            action.IP,
-			UserAgent:     action.UserAgent,
-			OccurredAt:    now,
-		})
+		return nil
 	})
 }
 
@@ -888,14 +816,6 @@ func mapWriteError(err error) error {
 	default:
 		return fmt.Errorf("identity: write failed: %w", err)
 	}
-}
-
-func stringPointerOrNil(value string) *string {
-	value = strings.TrimSpace(value)
-	if value == "" {
-		return nil
-	}
-	return new(value)
 }
 
 func AvatarDir(dataDir string) string {

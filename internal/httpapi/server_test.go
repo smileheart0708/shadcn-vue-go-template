@@ -16,7 +16,6 @@ import (
 	"time"
 
 	"main/internal/accountpolicies"
-	"main/internal/audit"
 	"main/internal/auth"
 	"main/internal/authorization"
 	"main/internal/database"
@@ -31,7 +30,6 @@ type testContext struct {
 	identityService *identity.Service
 	policiesService *accountpolicies.Service
 	setupService    *setup.Service
-	auditService    *audit.Service
 	logStream       *logging.Stream
 	dataDir         string
 }
@@ -392,31 +390,6 @@ func TestManagedUserResponsesIncludeLastActiveAt(t *testing.T) {
 	t.Fatalf("expected to find managed user %d in list response", created.ID)
 }
 
-func TestAuditLogsEndpointIncludesSecurityEvents(t *testing.T) {
-	t.Parallel()
-
-	ctx := newTestContext(t)
-	ownerSession, _ := performSetup(t, ctx)
-
-	req := httptest.NewRequest(http.MethodGet, "/api/management/audit-logs?page=1&pageSize=20", nil)
-	req.Header.Set("Authorization", "Bearer "+ownerSession.AccessToken)
-	rec := httptest.NewRecorder()
-	ctx.handler.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, rec.Code, rec.Body.String())
-	}
-
-	var envelope testSuccessEnvelope[audit.ListResult]
-	decodeJSONResponse(t, rec.Body.Bytes(), &envelope)
-	if len(envelope.Data.Items) == 0 {
-		t.Fatal("expected setup audit log to be present")
-	}
-	if envelope.Data.Items[0].EventType != audit.EventSetupCompleted {
-		t.Fatalf("expected first audit event %q, got %q", audit.EventSetupCompleted, envelope.Data.Items[0].EventType)
-	}
-}
-
 func TestSPAFallbackAndGzipStillWork(t *testing.T) {
 	t.Parallel()
 
@@ -470,7 +443,6 @@ func newTestContext(t *testing.T) *testContext {
 	identityService := identity.NewService(dbContainer.DB())
 	policiesService := accountpolicies.NewService(dbContainer.DB())
 	setupService := setup.NewService(dbContainer.DB(), identityService)
-	auditService := audit.NewService(dbContainer.DB())
 	authService := auth.NewService(auth.Options{
 		Issuer:             "test-suite",
 		Secret:             []byte("test-secret"),
@@ -488,7 +460,6 @@ func newTestContext(t *testing.T) *testContext {
 		Identity:        identityService,
 		Setup:           setupService,
 		AccountPolicies: policiesService,
-		Audit:           auditService,
 		DataDir:         dataDir,
 		FrontendFS:      os.DirFS(distDir),
 		LogAPIRequests:  false,
@@ -500,7 +471,6 @@ func newTestContext(t *testing.T) *testContext {
 		identityService: identityService,
 		policiesService: policiesService,
 		setupService:    setupService,
-		auditService:    auditService,
 		logStream:       logStream,
 		dataDir:         dataDir,
 	}

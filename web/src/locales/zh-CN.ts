@@ -347,10 +347,6 @@ const zhCN = {
   theme: { light: '浅色', dark: '深色', system: '跟随系统' },
   systemLogs: {
     title: '系统日志',
-    tabs: {
-      console: '实时日志',
-      audit: '安全审计',
-    },
     summary: { buffered: '已缓冲 {count} 条' },
     console: { title: '实时控制台' },
     actions: {
@@ -395,28 +391,6 @@ const zhCN = {
     empty: {
       title: '没有匹配的日志',
       description: '等待新的日志到来，或者调整当前筛选条件。',
-    },
-    audit: {
-      title: '安全审计日志',
-      description: '这里记录 setup、登录、刷新、登出、密码修改、角色变化、禁用/启用和账号删除等安全事实。',
-      pageSummary: '第 {page} / {totalPages} 页，共 {total} 条审计记录',
-      outcome: {
-        success: '成功',
-        failure: '失败',
-      },
-      table: {
-        occurredAt: '发生时间',
-        eventType: '事件类型',
-        outcome: '结果',
-        actor: '操作者',
-        subject: '目标用户',
-        reason: '原因',
-        empty: '暂无审计记录。',
-      },
-      feedback: {
-        loadFailedTitle: '审计日志加载失败',
-        loadFailed: '请刷新后重试。',
-      },
     },
     feedback: {
       exportSuccess: '已导出 {count} 条日志。',

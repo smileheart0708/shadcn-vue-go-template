@@ -1,6 +1,6 @@
 # shadcn-vue-go-template
 
-一个可直接起步的全栈模板项目：前端使用 Vue 3 + TypeScript + Vite + Tailwind CSS v4，后端使用 Go 1.26+ + SQLite。项目已经内置了登录、注册、用户信息、系统日志、任务列表、主题切换、国际化和前端 mock 等基础能力，适合作为后台管理系统或业务 SPA 的起点。
+一个可直接起步的全栈模板项目：前端使用 Vue 3 + TypeScript + Vite + Tailwind CSS v4，后端使用 Go 1.26+ + SQLite。项目已经内置了登录、注册、用户信息、实时系统日志、任务列表、主题切换、国际化和前端 mock 等基础能力，适合作为后台管理系统或业务 SPA 的起点。
 
 ## 你可以直接得到什么
 

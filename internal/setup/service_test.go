@@ -30,7 +30,7 @@ func TestCompleteOnlyRunsOnceAndPersistsOwner(t *testing.T) {
 	owner, err := service.Complete(context.Background(), CompleteSetupInput{
 		Username: "owner",
 		Password: "owner1234",
-	}, identity.ActionAuditContext{})
+	})
 	if err != nil {
 		t.Fatalf("failed to complete setup: %v", err)
 	}
@@ -44,7 +44,7 @@ func TestCompleteOnlyRunsOnceAndPersistsOwner(t *testing.T) {
 	_, err = service.Complete(context.Background(), CompleteSetupInput{
 		Username: "other",
 		Password: "password123",
-	}, identity.ActionAuditContext{})
+	})
 	if err != ErrAlreadyCompleted {
 		t.Fatalf("expected ErrAlreadyCompleted, got %v", err)
 	}

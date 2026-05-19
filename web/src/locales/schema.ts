@@ -314,7 +314,6 @@ export interface MessageSchema {
   theme: { light: string; dark: string; system: string }
   systemLogs: {
     title: string
-    tabs: { console: string; audit: string }
     summary: { buffered: string }
     console: { title: string }
     actions: { clear: string; export: string; pauseFollow: string; resumeFollow: string; reconnect: string }
@@ -332,22 +331,6 @@ export interface MessageSchema {
       history: { ALL: string; 100: string; 200: string; 500: string; 1000: string }
     }
     empty: { title: string; description: string }
-    audit: {
-      title: string
-      description: string
-      pageSummary: string
-      outcome: { success: string; failure: string }
-      table: {
-        occurredAt: string
-        eventType: string
-        outcome: string
-        actor: string
-        subject: string
-        reason: string
-        empty: string
-      }
-      feedback: { loadFailedTitle: string; loadFailed: string }
-    }
     feedback: { exportSuccess: string; exportEmpty: string }
   }
   nav: {

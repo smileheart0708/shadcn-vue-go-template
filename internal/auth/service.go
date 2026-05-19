@@ -6,14 +6,12 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log/slog"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 	"main/internal/accountpolicies"
-	"main/internal/audit"
 	"main/internal/authorization"
 	"main/internal/database"
 	"main/internal/identity"
@@ -60,7 +58,6 @@ type Service struct {
 	identities         *identity.Service
 	authorization      *authorization.Service
 	policies           *accountpolicies.Service
-	audit              *audit.Service
 }
 
 type Principal struct {
@@ -138,7 +135,6 @@ func NewService(options Options, db *sql.DB, identities *identity.Service, autho
 		identities:         identities,
 		authorization:      authorizationService,
 		policies:           policies,
-		audit:              audit.NewService(db),
 	}
 }
 
@@ -176,13 +172,6 @@ func (s *Service) BuildViewer(ctx context.Context, userID int64) (Viewer, error)
 func (s *Service) Login(ctx context.Context, identifier string, password string, ip string, userAgent string) (SessionResult, error) {
 	record, err := s.identities.GetAuthRecordByIdentifier(ctx, identifier)
 	if errors.Is(err, identity.ErrUserNotFound) {
-		s.logAudit(ctx, audit.Entry{
-			EventType: audit.EventLoginFailed,
-			Outcome:   audit.OutcomeFailure,
-			Reason:    new("invalid_credentials"),
-			IP:        stringPointerOrNil(ip),
-			UserAgent: stringPointerOrNil(userAgent),
-		})
 		return SessionResult{}, ErrInvalidCredentials
 	}
 	if err != nil {
@@ -194,25 +183,9 @@ func (s *Service) Login(ctx context.Context, identifier string, password string,
 		return SessionResult{}, fmt.Errorf("auth: verify password: %w", err)
 	}
 	if !passwordMatches {
-		s.logAudit(ctx, audit.Entry{
-			SubjectUserID: new(record.ID),
-			EventType:     audit.EventLoginFailed,
-			Outcome:       audit.OutcomeFailure,
-			Reason:        new("invalid_credentials"),
-			IP:            stringPointerOrNil(ip),
-			UserAgent:     stringPointerOrNil(userAgent),
-		})
 		return SessionResult{}, ErrInvalidCredentials
 	}
 	if record.Status != identity.StatusActive {
-		s.logAudit(ctx, audit.Entry{
-			SubjectUserID: new(record.ID),
-			EventType:     audit.EventLoginFailed,
-			Outcome:       audit.OutcomeFailure,
-			Reason:        new("account_disabled"),
-			IP:            stringPointerOrNil(ip),
-			UserAgent:     stringPointerOrNil(userAgent),
-		})
 		return SessionResult{}, ErrAccountDisabled
 	}
 
@@ -220,16 +193,6 @@ func (s *Service) Login(ctx context.Context, identifier string, password string,
 	if err != nil {
 		return SessionResult{}, err
 	}
-
-	s.logAudit(ctx, audit.Entry{
-		ActorUserID:   new(record.ID),
-		SubjectUserID: new(record.ID),
-		AuthSessionID: new(result.SessionID),
-		EventType:     audit.EventLoginSucceeded,
-		Outcome:       audit.OutcomeSuccess,
-		IP:            stringPointerOrNil(ip),
-		UserAgent:     stringPointerOrNil(userAgent),
-	})
 	return result, nil
 }
 
@@ -256,7 +219,7 @@ func (s *Service) Register(ctx context.Context, params RegisterParams, ip string
 		Email:        params.Email,
 		PasswordHash: passwordHash,
 		Role:         authorization.RoleUser,
-	}, identity.ActionAuditContext{})
+	})
 	if err != nil {
 		return SessionResult{}, err
 	}
@@ -265,42 +228,17 @@ func (s *Service) Register(ctx context.Context, params RegisterParams, ip string
 	if err != nil {
 		return SessionResult{}, err
 	}
-
-	s.logAudit(ctx, audit.Entry{
-		ActorUserID:   new(user.ID),
-		SubjectUserID: new(user.ID),
-		AuthSessionID: new(result.SessionID),
-		EventType:     audit.EventRegistrationSucceeded,
-		Outcome:       audit.OutcomeSuccess,
-		IP:            stringPointerOrNil(ip),
-		UserAgent:     stringPointerOrNil(userAgent),
-	})
 	return result, nil
 }
 
 func (s *Service) Refresh(ctx context.Context, rawToken string, ip string, userAgent string) (SessionResult, error) {
 	sessionID, _, err := ParseRefreshToken(rawToken)
 	if err != nil {
-		s.logAudit(ctx, audit.Entry{
-			EventType: audit.EventRefreshFailed,
-			Outcome:   audit.OutcomeFailure,
-			Reason:    new("invalid_refresh_token"),
-			IP:        stringPointerOrNil(ip),
-			UserAgent: stringPointerOrNil(userAgent),
-		})
 		return SessionResult{}, ErrInvalidRefreshToken
 	}
 
 	session, err := s.getSessionByID(ctx, sessionID)
 	if errors.Is(err, sql.ErrNoRows) {
-		s.logAudit(ctx, audit.Entry{
-			AuthSessionID: new(sessionID),
-			EventType:     audit.EventRefreshFailed,
-			Outcome:       audit.OutcomeFailure,
-			Reason:        new("session_not_found"),
-			IP:            stringPointerOrNil(ip),
-			UserAgent:     stringPointerOrNil(userAgent),
-		})
 		return SessionResult{}, ErrInvalidRefreshToken
 	}
 	if err != nil {
@@ -312,58 +250,22 @@ func (s *Service) Refresh(ctx context.Context, rawToken string, ip string, userA
 		if revokeErr := s.revokeSessionByID(ctx, session.ID, "token_reuse_detected"); revokeErr != nil {
 			return SessionResult{}, revokeErr
 		}
-		s.logAudit(ctx, audit.Entry{
-			SubjectUserID: new(session.UserID),
-			AuthSessionID: new(session.ID),
-			EventType:     audit.EventTokenReuseDetected,
-			Outcome:       audit.OutcomeFailure,
-			Reason:        new("token_reuse_detected"),
-			IP:            stringPointerOrNil(ip),
-			UserAgent:     stringPointerOrNil(userAgent),
-		})
 		return SessionResult{}, ErrTokenReuseDetected
 	}
 
 	now := time.Now().UTC()
 	switch {
 	case session.RevokedAt != nil:
-		s.logAudit(ctx, audit.Entry{
-			SubjectUserID: new(session.UserID),
-			AuthSessionID: new(session.ID),
-			EventType:     audit.EventRefreshFailed,
-			Outcome:       audit.OutcomeFailure,
-			Reason:        new("session_revoked"),
-			IP:            stringPointerOrNil(ip),
-			UserAgent:     stringPointerOrNil(userAgent),
-		})
 		return SessionResult{}, ErrRefreshTokenRevoked
 	case now.After(session.ExpiresAt):
 		if revokeErr := s.revokeSessionByID(ctx, session.ID, "refresh_expired"); revokeErr != nil {
 			return SessionResult{}, revokeErr
 		}
-		s.logAudit(ctx, audit.Entry{
-			SubjectUserID: new(session.UserID),
-			AuthSessionID: new(session.ID),
-			EventType:     audit.EventRefreshFailed,
-			Outcome:       audit.OutcomeFailure,
-			Reason:        new("refresh_expired"),
-			IP:            stringPointerOrNil(ip),
-			UserAgent:     stringPointerOrNil(userAgent),
-		})
 		return SessionResult{}, ErrRefreshTokenExpired
 	case now.After(session.IdleExpiresAt):
 		if revokeErr := s.revokeSessionByID(ctx, session.ID, "refresh_idle_expired"); revokeErr != nil {
 			return SessionResult{}, revokeErr
 		}
-		s.logAudit(ctx, audit.Entry{
-			SubjectUserID: new(session.UserID),
-			AuthSessionID: new(session.ID),
-			EventType:     audit.EventRefreshFailed,
-			Outcome:       audit.OutcomeFailure,
-			Reason:        new("refresh_idle_expired"),
-			IP:            stringPointerOrNil(ip),
-			UserAgent:     stringPointerOrNil(userAgent),
-		})
 		return SessionResult{}, ErrRefreshTokenExpired
 	}
 
@@ -372,15 +274,6 @@ func (s *Service) Refresh(ctx context.Context, rawToken string, ip string, userA
 		if revokeErr := s.revokeSessionByID(ctx, session.ID, "user_not_found"); revokeErr != nil {
 			return SessionResult{}, revokeErr
 		}
-		s.logAudit(ctx, audit.Entry{
-			SubjectUserID: new(session.UserID),
-			AuthSessionID: new(session.ID),
-			EventType:     audit.EventRefreshFailed,
-			Outcome:       audit.OutcomeFailure,
-			Reason:        new("user_not_found"),
-			IP:            stringPointerOrNil(ip),
-			UserAgent:     stringPointerOrNil(userAgent),
-		})
 		return SessionResult{}, ErrInvalidRefreshToken
 	}
 	if err != nil {
@@ -390,15 +283,6 @@ func (s *Service) Refresh(ctx context.Context, rawToken string, ip string, userA
 		if revokeErr := s.revokeSessionByID(ctx, session.ID, "account_disabled"); revokeErr != nil {
 			return SessionResult{}, revokeErr
 		}
-		s.logAudit(ctx, audit.Entry{
-			SubjectUserID: new(session.UserID),
-			AuthSessionID: new(session.ID),
-			EventType:     audit.EventRefreshFailed,
-			Outcome:       audit.OutcomeFailure,
-			Reason:        new("account_disabled"),
-			IP:            stringPointerOrNil(ip),
-			UserAgent:     stringPointerOrNil(userAgent),
-		})
 		return SessionResult{}, ErrAccountDisabled
 	}
 
@@ -436,15 +320,6 @@ func (s *Service) Refresh(ctx context.Context, rawToken string, ip string, userA
 		if revokeErr := s.revokeSessionByID(ctx, session.ID, "token_reuse_detected"); revokeErr != nil {
 			return SessionResult{}, revokeErr
 		}
-		s.logAudit(ctx, audit.Entry{
-			SubjectUserID: new(session.UserID),
-			AuthSessionID: new(session.ID),
-			EventType:     audit.EventTokenReuseDetected,
-			Outcome:       audit.OutcomeFailure,
-			Reason:        new("token_reuse_detected"),
-			IP:            stringPointerOrNil(ip),
-			UserAgent:     stringPointerOrNil(userAgent),
-		})
 		return SessionResult{}, ErrTokenReuseDetected
 	}
 
@@ -457,16 +332,6 @@ func (s *Service) Refresh(ctx context.Context, rawToken string, ip string, userA
 	if err != nil {
 		return SessionResult{}, err
 	}
-
-	s.logAudit(ctx, audit.Entry{
-		ActorUserID:   new(user.ID),
-		SubjectUserID: new(user.ID),
-		AuthSessionID: new(session.ID),
-		EventType:     audit.EventRefreshSucceeded,
-		Outcome:       audit.OutcomeSuccess,
-		IP:            stringPointerOrNil(ip),
-		UserAgent:     stringPointerOrNil(userAgent),
-	})
 	return SessionResult{
 		Viewer: Viewer{
 			User:          user,
@@ -485,25 +350,13 @@ func (s *Service) Logout(ctx context.Context, rawToken string, ip string, userAg
 		return err
 	}
 
-	session, err := s.getSessionByID(ctx, sessionID)
+	_, err = s.getSessionByID(ctx, sessionID)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return err
 	}
 
 	if revokeErr := s.revokeSessionByID(ctx, sessionID, "logout"); revokeErr != nil {
 		return revokeErr
-	}
-
-	if err == nil && session.UserID > 0 {
-		s.logAudit(ctx, audit.Entry{
-			ActorUserID:   new(session.UserID),
-			SubjectUserID: new(session.UserID),
-			AuthSessionID: new(sessionID),
-			EventType:     audit.EventLogoutSucceeded,
-			Outcome:       audit.OutcomeSuccess,
-			IP:            stringPointerOrNil(ip),
-			UserAgent:     stringPointerOrNil(userAgent),
-		})
 	}
 	return nil
 }
@@ -570,16 +423,7 @@ func (s *Service) ChangePassword(ctx context.Context, actor Actor, currentPasswo
 			return fmt.Errorf("auth: revoke sessions after password change: %w", revokeSessionsErr)
 		}
 
-		return audit.NewService(tx).Log(ctx, audit.Entry{
-			ActorUserID:   new(actor.User.ID),
-			SubjectUserID: new(actor.User.ID),
-			AuthSessionID: new(actor.SessionID),
-			EventType:     audit.EventPasswordChanged,
-			Outcome:       audit.OutcomeSuccess,
-			IP:            stringPointerOrNil(ip),
-			UserAgent:     stringPointerOrNil(userAgent),
-			OccurredAt:    now,
-		})
+		return nil
 	})
 }
 
@@ -827,15 +671,6 @@ func (s *Service) revokeSessionByID(ctx context.Context, sessionID string, reaso
 		return fmt.Errorf("auth: revoke session: %w", err)
 	}
 	return nil
-}
-
-func (s *Service) logAudit(ctx context.Context, entry audit.Entry) {
-	if s.audit == nil {
-		return
-	}
-	if err := s.audit.Log(ctx, entry); err != nil {
-		slog.WarnContext(ctx, "failed to write audit log", "error", err, "event_type", entry.EventType, "outcome", entry.Outcome)
-	}
 }
 
 func (s *Service) revokeSessionAfterAccessTokenIssueFailure(ctx context.Context, sessionID string, issueErr error) error {

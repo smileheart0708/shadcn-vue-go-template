@@ -18,7 +18,6 @@ const (
 	CapabilityManagementUsersUpdate    = "management.users.update"
 	CapabilityManagementUsersDisable   = "management.users.disable"
 	CapabilityManagementUsersEnable    = "management.users.enable"
-	CapabilityManagementAuditLogsRead  = "management.audit_logs.read"
 	CapabilityManagementSystemLogsRead = "management.system_logs.read"
 	CapabilityAccountDeleteSelf        = "account.delete_self"
 )
@@ -61,7 +60,6 @@ var roleCapabilities = map[string][]string{
 		CapabilityManagementUsersUpdate,
 		CapabilityManagementUsersDisable,
 		CapabilityManagementUsersEnable,
-		CapabilityManagementAuditLogsRead,
 		CapabilityManagementSystemLogsRead,
 	},
 	RoleUser: {},

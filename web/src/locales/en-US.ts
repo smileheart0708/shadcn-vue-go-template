@@ -347,10 +347,6 @@ const enUS = {
   theme: { light: 'Light', dark: 'Dark', system: 'System' },
   systemLogs: {
     title: 'System Logs',
-    tabs: {
-      console: 'Live Logs',
-      audit: 'Audit Logs',
-    },
     summary: { buffered: '{count} buffered' },
     console: { title: 'Live Console' },
     actions: {
@@ -395,28 +391,6 @@ const enUS = {
     empty: {
       title: 'No matching logs',
       description: 'Wait for new logs or adjust the current filters.',
-    },
-    audit: {
-      title: 'Security Audit Logs',
-      description: 'Audit records capture setup, login, refresh, logout, password changes, role changes, account disable/enable, and account deletion facts.',
-      pageSummary: 'Page {page} of {totalPages} · {total} total audit record(s)',
-      outcome: {
-        success: 'Success',
-        failure: 'Failure',
-      },
-      table: {
-        occurredAt: 'Occurred At',
-        eventType: 'Event Type',
-        outcome: 'Outcome',
-        actor: 'Actor',
-        subject: 'Subject',
-        reason: 'Reason',
-        empty: 'No audit records found.',
-      },
-      feedback: {
-        loadFailedTitle: 'Failed to load audit logs',
-        loadFailed: 'Refresh this page to try again.',
-      },
     },
     feedback: {
       exportSuccess: 'Exported {count} logs.',

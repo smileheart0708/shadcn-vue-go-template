@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"main/internal/audit"
 	"main/internal/auth"
 	"main/internal/authorization"
 	"main/internal/database"
@@ -82,7 +81,7 @@ func (s *Service) GetState(ctx context.Context) (State, error) {
 	return state, nil
 }
 
-func (s *Service) Complete(ctx context.Context, input CompleteSetupInput, requestAudit identity.ActionAuditContext) (identity.UserWithRoles, error) {
+func (s *Service) Complete(ctx context.Context, input CompleteSetupInput) (identity.UserWithRoles, error) {
 	if s == nil || s.db == nil || s.identities == nil {
 		return identity.UserWithRoles{}, errors.New("setup: nil service")
 	}
@@ -174,16 +173,7 @@ func (s *Service) Complete(ctx context.Context, input CompleteSetupInput, reques
 		); updateStateErr != nil {
 			return fmt.Errorf("setup: update install state: %w", updateStateErr)
 		}
-		return audit.NewService(tx).Log(ctx, audit.Entry{
-			ActorUserID:   new(ownerUserID),
-			SubjectUserID: new(ownerUserID),
-			AuthSessionID: requestAudit.AuthSessionID,
-			EventType:     audit.EventSetupCompleted,
-			Outcome:       audit.OutcomeSuccess,
-			IP:            requestAudit.IP,
-			UserAgent:     requestAudit.UserAgent,
-			OccurredAt:    now,
-		})
+		return nil
 	})
 	if err != nil {
 		return identity.UserWithRoles{}, err

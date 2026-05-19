@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"main/internal/accountpolicies"
-	"main/internal/audit"
 	"main/internal/auth"
 	"main/internal/authorization"
 	"main/internal/identity"
@@ -138,18 +137,12 @@ func (api *API) createManagementUserHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	ip, userAgent := requestMetadata(r)
 	created, err := api.identities.CreateUser(r.Context(), identity.CreateUserParams{
 		Username:         payload.Username,
 		Email:            payload.Email,
 		PasswordHash:     passwordHash,
 		Role:             authorization.RoleUser,
 		AssignedByUserID: new(actor.User.ID),
-	}, identity.ActionAuditContext{
-		ActorUserID:   new(actor.User.ID),
-		AuthSessionID: new(actor.SessionID),
-		IP:            nullableString(ip),
-		UserAgent:     nullableString(userAgent),
 	})
 	if err != nil {
 		switch {
@@ -197,15 +190,9 @@ func (api *API) updateManagementUserHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	ip, userAgent := requestMetadata(r)
 	updated, err := api.identities.UpdateManagedUser(r.Context(), targetUser.ID, identity.UpdateManagedUserParams{
 		Username: payload.Username,
 		Email:    payload.Email,
-	}, identity.ActionAuditContext{
-		ActorUserID:   new(actor.User.ID),
-		AuthSessionID: new(actor.SessionID),
-		IP:            nullableString(ip),
-		UserAgent:     nullableString(userAgent),
 	})
 	if err != nil {
 		switch {
@@ -255,13 +242,7 @@ func (api *API) setManagementUserStatusHandler(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	ip, userAgent := requestMetadata(r)
-	updated, err := api.identities.SetUserStatus(r.Context(), targetUser.ID, status, identity.ActionAuditContext{
-		ActorUserID:   new(actor.User.ID),
-		AuthSessionID: new(actor.SessionID),
-		IP:            nullableString(ip),
-		UserAgent:     nullableString(userAgent),
-	})
+	updated, err := api.identities.SetUserStatus(r.Context(), targetUser.ID, status)
 	if err != nil {
 		writeAPIError(w, http.StatusInternalServerError, "user_status_update_failed", "Failed to update user status.")
 		return
@@ -272,18 +253,6 @@ func (api *API) setManagementUserStatusHandler(w http.ResponseWriter, r *http.Re
 		Role:   updated.Role,
 		Status: updated.Status,
 	})))
-}
-
-func (api *API) listAuditLogsHandler(w http.ResponseWriter, r *http.Request) {
-	result, err := api.audit.List(r.Context(), audit.ListParams{
-		Page:     parsePositiveIntQuery(r, "page", 1),
-		PageSize: parsePositiveIntQuery(r, "pageSize", 50),
-	})
-	if err != nil {
-		writeAPIError(w, http.StatusInternalServerError, "audit_logs_unavailable", "Failed to load audit logs.")
-		return
-	}
-	writeSuccessJSON(w, http.StatusOK, result)
 }
 
 func (api *API) loadManagedUserTargets(w http.ResponseWriter, r *http.Request, actor auth.Actor, targetID int64) (identity.User, authorization.UserTarget, authorization.UserTarget, bool) {

@@ -168,13 +168,7 @@ func (api *API) deleteAccountHandler(w http.ResponseWriter, r *http.Request) {
 		currentAvatarPath = avatarPathFromStoredName(api.dataDir, *actor.User.AvatarPath)
 	}
 
-	ip, userAgent := requestMetadata(r)
-	if err := api.identities.DeleteUser(r.Context(), actor.User.ID, identity.ActionAuditContext{
-		ActorUserID:   new(actor.User.ID),
-		AuthSessionID: new(actor.SessionID),
-		IP:            nullableString(ip),
-		UserAgent:     nullableString(userAgent),
-	}, "self_service"); err != nil {
+	if err := api.identities.DeleteUser(r.Context(), actor.User.ID); err != nil {
 		writeAPIError(w, http.StatusInternalServerError, "account_delete_failed", "Failed to delete account.")
 		return
 	}

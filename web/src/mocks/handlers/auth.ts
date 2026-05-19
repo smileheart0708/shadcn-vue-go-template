@@ -11,7 +11,6 @@ type Capability =
   | 'management.users.update'
   | 'management.users.disable'
   | 'management.users.enable'
-  | 'management.audit_logs.read'
   | 'management.system_logs.read'
   | 'account.delete_self'
 
@@ -34,20 +33,6 @@ interface MockSession {
   expiresAt: string
 }
 
-interface MockAuditEntry {
-  id: number
-  actorUserId: number | null
-  subjectUserId: number | null
-  authSessionId: string | null
-  eventType: string
-  outcome: 'success' | 'failure'
-  reason: string | null
-  ip: string | null
-  userAgent: string | null
-  metadata?: Record<string, unknown>
-  occurredAt: string
-}
-
 interface MockState {
   installState: {
     setupState: 'pending' | 'completed'
@@ -61,9 +46,7 @@ interface MockState {
   }
   users: MockUser[]
   session: MockSession | null
-  auditLogs: MockAuditEntry[]
   nextUserId: number
-  nextAuditId: number
   nextLogId: number
 }
 
@@ -83,22 +66,6 @@ function createMockSession(userId: number, accessToken: string): MockSession {
     userId,
     accessToken,
     expiresAt: new Date(Date.now() + 10 * 60_000).toISOString(),
-  }
-}
-
-function createAuditEntry(id: number, eventType: string, outcome: 'success' | 'failure', options: Partial<MockAuditEntry> = {}): MockAuditEntry {
-  return {
-    id,
-    actorUserId: options.actorUserId ?? null,
-    subjectUserId: options.subjectUserId ?? null,
-    authSessionId: options.authSessionId ?? null,
-    eventType,
-    outcome,
-    reason: options.reason ?? null,
-    ip: options.ip ?? null,
-    userAgent: options.userAgent ?? null,
-    metadata: options.metadata,
-    occurredAt: options.occurredAt ?? MOCK_FIXTURE_CREATED_AT,
   }
 }
 
@@ -155,23 +122,7 @@ function createInitialState(): MockState {
     },
     users,
     session: createMockSession(MOCK_OWNER_USER_ID, MOCK_DEV_ACCESS_TOKEN),
-    auditLogs: [
-      createAuditEntry(3, 'user_disabled', 'success', {
-        actorUserId: MOCK_OWNER_USER_ID,
-        subjectUserId: MOCK_DISABLED_USER_ID,
-      }),
-      createAuditEntry(2, 'user_created', 'success', {
-        actorUserId: MOCK_OWNER_USER_ID,
-        subjectUserId: MOCK_ACTIVE_USER_ID,
-      }),
-      createAuditEntry(1, 'setup_completed', 'success', {
-        actorUserId: MOCK_OWNER_USER_ID,
-        subjectUserId: MOCK_OWNER_USER_ID,
-        authSessionId: `setup-${MOCK_OWNER_USER_ID}`,
-      }),
-    ],
     nextUserId: 4,
-    nextAuditId: 4,
     nextLogId: 4,
   }
 }
@@ -252,7 +203,6 @@ function capabilitiesFor(user: MockUser): Capability[] {
     capabilities.add('management.users.update')
     capabilities.add('management.users.disable')
     capabilities.add('management.users.enable')
-    capabilities.add('management.audit_logs.read')
     capabilities.add('management.system_logs.read')
   }
 
@@ -311,24 +261,6 @@ export function ensureMockOwnerSession() {
   autoOwnerSessionAvailable = true
   const sessionResponse = issueSession(owner, MOCK_DEV_ACCESS_TOKEN)
   return sessionResponse.accessToken
-}
-
-function appendAudit(eventType: string, outcome: 'success' | 'failure', options: Partial<MockAuditEntry> = {}) {
-  const entry: MockAuditEntry = {
-    id: state.nextAuditId++,
-    actorUserId: options.actorUserId ?? null,
-    subjectUserId: options.subjectUserId ?? null,
-    authSessionId: options.authSessionId ?? null,
-    eventType,
-    outcome,
-    reason: options.reason ?? null,
-    ip: options.ip ?? null,
-    userAgent: options.userAgent ?? null,
-    metadata: options.metadata,
-    occurredAt: nowISO(),
-  }
-
-  state.auditLogs = [entry, ...state.auditLogs]
 }
 
 function usernameTaken(username: string, excludeUserID?: number) {
@@ -525,12 +457,6 @@ export const authHandlers = [
     }
 
     const sessionResponse = issueSession(owner)
-    appendAudit('setup_completed', 'success', {
-      actorUserId: owner.id,
-      subjectUserId: owner.id,
-      authSessionId: `setup-${owner.id}`,
-    })
-
     return jsonSuccess(sessionResponse, { status: 201 })
   }),
 
@@ -549,16 +475,13 @@ export const authHandlers = [
 
     const user = state.users.find((entry) => entry.username === payload.identifier || entry.email === payload.identifier) ?? null
     if (user === null || user.password !== payload.password) {
-      appendAudit('login_failed', 'failure', { reason: 'invalid_credentials' })
       return jsonError(401, 'invalid_credentials', 'Invalid credentials.')
     }
     if (user.status !== 'active') {
-      appendAudit('login_failed', 'failure', { subjectUserId: user.id, reason: 'account_disabled' })
       return jsonError(403, 'account_disabled', 'Account is disabled.')
     }
 
     const sessionResponse = issueSession(user)
-    appendAudit('login_succeeded', 'success', { actorUserId: user.id, subjectUserId: user.id, authSessionId: `session-${user.id}` })
     return jsonSuccess(sessionResponse)
   }),
 
@@ -608,7 +531,6 @@ export const authHandlers = [
 
     state.users = [...state.users, user]
     const sessionResponse = issueSession(user)
-    appendAudit('registration_succeeded', 'success', { actorUserId: user.id, subjectUserId: user.id, authSessionId: `session-${user.id}` })
     return jsonSuccess(sessionResponse, { status: 201 })
   }),
 
@@ -616,21 +538,14 @@ export const authHandlers = [
     const user = getCurrentUserFromSession() ?? (autoOwnerSessionAvailable ? getMockOwner() : null)
     if (user === null) {
       clearSession()
-      appendAudit('refresh_failed', 'failure', { reason: 'invalid_refresh_token' })
       return jsonError(401, 'invalid_refresh_token', 'Refresh token is invalid.')
     }
 
     const sessionResponse = issueSession(user)
-    appendAudit('refresh_succeeded', 'success', { actorUserId: user.id, subjectUserId: user.id, authSessionId: `session-${user.id}` })
     return jsonSuccess(sessionResponse)
   }),
 
   http.post('/api/auth/logout', () => {
-    const user = getCurrentUserFromSession()
-    if (user !== null) {
-      appendAudit('logout_succeeded', 'success', { actorUserId: user.id, subjectUserId: user.id, authSessionId: `session-${user.id}` })
-    }
-
     clearSession(true)
     return jsonSuccess({ loggedOut: true })
   }),
@@ -703,7 +618,6 @@ export const authHandlers = [
 
     user.password = payload.newPassword
     user.updatedAt = nowISO()
-    appendAudit('password_changed', 'success', { actorUserId: user.id, subjectUserId: user.id, authSessionId: `session-${user.id}` })
     clearSession(true)
     return jsonSuccess({ passwordChanged: true })
   }),
@@ -718,7 +632,6 @@ export const authHandlers = [
     }
 
     state.users = state.users.filter((entry) => entry.id !== user.id)
-    appendAudit('account_deleted', 'success', { actorUserId: user.id, subjectUserId: user.id, authSessionId: `session-${user.id}`, reason: 'self_service' })
     clearSession(true)
     return jsonSuccess({ deleted: true })
   }),
@@ -839,7 +752,6 @@ export const authHandlers = [
     }
 
     state.users = [...state.users, createdUser]
-    appendAudit('user_created', 'success', { actorUserId: user.id, subjectUserId: createdUser.id })
     return jsonSuccess(toManagedUser(createdUser, user), { status: 201 })
   }),
 
@@ -879,7 +791,6 @@ export const authHandlers = [
     target.email = email
     target.updatedAt = nowISO()
 
-    appendAudit('user_updated', 'success', { actorUserId: user.id, subjectUserId: target.id })
     return jsonSuccess(toManagedUser(target, user))
   }),
 
@@ -903,7 +814,6 @@ export const authHandlers = [
     if (state.session?.userId === target.id) {
       clearSession()
     }
-    appendAudit('user_disabled', 'success', { actorUserId: user.id, subjectUserId: target.id })
     return jsonSuccess(toManagedUser(target, user))
   }),
 
@@ -924,30 +834,7 @@ export const authHandlers = [
 
     target.status = 'active'
     target.updatedAt = nowISO()
-    appendAudit('user_enabled', 'success', { actorUserId: user.id, subjectUserId: target.id })
     return jsonSuccess(toManagedUser(target, user))
-  }),
-
-  http.get('/api/management/audit-logs', ({ request }) => {
-    const { error, user } = requireAuthenticated(request)
-    if (error) {
-      return error
-    }
-    if (!hasCapability(user, 'management.audit_logs.read')) {
-      return jsonError(403, 'forbidden', 'Forbidden.')
-    }
-
-    const url = new URL(request.url)
-    const page = readPositiveInt(url, 'page', 1)
-    const pageSize = readPositiveInt(url, 'pageSize', 50)
-    const start = (page - 1) * pageSize
-
-    return jsonSuccess({
-      items: state.auditLogs.slice(start, start + pageSize),
-      page,
-      pageSize,
-      total: state.auditLogs.length,
-    })
   }),
 
   http.get('/api/management/system-logs/stream', ({ request }) => {

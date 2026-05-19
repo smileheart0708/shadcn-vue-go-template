@@ -57,32 +57,6 @@ CREATE INDEX IF NOT EXISTS auth_sessions_active_user_idx
 ON auth_sessions(user_id)
 WHERE revoked_at IS NULL;
 
-CREATE TABLE IF NOT EXISTS audit_logs (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    actor_user_id INTEGER NULL,
-    subject_user_id INTEGER NULL,
-    auth_session_id TEXT NULL,
-    event_type TEXT NOT NULL,
-    outcome TEXT NOT NULL CHECK (outcome IN ('success', 'failure')),
-    reason TEXT NULL,
-    ip TEXT NULL,
-    user_agent TEXT NULL,
-    metadata_json TEXT NULL,
-    occurred_at INTEGER NOT NULL
-);
-
-CREATE INDEX IF NOT EXISTS audit_logs_occurred_at_idx
-ON audit_logs(occurred_at DESC);
-
-CREATE INDEX IF NOT EXISTS audit_logs_actor_idx
-ON audit_logs(actor_user_id, occurred_at DESC);
-
-CREATE INDEX IF NOT EXISTS audit_logs_subject_idx
-ON audit_logs(subject_user_id, occurred_at DESC);
-
-CREATE INDEX IF NOT EXISTS audit_logs_event_idx
-ON audit_logs(event_type, occurred_at DESC);
-
 CREATE TABLE IF NOT EXISTS install_state (
     id INTEGER PRIMARY KEY CHECK (id = 1),
     setup_state TEXT NOT NULL CHECK (setup_state IN ('pending', 'completed')),

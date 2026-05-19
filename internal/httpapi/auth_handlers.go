@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"strings"
 
-	"main/internal/audit"
 	"main/internal/auth"
 	"main/internal/identity"
 	"main/internal/setup"
@@ -65,13 +64,9 @@ func (api *API) installSetupHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ip, userAgent := requestMetadata(r)
 	owner, err := api.setup.Complete(r.Context(), setup.CompleteSetupInput{
 		Username: payload.Username,
 		Password: payload.Password,
-	}, identity.ActionAuditContext{
-		IP:        nullableString(ip),
-		UserAgent: nullableString(userAgent),
 	})
 	if err != nil {
 		switch {
@@ -85,6 +80,7 @@ func (api *API) installSetupHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	ip, userAgent := requestMetadata(r)
 	session, err := api.auth.IssueSessionForUser(r.Context(), owner, ip, userAgent)
 	if err != nil {
 		writeAPIError(w, http.StatusInternalServerError, "session_create_failed", "Failed to create owner session.")
@@ -169,11 +165,6 @@ func (api *API) registerHandler(w http.ResponseWriter, r *http.Request) {
 func (api *API) refreshHandler(w http.ResponseWriter, r *http.Request) {
 	rawToken, err := api.auth.ReadRefreshCookie(r)
 	if err != nil {
-		api.logAuditEvent(r, audit.Entry{
-			EventType: audit.EventRefreshFailed,
-			Outcome:   audit.OutcomeFailure,
-			Reason:    new("refresh_cookie_missing"),
-		})
 		api.auth.ClearRefreshCookie(w, r)
 		writeAPIError(w, http.StatusUnauthorized, "invalid_refresh_token", "Refresh session is invalid or expired.")
 		return
