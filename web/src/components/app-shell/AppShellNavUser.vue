@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import {
-  IconCreditCard,
-  IconDotsVertical,
-  IconLogout,
-  IconNotification,
-  IconUserCircle,
-} from '@tabler/icons-vue'
-import { Globe } from 'lucide-vue-next'
+  Bell,
+  CircleUserRound,
+  CreditCard,
+  EllipsisVertical,
+  Globe,
+  LogOut,
+} from '@lucide/vue'
 import UserAvatar from '@/components/common/UserAvatar.vue'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -89,7 +89,7 @@ function switchLanguage(newLocale: AppLocale) {
                 {{ user.email ?? ' ' }}
               </span>
             </div>
-            <IconDotsVertical class="ms-auto block-4 inline-4" />
+            <EllipsisVertical class="ms-auto block-4 inline-4" />
           </SidebarMenuButton>
         </DropdownMenuTrigger>
         <DropdownMenuContent
@@ -125,15 +125,15 @@ function switchLanguage(newLocale: AppLocale) {
           <DropdownMenuSeparator />
           <DropdownMenuGroup>
             <DropdownMenuItem>
-              <IconUserCircle />
+              <CircleUserRound />
               {{ t('nav.user.account') }}
             </DropdownMenuItem>
             <DropdownMenuItem>
-              <IconCreditCard />
+              <CreditCard />
               {{ t('nav.user.billing') }}
             </DropdownMenuItem>
             <DropdownMenuItem>
-              <IconNotification />
+              <Bell />
               {{ t('nav.user.notifications') }}
             </DropdownMenuItem>
             <DropdownMenuSub>
@@ -159,7 +159,7 @@ function switchLanguage(newLocale: AppLocale) {
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
           <DropdownMenuItem @click="emit('logout')">
-            <IconLogout />
+            <LogOut />
             {{ t('nav.user.logout') }}
           </DropdownMenuItem>
         </DropdownMenuContent>

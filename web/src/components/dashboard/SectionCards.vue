@@ -1,10 +1,5 @@
 <script setup lang="ts">
-import {
-  IconChartAreaLine,
-  IconClockPause,
-  IconTrendingDown,
-  IconTrendingUp,
-} from '@tabler/icons-vue'
+import { ChartArea, Clock, TrendingDown, TrendingUp } from '@lucide/vue'
 
 import { Badge } from '@/components/ui/badge'
 import {
@@ -33,7 +28,7 @@ const metrics = [
     trend: '+12.5%',
     summary: 'Trending up this month',
     detail: 'Visitors for the last 6 months',
-    icon: IconTrendingUp,
+    icon: TrendingUp,
   },
   {
     title: 'New Customers',
@@ -41,7 +36,7 @@ const metrics = [
     trend: '-20%',
     summary: 'Down 20% this period',
     detail: 'Acquisition needs attention',
-    icon: IconTrendingDown,
+    icon: TrendingDown,
   },
   {
     title: 'Active Accounts',
@@ -49,7 +44,7 @@ const metrics = [
     trend: '+12.5%',
     summary: 'Strong user retention',
     detail: 'Engagement exceed targets',
-    icon: IconTrendingUp,
+    icon: TrendingUp,
   },
   {
     title: 'Growth Rate',
@@ -57,7 +52,7 @@ const metrics = [
     trend: '+4.5%',
     summary: 'Steady performance increase',
     detail: 'Meets growth projections',
-    icon: IconTrendingUp,
+    icon: TrendingUp,
   },
 ] as const
 </script>
@@ -111,7 +106,7 @@ const metrics = [
           <CardTitle class="text-xl font-semibold">Next Widget Slot</CardTitle>
           <CardAction>
             <Badge variant="outline">
-              <IconClockPause class="block-4 inline-4" />
+              <Clock class="block-4 inline-4" />
               Placeholder
             </Badge>
           </CardAction>
@@ -120,7 +115,7 @@ const metrics = [
           <Empty class="border-border/70 bg-muted/30 block-full min-inline-0">
             <EmptyHeader>
               <EmptyMedia variant="icon">
-                <IconChartAreaLine class="block-5 inline-5" />
+                <ChartArea class="block-5 inline-5" />
               </EmptyMedia>
               <EmptyTitle>Reserved for the next dashboard module</EmptyTitle>
               <EmptyDescription>

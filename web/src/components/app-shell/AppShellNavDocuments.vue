@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { IconDots } from '@tabler/icons-vue'
+import { Ellipsis } from '@lucide/vue'
 import { useI18n } from 'vue-i18n'
 import type { AppShellNavItem } from '@/components/app-shell/navigation'
 import AppShellNavButton from '@/components/app-shell/AppShellNavButton.vue'
@@ -29,7 +29,7 @@ const { t } = useI18n()
         <AppShellNavButton
           :item="{
             title: t('nav.documents.more'),
-            icon: IconDots,
+            icon: Ellipsis,
             disabled: true,
           }"
         />

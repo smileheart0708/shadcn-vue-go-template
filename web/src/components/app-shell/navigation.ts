@@ -2,16 +2,18 @@ import { computed, type Component, type ComputedRef } from 'vue'
 import type { RouteLocationRaw } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import {
-  IconChartBar,
-  IconChecklist,
-  IconDashboard,
-  IconFolder,
-  IconHelp,
-  IconListDetails,
-  IconSearch,
-  IconSettings,
-} from '@tabler/icons-vue'
-import { Cog, Logs, Users } from 'lucide-vue-next'
+  ChartColumn,
+  CircleHelp,
+  Cog,
+  Folder,
+  LayoutDashboard,
+  List,
+  ListChecks,
+  Logs,
+  Search,
+  Settings,
+  Users,
+} from '@lucide/vue'
 import { CAPABILITY } from '@/lib/auth/roles'
 import { useAuthStore } from '@/stores/auth'
 
@@ -46,17 +48,17 @@ export function useAppShellNavigation(): ComputedRef<AppShellNavigation> {
     main: [
       {
         title: t('nav.main.dashboard'),
-        icon: IconDashboard,
+        icon: LayoutDashboard,
         to: { name: 'dashboard' },
       },
       {
         title: t('nav.main.tasks'),
-        icon: IconChecklist,
+        icon: ListChecks,
         to: { name: 'tasks' },
       },
-      { title: t('nav.main.lifecycle'), icon: IconListDetails, disabled: true },
-      { title: t('nav.main.analytics'), icon: IconChartBar, disabled: true },
-      { title: t('nav.main.projects'), icon: IconFolder, disabled: true },
+      { title: t('nav.main.lifecycle'), icon: List, disabled: true },
+      { title: t('nav.main.analytics'), icon: ChartColumn, disabled: true },
+      { title: t('nav.main.projects'), icon: Folder, disabled: true },
     ],
     management: [
       ...(canReadSystemSettings.value
@@ -90,11 +92,11 @@ export function useAppShellNavigation(): ComputedRef<AppShellNavigation> {
     secondary: [
       {
         title: t('nav.secondary.settings'),
-        icon: IconSettings,
+        icon: Settings,
         to: { name: 'settings' },
       },
-      { title: t('nav.secondary.getHelp'), icon: IconHelp, disabled: true },
-      { title: t('nav.secondary.search'), icon: IconSearch, disabled: true },
+      { title: t('nav.secondary.getHelp'), icon: CircleHelp, disabled: true },
+      { title: t('nav.secondary.search'), icon: Search, disabled: true },
     ],
   }))
 }

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import { Unlink } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 import {
   Empty,
@@ -10,7 +11,6 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from '@/components/ui/empty'
-import { IconUnlink } from '@tabler/icons-vue'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -29,7 +29,7 @@ function handleBack() {
   <div class="flex items-center justify-center p-4 block-[calc(100vh-200px)]">
     <Empty class="max-inline-md">
       <EmptyMedia>
-        <IconUnlink class="text-muted-foreground block-16 inline-16" />
+        <Unlink class="text-muted-foreground block-16 inline-16" />
       </EmptyMedia>
       <EmptyHeader>
         <EmptyTitle>404</EmptyTitle>

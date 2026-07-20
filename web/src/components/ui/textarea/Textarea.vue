@@ -9,7 +9,9 @@ const props = defineProps<{
   modelValue?: string | number
 }>()
 
-const emit = defineEmits<{ 'update:modelValue': [payload: string | number] }>()
+const emit = defineEmits<{
+  'update:model-value': [payload: string | number]
+}>()
 
 const modelValue = computed({
   get: () => props.modelValue ?? props.defaultValue,
@@ -18,7 +20,7 @@ const modelValue = computed({
       return
     }
 
-    emit('update:modelValue', value)
+    emit('update:model-value', value)
   },
 })
 </script>

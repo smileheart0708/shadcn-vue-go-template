@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Moon, Monitor, Sun } from 'lucide-vue-next'
+import { Moon, Monitor, Sun } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,

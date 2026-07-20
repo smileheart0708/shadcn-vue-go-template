@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { UserPlus } from 'lucide-vue-next'
+import { UserPlus } from '@lucide/vue'
 import AdminUserFormDialog from '@/components/admin-users/AdminUserFormDialog.vue'
 import AdminUserStatusConfirmDialog from '@/components/admin-users/AdminUserStatusConfirmDialog.vue'
 import AdminUsersFilters from '@/components/admin-users/AdminUsersFilters.vue'

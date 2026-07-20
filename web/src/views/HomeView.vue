@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { RouterLink } from 'vue-router'
-import { ArrowRightIcon } from 'lucide-vue-next'
+import { ArrowRightIcon } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 </script>
 

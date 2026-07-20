@@ -2,7 +2,7 @@
 import type { HTMLAttributes } from 'vue'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { ChevronDown } from 'lucide-vue-next'
+import { ChevronDown } from '@lucide/vue'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -27,7 +27,7 @@ const props = withDefaults(
 )
 
 const emit = defineEmits<{
-  'update:modelValue': [value: SystemLogLevel[]]
+  'update:model-value': [value: SystemLogLevel[]]
 }>()
 
 const { t } = useI18n()
@@ -57,7 +57,7 @@ function updateLevel(level: SystemLogLevel, selected: boolean) {
   }
 
   emit(
-    'update:modelValue',
+    'update:model-value',
     SYSTEM_LOG_LEVEL_VALUES.filter((candidate) => nextLevels.has(candidate)),
   )
 }

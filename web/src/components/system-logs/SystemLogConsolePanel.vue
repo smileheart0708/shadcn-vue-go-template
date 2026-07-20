@@ -7,7 +7,7 @@ import {
   Pause,
   RefreshCw,
   Trash2,
-} from 'lucide-vue-next'
+} from '@lucide/vue'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -53,8 +53,8 @@ const emit = defineEmits<{
   clear: []
   reconnect: []
   'update:levels': [value: SystemLogLevel[]]
-  'update:historyLimit': [value: SystemLogHistoryLimit]
-  'update:exportFormat': [value: SystemLogExportFormat]
+  'update:history-limit': [value: SystemLogHistoryLimit]
+  'update:export-format': [value: SystemLogExportFormat]
 }>()
 
 const { t } = useI18n()
@@ -81,7 +81,7 @@ const connectionIndicatorClass = computed(() =>
 const exportFormatModel = computed({
   get: () => props.exportFormat,
   set: (value: SystemLogExportFormat) => {
-    emit('update:exportFormat', value)
+    emit('update:export-format', value)
   },
 })
 
@@ -100,7 +100,7 @@ function handleHistoryLimitChange(value: unknown) {
   if (nextLimit === null) {
     return
   }
-  emit('update:historyLimit', nextLimit)
+  emit('update:history-limit', nextLimit)
 }
 </script>
 
