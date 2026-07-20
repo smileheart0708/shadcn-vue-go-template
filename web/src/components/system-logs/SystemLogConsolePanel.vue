@@ -1,17 +1,39 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { ArrowDownToLine, Download, Pause, RefreshCw, Trash2 } from 'lucide-vue-next'
+import {
+  ArrowDownToLine,
+  Download,
+  Pause,
+  RefreshCw,
+  Trash2,
+} from 'lucide-vue-next'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { SYSTEM_LOG_HISTORY_LIMIT_VALUES, type SystemLogEntry, type SystemLogHistoryLimit, type SystemLogLevel } from '@/lib/api/system-logs'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
+  SYSTEM_LOG_HISTORY_LIMIT_VALUES,
+  type SystemLogEntry,
+  type SystemLogHistoryLimit,
+  type SystemLogLevel,
+} from '@/lib/api/system-logs'
 import { cn } from '@/lib/utils'
 import type { SystemLogExportFormat } from '@/stores/system-logs-preferences'
 import { useSystemLogViewport } from '@/composables/system-logs/useSystemLogViewport'
-import { getConnectionIndicatorClass, getConnectionStatusLabel, normalizeHistoryLimitSelectValue, selectVisibleSystemLogEntries } from '@/utils/system-logs/console'
+import {
+  getConnectionIndicatorClass,
+  getConnectionStatusLabel,
+  normalizeHistoryLimitSelectValue,
+  selectVisibleSystemLogEntries,
+} from '@/utils/system-logs/console'
 import SystemLogEntriesViewport from './SystemLogEntriesViewport.vue'
 import SystemLogLevelMultiSelect from './SystemLogLevelMultiSelect.vue'
 import SystemLogsExportDialog from './SystemLogsExportDialog.vue'
@@ -39,7 +61,8 @@ const { t } = useI18n()
 
 const searchQuery = ref('')
 const exportDialogOpen = ref(false)
-const { autoScroll, toggleAutoScroll, scrollToBottom, handleViewportScroll } = useSystemLogViewport()
+const { autoScroll, toggleAutoScroll, scrollToBottom, handleViewportScroll } =
+  useSystemLogViewport()
 
 const visibleEntries = computed(() =>
   selectVisibleSystemLogEntries({
@@ -49,8 +72,12 @@ const visibleEntries = computed(() =>
     searchQuery: searchQuery.value,
   }),
 )
-const connectionStatusLabel = computed(() => getConnectionStatusLabel(props.connecting, props.connected))
-const connectionIndicatorClass = computed(() => getConnectionIndicatorClass(props.connecting, props.connected))
+const connectionStatusLabel = computed(() =>
+  getConnectionStatusLabel(props.connecting, props.connected),
+)
+const connectionIndicatorClass = computed(() =>
+  getConnectionIndicatorClass(props.connecting, props.connected),
+)
 const exportFormatModel = computed({
   get: () => props.exportFormat,
   set: (value: SystemLogExportFormat) => {
@@ -79,9 +106,13 @@ function handleHistoryLimitChange(value: unknown) {
 
 <template>
   <Card class="lg:flex-1 lg:overflow-hidden lg:min-block-0">
-    <CardHeader class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <CardHeader
+      class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+    >
       <div class="flex flex-wrap items-center gap-2 min-inline-0">
-        <CardTitle class="text-lg">{{ t('systemLogs.console.title') }}</CardTitle>
+        <CardTitle class="text-lg">{{
+          t('systemLogs.console.title')
+        }}</CardTitle>
         <span
           class="relative inline-flex items-center justify-center block-3 inline-3"
           :aria-label="connectionStatusLabel"
@@ -91,7 +122,14 @@ function handleHistoryLimitChange(value: unknown) {
             v-if="connected"
             class="absolute inline-flex animate-ping rounded-full bg-emerald-500 opacity-60 block-full inline-full"
           />
-          <span :class="cn('relative inline-flex rounded-full shadow-sm ring-2 ring-background block-3 inline-3', connectionIndicatorClass)" />
+          <span
+            :class="
+              cn(
+                'relative inline-flex rounded-full shadow-sm ring-2 ring-background block-3 inline-3',
+                connectionIndicatorClass,
+              )
+            "
+          />
         </span>
         <Badge
           v-if="streamError"
@@ -133,7 +171,11 @@ function handleHistoryLimitChange(value: unknown) {
             v-else
             class="block-4 inline-4"
           />
-          {{ autoScroll ? t('systemLogs.actions.pauseFollow') : t('systemLogs.actions.resumeFollow') }}
+          {{
+            autoScroll
+              ? t('systemLogs.actions.pauseFollow')
+              : t('systemLogs.actions.resumeFollow')
+          }}
         </Button>
         <Button
           variant="outline"
@@ -141,7 +183,9 @@ function handleHistoryLimitChange(value: unknown) {
           :disabled="connecting"
           @click="emit('reconnect')"
         >
-          <RefreshCw :class="cn('block-4 inline-4', connecting && 'animate-spin')" />
+          <RefreshCw
+            :class="cn('block-4 inline-4', connecting && 'animate-spin')"
+          />
           {{ t('systemLogs.actions.reconnect') }}
         </Button>
       </div>
@@ -165,7 +209,9 @@ function handleHistoryLimitChange(value: unknown) {
           @update:model-value="handleHistoryLimitChange"
         >
           <SelectTrigger class="inline-full md:inline-auto">
-            <SelectValue :placeholder="t('systemLogs.filters.historyPlaceholder')" />
+            <SelectValue
+              :placeholder="t('systemLogs.filters.historyPlaceholder')"
+            />
           </SelectTrigger>
           <SelectContent>
             <SelectItem
@@ -179,7 +225,9 @@ function handleHistoryLimitChange(value: unknown) {
         </Select>
       </div>
 
-      <div class="flex flex-1 flex-col rounded-xl border bg-sidebar/40 min-block-0">
+      <div
+        class="flex flex-1 flex-col rounded-xl border bg-sidebar/40 min-block-0"
+      >
         <div
           ref="viewport"
           class="overflow-auto rounded-xl block-128 lg:flex-1 lg:block-auto lg:min-block-0"

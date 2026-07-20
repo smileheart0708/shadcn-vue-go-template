@@ -62,7 +62,9 @@ export async function listAdminUsers(params: ListManagedUsersParams = {}) {
       searchParams.set('pageSize', String(params.pageSize))
     }
 
-    const payload = await authApi.get('/api/management/users', { searchParams }).json<unknown>()
+    const payload = await authApi
+      .get('/api/management/users', { searchParams })
+      .json<unknown>()
     return managementUsersPageSchema.parse(payload).data
   } catch (error) {
     return normalizeAPIError(error)
@@ -71,16 +73,23 @@ export async function listAdminUsers(params: ListManagedUsersParams = {}) {
 
 export async function createAdminUser(input: ManagedUserCreateInput) {
   try {
-    const payload = await authApi.post('/api/management/users', { json: input }).json<unknown>()
+    const payload = await authApi
+      .post('/api/management/users', { json: input })
+      .json<unknown>()
     return managedUserEnvelopeSchema.parse(payload).data
   } catch (error) {
     return normalizeAPIError(error)
   }
 }
 
-export async function updateAdminUser(id: number, input: ManagedUserUpsertInput) {
+export async function updateAdminUser(
+  id: number,
+  input: ManagedUserUpsertInput,
+) {
   try {
-    const payload = await authApi.patch(`/api/management/users/${String(id)}`, { json: input }).json<unknown>()
+    const payload = await authApi
+      .patch(`/api/management/users/${String(id)}`, { json: input })
+      .json<unknown>()
     return managedUserEnvelopeSchema.parse(payload).data
   } catch (error) {
     return normalizeAPIError(error)
@@ -89,7 +98,9 @@ export async function updateAdminUser(id: number, input: ManagedUserUpsertInput)
 
 export async function disableAdminUser(id: number) {
   try {
-    const payload = await authApi.post(`/api/management/users/${String(id)}/disable`).json<unknown>()
+    const payload = await authApi
+      .post(`/api/management/users/${String(id)}/disable`)
+      .json<unknown>()
     return managedUserEnvelopeSchema.parse(payload).data
   } catch (error) {
     return normalizeAPIError(error)
@@ -98,7 +109,9 @@ export async function disableAdminUser(id: number) {
 
 export async function enableAdminUser(id: number) {
   try {
-    const payload = await authApi.post(`/api/management/users/${String(id)}/enable`).json<unknown>()
+    const payload = await authApi
+      .post(`/api/management/users/${String(id)}/enable`)
+      .json<unknown>()
     return managedUserEnvelopeSchema.parse(payload).data
   } catch (error) {
     return normalizeAPIError(error)

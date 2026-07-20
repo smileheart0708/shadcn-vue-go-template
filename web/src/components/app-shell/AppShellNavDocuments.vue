@@ -3,7 +3,12 @@ import { IconDots } from '@tabler/icons-vue'
 import { useI18n } from 'vue-i18n'
 import type { AppShellNavItem } from '@/components/app-shell/navigation'
 import AppShellNavButton from '@/components/app-shell/AppShellNavButton.vue'
-import { SidebarGroup, SidebarGroupLabel, SidebarMenu, SidebarMenuItem } from '@/components/ui/sidebar'
+import {
+  SidebarGroup,
+  SidebarGroupLabel,
+  SidebarMenu,
+  SidebarMenuItem,
+} from '@/components/ui/sidebar'
 
 defineProps<{ items: AppShellNavItem[] }>()
 
@@ -21,7 +26,13 @@ const { t } = useI18n()
         <AppShellNavButton :item="item" />
       </SidebarMenuItem>
       <SidebarMenuItem>
-        <AppShellNavButton :item="{ title: t('nav.documents.more'), icon: IconDots, disabled: true }" />
+        <AppShellNavButton
+          :item="{
+            title: t('nav.documents.more'),
+            icon: IconDots,
+            disabled: true,
+          }"
+        />
       </SidebarMenuItem>
     </SidebarMenu>
   </SidebarGroup>

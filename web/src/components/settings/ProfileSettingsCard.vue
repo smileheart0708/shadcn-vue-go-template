@@ -31,7 +31,9 @@ const {
     :description="t('settings.account.profileDesc')"
     content-class="space-y-4"
   >
-    <div class="flex flex-col gap-4 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between">
+    <div
+      class="flex flex-col gap-4 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between"
+    >
       <div class="flex items-center gap-4">
         <Avatar class="rounded-full block-12 inline-12">
           <AvatarImage
@@ -39,17 +41,29 @@ const {
             :src="avatarImageSrc"
             :alt="currentIdentity?.username ?? ''"
           />
-          <AvatarFallback class="rounded-full">{{ avatarFallbackText }}</AvatarFallback>
+          <AvatarFallback class="rounded-full">{{
+            avatarFallbackText
+          }}</AvatarFallback>
         </Avatar>
         <div class="space-y-1">
           <div class="flex flex-wrap items-center gap-2">
             <p class="font-medium">{{ currentIdentity?.username }}</p>
             <Badge :variant="roleBadgeVariant">{{ roleLabel }}</Badge>
-            <Badge :variant="currentIdentity?.status === 'disabled' ? 'secondary' : 'outline'">
-              {{ currentIdentity?.status === 'disabled' ? t('common.state.disabled') : t('settings.account.statusActive') }}
+            <Badge
+              :variant="
+                currentIdentity?.status === 'disabled' ? 'secondary' : 'outline'
+              "
+            >
+              {{
+                currentIdentity?.status === 'disabled'
+                  ? t('common.state.disabled')
+                  : t('settings.account.statusActive')
+              }}
             </Badge>
           </div>
-          <p class="text-sm text-muted-foreground">{{ currentIdentity?.email ?? t('settings.account.emailNotSet') }}</p>
+          <p class="text-sm text-muted-foreground">
+            {{ currentIdentity?.email ?? t('settings.account.emailNotSet') }}
+          </p>
         </div>
       </div>
 

@@ -6,7 +6,10 @@ const appLocaleSchema = z.enum(supportedLocales)
 
 export type AppLocale = z.infer<typeof appLocaleSchema>
 
-export const localeDefinitions: Record<AppLocale, { label: string; htmlLang: string }> = {
+export const localeDefinitions: Record<
+  AppLocale,
+  { label: string; htmlLang: string }
+> = {
   'zh-CN': { label: '简体中文', htmlLang: 'zh-CN' },
   'en-US': { label: 'English', htmlLang: 'en-US' },
 }
@@ -33,7 +36,9 @@ export function isSupportedLocale(locale: string): locale is AppLocale {
 
 export function normalizeLocale(locale: string): AppLocale | null {
   const normalizedLocale = locale.toLowerCase()
-  const exactMatch = supportedLocales.find((candidate) => candidate.toLowerCase() === normalizedLocale)
+  const exactMatch = supportedLocales.find(
+    (candidate) => candidate.toLowerCase() === normalizedLocale,
+  )
   const primaryLocale = normalizedLocale.split('-')[0]
 
   if (exactMatch) {
@@ -45,14 +50,20 @@ export function normalizeLocale(locale: string): AppLocale | null {
 
 export function resolveInitialLocale(): AppLocale {
   if (typeof window !== 'undefined') {
-    const persistedLocale = parseExternalValue(appLocaleSchema, window.localStorage.getItem(STORAGE_KEY))
+    const persistedLocale = parseExternalValue(
+      appLocaleSchema,
+      window.localStorage.getItem(STORAGE_KEY),
+    )
     if (persistedLocale !== null) {
       return persistedLocale
     }
   }
 
   if (typeof navigator !== 'undefined') {
-    const browserLocales = navigator.languages.length > 0 ? navigator.languages : [navigator.language]
+    const browserLocales =
+      navigator.languages.length > 0
+        ? navigator.languages
+        : [navigator.language]
 
     for (const candidate of browserLocales) {
       const normalizedLocale = normalizeLocale(candidate)

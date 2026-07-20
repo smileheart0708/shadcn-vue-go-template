@@ -2,7 +2,9 @@ import type { RouteLocationNormalized, Router } from 'vue-router'
 import pinia from '@/stores/pinia'
 import { useAuthStore } from '@/stores/auth'
 
-function resolveNotFoundLocation(route: Pick<RouteLocationNormalized, 'path' | 'query' | 'hash'>) {
+function resolveNotFoundLocation(
+  route: Pick<RouteLocationNormalized, 'path' | 'query' | 'hash'>,
+) {
   return {
     name: 'not-found' as const,
     params: {
@@ -16,10 +18,18 @@ function resolveNotFoundLocation(route: Pick<RouteLocationNormalized, 'path' | '
 export function installAuthGuard(router: Router) {
   router.beforeEach(async (to) => {
     const authStore = useAuthStore(pinia)
-    const requiresAuth = to.matched.some((record) => record.meta.requiresAuth === true)
-    const guestOnly = to.matched.some((record) => record.meta.guestOnly === true)
-    const maskUnauthorizedAsNotFound = to.matched.some((record) => record.meta.maskUnauthorizedAsNotFound === true)
-    const requiredCapabilities = to.matched.flatMap((record) => record.meta.requiredCapabilities ?? [])
+    const requiresAuth = to.matched.some(
+      (record) => record.meta.requiresAuth === true,
+    )
+    const guestOnly = to.matched.some(
+      (record) => record.meta.guestOnly === true,
+    )
+    const maskUnauthorizedAsNotFound = to.matched.some(
+      (record) => record.meta.maskUnauthorizedAsNotFound === true,
+    )
+    const requiredCapabilities = to.matched.flatMap(
+      (record) => record.meta.requiredCapabilities ?? [],
+    )
 
     await authStore.initialize()
 
@@ -28,7 +38,9 @@ export function installAuthGuard(router: Router) {
     }
 
     if (authStore.isSetupComplete && to.name === 'setup') {
-      return authStore.isAuthenticated ? { name: 'dashboard' } : { name: 'login' }
+      return authStore.isAuthenticated
+        ? { name: 'dashboard' }
+        : { name: 'login' }
     }
 
     if (guestOnly && authStore.isAuthenticated) {
@@ -42,12 +54,17 @@ export function installAuthGuard(router: Router) {
       }
     }
 
-    if (requiredCapabilities.length > 0 && !requiredCapabilities.every((capability) => authStore.can(capability))) {
+    if (
+      requiredCapabilities.length > 0 &&
+      !requiredCapabilities.every((capability) => authStore.can(capability))
+    ) {
       if (maskUnauthorizedAsNotFound) {
         return resolveNotFoundLocation(to)
       }
 
-      return authStore.isAuthenticated ? { name: 'dashboard' } : { name: 'login' }
+      return authStore.isAuthenticated
+        ? { name: 'dashboard' }
+        : { name: 'login' }
     }
 
     return true

@@ -3,13 +3,29 @@ import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyTitle,
+} from '@/components/ui/empty'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Spinner } from '@/components/ui/spinner'
 import { Switch } from '@/components/ui/switch'
 import { getAPIErrorMessage } from '@/lib/api/error-messages'
-import { getAdminSystemSettings, updateSystemSettings, type SystemSettings } from '@/lib/api/system-settings'
+import {
+  getAdminSystemSettings,
+  updateSystemSettings,
+  type SystemSettings,
+} from '@/lib/api/system-settings'
 import { useAuthStore } from '@/stores/auth'
 
 const { t } = useI18n()
@@ -30,7 +46,12 @@ const isDirty = computed(() => {
     return false
   }
 
-  return form.value.publicRegistrationEnabled !== currentSettings.publicRegistrationEnabled || form.value.selfServiceAccountDeletionEnabled !== currentSettings.selfServiceAccountDeletionEnabled
+  return (
+    form.value.publicRegistrationEnabled !==
+      currentSettings.publicRegistrationEnabled ||
+    form.value.selfServiceAccountDeletionEnabled !==
+      currentSettings.selfServiceAccountDeletionEnabled
+  )
 })
 
 onMounted(() => {
@@ -47,7 +68,9 @@ async function loadSettings() {
     loadFailed.value = false
   } catch (error) {
     loadFailed.value = true
-    toast.error(getAPIErrorMessage(t, error, 'systemConfig.feedback.loadFailed'))
+    toast.error(
+      getAPIErrorMessage(t, error, 'systemConfig.feedback.loadFailed'),
+    )
   } finally {
     loading.value = false
   }
@@ -61,13 +84,15 @@ async function saveSettings() {
   saving.value = true
   const savePromise = updateSystemSettings({
     publicRegistrationEnabled: form.value.publicRegistrationEnabled,
-    selfServiceAccountDeletionEnabled: form.value.selfServiceAccountDeletionEnabled,
+    selfServiceAccountDeletionEnabled:
+      form.value.selfServiceAccountDeletionEnabled,
   })
 
   toast.promise(savePromise, {
     loading: t('systemConfig.feedback.saving'),
     success: () => t('systemConfig.feedback.saved'),
-    error: (error: unknown) => getAPIErrorMessage(t, error, 'systemConfig.feedback.saveFailed'),
+    error: (error: unknown) =>
+      getAPIErrorMessage(t, error, 'systemConfig.feedback.saveFailed'),
   })
 
   try {
@@ -77,7 +102,10 @@ async function saveSettings() {
     try {
       await authStore.refreshViewer({ backgroundRequest: true })
     } catch (error: unknown) {
-      console.warn('Failed to refresh viewer after saving account policies', error)
+      console.warn(
+        'Failed to refresh viewer after saving account policies',
+        error,
+      )
     }
   } finally {
     saving.value = false
@@ -89,7 +117,9 @@ async function saveSettings() {
   <div class="flex flex-1 flex-col gap-6 p-4 lg:p-6">
     <section class="space-y-1">
       <h1 class="text-2xl font-semibold">{{ t('systemConfig.title') }}</h1>
-      <p class="text-sm text-muted-foreground">{{ t('systemConfig.description') }}</p>
+      <p class="text-sm text-muted-foreground">
+        {{ t('systemConfig.description') }}
+      </p>
     </section>
 
     <Card v-if="loading">
@@ -112,11 +142,17 @@ async function saveSettings() {
     >
       <Empty>
         <EmptyHeader>
-          <EmptyTitle>{{ t('systemConfig.feedback.loadFailedTitle') }}</EmptyTitle>
-          <EmptyDescription>{{ t('systemConfig.feedback.loadFailed') }}</EmptyDescription>
+          <EmptyTitle>{{
+            t('systemConfig.feedback.loadFailedTitle')
+          }}</EmptyTitle>
+          <EmptyDescription>{{
+            t('systemConfig.feedback.loadFailed')
+          }}</EmptyDescription>
         </EmptyHeader>
         <EmptyContent>
-          <Button @click="loadSettings">{{ t('systemConfig.actions.retry') }}</Button>
+          <Button @click="loadSettings">{{
+            t('systemConfig.actions.retry')
+          }}</Button>
         </EmptyContent>
       </Empty>
     </div>
@@ -124,21 +160,43 @@ async function saveSettings() {
     <Card v-else>
       <CardHeader>
         <CardTitle>{{ t('systemConfig.cardTitle') }}</CardTitle>
-        <CardDescription>{{ t('systemConfig.cardDescription') }}</CardDescription>
+        <CardDescription>{{
+          t('systemConfig.cardDescription')
+        }}</CardDescription>
       </CardHeader>
       <CardContent class="space-y-4">
-        <label class="flex items-center justify-between gap-4 rounded-lg border p-4">
+        <label
+          class="flex items-center justify-between gap-4 rounded-lg border p-4"
+        >
           <div class="space-y-1">
-            <div class="font-medium">{{ t('systemConfig.fields.publicRegistrationEnabled.title') }}</div>
-            <p class="text-sm text-muted-foreground">{{ t('systemConfig.fields.publicRegistrationEnabled.description') }}</p>
+            <div class="font-medium">
+              {{ t('systemConfig.fields.publicRegistrationEnabled.title') }}
+            </div>
+            <p class="text-sm text-muted-foreground">
+              {{
+                t('systemConfig.fields.publicRegistrationEnabled.description')
+              }}
+            </p>
           </div>
           <Switch v-model="form.publicRegistrationEnabled" />
         </label>
 
-        <label class="flex items-center justify-between gap-4 rounded-lg border p-4">
+        <label
+          class="flex items-center justify-between gap-4 rounded-lg border p-4"
+        >
           <div class="space-y-1">
-            <div class="font-medium">{{ t('systemConfig.fields.selfServiceAccountDeletionEnabled.title') }}</div>
-            <p class="text-sm text-muted-foreground">{{ t('systemConfig.fields.selfServiceAccountDeletionEnabled.description') }}</p>
+            <div class="font-medium">
+              {{
+                t('systemConfig.fields.selfServiceAccountDeletionEnabled.title')
+              }}
+            </div>
+            <p class="text-sm text-muted-foreground">
+              {{
+                t(
+                  'systemConfig.fields.selfServiceAccountDeletionEnabled.description',
+                )
+              }}
+            </p>
           </div>
           <Switch v-model="form.selfServiceAccountDeletionEnabled" />
         </label>

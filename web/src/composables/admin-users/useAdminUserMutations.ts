@@ -1,7 +1,13 @@
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
-import { createAdminUser, disableAdminUser, enableAdminUser, type ManagedUser, updateAdminUser } from '@/lib/api/admin-users'
+import {
+  createAdminUser,
+  disableAdminUser,
+  enableAdminUser,
+  type ManagedUser,
+  updateAdminUser,
+} from '@/lib/api/admin-users'
 import { getAPIErrorMessage } from '@/lib/api/error-messages'
 
 interface UseAdminUserMutationsOptions {
@@ -76,9 +82,21 @@ export function useAdminUserMutations(options: UseAdminUserMutationsOptions) {
     }
 
     toast.promise(requestPromise, {
-      loading: creating ? t('adminUsers.feedback.creating') : t('adminUsers.feedback.updating'),
-      success: () => (creating ? t('adminUsers.feedback.createSuccess') : t('adminUsers.feedback.updateSuccess')),
-      error: (error: unknown) => getAPIErrorMessage(t, error, creating ? 'adminUsers.feedback.createFailed' : 'adminUsers.feedback.updateFailed'),
+      loading: creating
+        ? t('adminUsers.feedback.creating')
+        : t('adminUsers.feedback.updating'),
+      success: () =>
+        creating
+          ? t('adminUsers.feedback.createSuccess')
+          : t('adminUsers.feedback.updateSuccess'),
+      error: (error: unknown) =>
+        getAPIErrorMessage(
+          t,
+          error,
+          creating
+            ? 'adminUsers.feedback.createFailed'
+            : 'adminUsers.feedback.updateFailed',
+        ),
     })
 
     try {
@@ -103,12 +121,26 @@ export function useAdminUserMutations(options: UseAdminUserMutationsOptions) {
 
     confirmPending.value = true
     const disabling = target.status === 'active'
-    const requestPromise = disabling ? disableAdminUser(target.id) : enableAdminUser(target.id)
+    const requestPromise = disabling
+      ? disableAdminUser(target.id)
+      : enableAdminUser(target.id)
 
     toast.promise(requestPromise, {
-      loading: disabling ? t('adminUsers.feedback.disabling') : t('adminUsers.feedback.enabling'),
-      success: () => (disabling ? t('adminUsers.feedback.disableSuccess') : t('adminUsers.feedback.enableSuccess')),
-      error: (error: unknown) => getAPIErrorMessage(t, error, disabling ? 'adminUsers.feedback.disableFailed' : 'adminUsers.feedback.enableFailed'),
+      loading: disabling
+        ? t('adminUsers.feedback.disabling')
+        : t('adminUsers.feedback.enabling'),
+      success: () =>
+        disabling
+          ? t('adminUsers.feedback.disableSuccess')
+          : t('adminUsers.feedback.enableSuccess'),
+      error: (error: unknown) =>
+        getAPIErrorMessage(
+          t,
+          error,
+          disabling
+            ? 'adminUsers.feedback.disableFailed'
+            : 'adminUsers.feedback.enableFailed',
+        ),
     })
 
     try {

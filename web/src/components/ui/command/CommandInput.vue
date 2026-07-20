@@ -35,7 +35,12 @@ const { filterState } = useCommand()
       v-model="filterState.search"
       data-slot="command-input"
       auto-focus
-      :class="cn('flex rounded-md bg-transparent py-3 text-sm outline-hidden block-10 inline-full placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50', props.class)"
+      :class="
+        cn(
+          'flex rounded-md bg-transparent py-3 text-sm outline-hidden block-10 inline-full placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50',
+          props.class,
+        )
+      "
     />
   </div>
 </template>

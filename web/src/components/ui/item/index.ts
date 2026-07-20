@@ -17,7 +17,8 @@ export const itemVariants = cva(
   {
     variants: {
       variant: {
-        default: 'rounded-[24px] border border-border/80 bg-card shadow-[0_18px_48px_-34px_rgba(0,0,0,0.24)]',
+        default:
+          'rounded-[24px] border border-border/80 bg-card shadow-[0_18px_48px_-34px_rgba(0,0,0,0.24)]',
         outline: 'rounded-[24px] border border-border/80 bg-card',
         muted: 'rounded-[24px] border border-transparent bg-muted/40',
       },
@@ -41,7 +42,8 @@ export const itemMediaVariants = cva(
       variant: {
         default: 'bg-transparent',
         icon: "rounded-sm border bg-muted block-8 inline-8 [&_svg:not([class*='size-'])]:block-4 [&_svg:not([class*='size-'])]:inline-4",
-        image: 'overflow-hidden rounded-sm block-10 inline-10 [&_img]:object-cover [&_img]:block-full [&_img]:inline-full',
+        image:
+          'overflow-hidden rounded-sm block-10 inline-10 [&_img]:object-cover [&_img]:block-full [&_img]:inline-full',
       },
     },
     defaultVariants: {

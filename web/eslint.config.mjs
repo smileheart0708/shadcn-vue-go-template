@@ -65,7 +65,10 @@ export default defineConfig(
       ],
       '@typescript-eslint/no-unused-expressions': 'error',
 
-      '@typescript-eslint/consistent-type-assertions': ['error', { assertionStyle: 'never' }],
+      '@typescript-eslint/consistent-type-assertions': [
+        'error',
+        { assertionStyle: 'never' },
+      ],
       '@typescript-eslint/consistent-type-imports': [
         'error',
         {
@@ -76,7 +79,10 @@ export default defineConfig(
       '@typescript-eslint/no-import-type-side-effects': 'error',
 
       '@typescript-eslint/no-explicit-any': 'error',
-      '@typescript-eslint/no-floating-promises': ['error', { ignoreVoid: true, ignoreIIFE: false }],
+      '@typescript-eslint/no-floating-promises': [
+        'error',
+        { ignoreVoid: true, ignoreIIFE: false },
+      ],
       '@typescript-eslint/no-misused-promises': 'error',
       '@typescript-eslint/no-misused-spread': 'error',
 
@@ -106,7 +112,10 @@ export default defineConfig(
       'vue/no-ref-object-reactivity-loss': 'error',
       'vue/no-setup-props-reactivity-loss': 'error',
       'vue/no-template-shadow': 'error',
-      'vue/no-use-v-if-with-v-for': ['error', { allowUsingIterationVar: false }],
+      'vue/no-use-v-if-with-v-for': [
+        'error',
+        { allowUsingIterationVar: false },
+      ],
       'vue/no-use-computed-property-like-method': 'error',
       'vue/no-unused-components': 'error',
       'vue/no-unused-vars': ['error', { ignorePattern: '^_' }],
@@ -135,7 +144,11 @@ export default defineConfig(
       'vue/block-order': [
         'error',
         {
-          order: [['script[setup]', 'script:not([setup])'], 'template', 'style'],
+          order: [
+            ['script[setup]', 'script:not([setup])'],
+            'template',
+            'style',
+          ],
         },
       ],
       'vue/attributes-order': 'error',

@@ -9,7 +9,14 @@ import { Button } from '@/components/ui/button'
 import { Field, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Spinner } from '@/components/ui/spinner'
-import { Stepper, StepperIndicator, StepperItem, StepperSeparator, StepperTitle, StepperTrigger } from '@/components/ui/stepper'
+import {
+  Stepper,
+  StepperIndicator,
+  StepperItem,
+  StepperSeparator,
+  StepperTitle,
+  StepperTrigger,
+} from '@/components/ui/stepper'
 import { getAPIErrorMessage } from '@/lib/api/error-messages'
 import { useAuthStore } from '@/stores/auth'
 
@@ -36,29 +43,43 @@ const username = ref('')
 const password = ref('')
 const confirmPassword = ref('')
 const submitting = ref(false)
-const setupCompleted = computed(() => authStore.installState?.setupCompleted === true)
+const setupCompleted = computed(
+  () => authStore.installState?.setupCompleted === true,
+)
 const currentStep = ref(1)
 const transitionDirection = ref<TransitionDirection>('forward')
 
 const transitionClasses = computed(() => {
   if (transitionDirection.value === 'backward') {
     return {
-      enterActive: 'transition duration-300 ease-out motion-reduce:transition-none',
-      enterFrom: '-translate-x-8 opacity-0 motion-reduce:translate-x-0 motion-reduce:opacity-100',
-      enterTo: 'translate-x-0 opacity-100 motion-reduce:translate-x-0 motion-reduce:opacity-100',
-      leaveActive: 'transition duration-200 ease-in motion-reduce:transition-none',
-      leaveFrom: 'translate-x-0 opacity-100 motion-reduce:translate-x-0 motion-reduce:opacity-100',
-      leaveTo: 'translate-x-8 opacity-0 motion-reduce:translate-x-0 motion-reduce:opacity-100',
+      enterActive:
+        'transition duration-300 ease-out motion-reduce:transition-none',
+      enterFrom:
+        '-translate-x-8 opacity-0 motion-reduce:translate-x-0 motion-reduce:opacity-100',
+      enterTo:
+        'translate-x-0 opacity-100 motion-reduce:translate-x-0 motion-reduce:opacity-100',
+      leaveActive:
+        'transition duration-200 ease-in motion-reduce:transition-none',
+      leaveFrom:
+        'translate-x-0 opacity-100 motion-reduce:translate-x-0 motion-reduce:opacity-100',
+      leaveTo:
+        'translate-x-8 opacity-0 motion-reduce:translate-x-0 motion-reduce:opacity-100',
     }
   }
 
   return {
-    enterActive: 'transition duration-300 ease-out motion-reduce:transition-none',
-    enterFrom: 'translate-x-8 opacity-0 motion-reduce:translate-x-0 motion-reduce:opacity-100',
-    enterTo: 'translate-x-0 opacity-100 motion-reduce:translate-x-0 motion-reduce:opacity-100',
-    leaveActive: 'transition duration-200 ease-in motion-reduce:transition-none',
-    leaveFrom: 'translate-x-0 opacity-100 motion-reduce:translate-x-0 motion-reduce:opacity-100',
-    leaveTo: '-translate-x-8 opacity-0 motion-reduce:translate-x-0 motion-reduce:opacity-100',
+    enterActive:
+      'transition duration-300 ease-out motion-reduce:transition-none',
+    enterFrom:
+      'translate-x-8 opacity-0 motion-reduce:translate-x-0 motion-reduce:opacity-100',
+    enterTo:
+      'translate-x-0 opacity-100 motion-reduce:translate-x-0 motion-reduce:opacity-100',
+    leaveActive:
+      'transition duration-200 ease-in motion-reduce:transition-none',
+    leaveFrom:
+      'translate-x-0 opacity-100 motion-reduce:translate-x-0 motion-reduce:opacity-100',
+    leaveTo:
+      '-translate-x-8 opacity-0 motion-reduce:translate-x-0 motion-reduce:opacity-100',
   }
 })
 
@@ -117,7 +138,9 @@ async function goToDashboard() {
 
 <template>
   <div class="bg-background px-6 py-10 text-foreground min-block-screen">
-    <div class="mx-auto flex items-center inline-full max-inline-2xl min-block-[calc(100vh-5rem)]">
+    <div
+      class="mx-auto flex items-center inline-full max-inline-2xl min-block-[calc(100vh-5rem)]"
+    >
       <div class="space-y-8 inline-full">
         <div class="space-y-2 text-center">
           <h1 class="text-3xl font-semibold tracking-tight sm:text-4xl">
@@ -157,7 +180,9 @@ async function goToDashboard() {
           </StepperItem>
         </Stepper>
 
-        <div class="relative overflow-hidden rounded-2xl border border-border/60 bg-card/70 p-6 shadow-sm sm:p-8">
+        <div
+          class="relative overflow-hidden rounded-2xl border border-border/60 bg-card/70 p-6 shadow-sm sm:p-8"
+        >
           <Transition
             mode="out-in"
             :enter-active-class="transitionClasses.enterActive"
@@ -172,7 +197,9 @@ async function goToDashboard() {
               class="flex flex-col gap-6 min-block-96"
             >
               <template v-if="currentStep === 1">
-                <h2 class="text-xl font-semibold tracking-tight">{{ t('setup.step1') }}</h2>
+                <h2 class="text-xl font-semibold tracking-tight">
+                  {{ t('setup.step1') }}
+                </h2>
 
                 <form
                   class="flex flex-1 flex-col"
@@ -180,7 +207,9 @@ async function goToDashboard() {
                 >
                   <FieldGroup class="flex flex-1 flex-col gap-5">
                     <Field>
-                      <FieldLabel for="setup-username">{{ t('common.field.username') }}</FieldLabel>
+                      <FieldLabel for="setup-username">{{
+                        t('common.field.username')
+                      }}</FieldLabel>
                       <Input
                         id="setup-username"
                         v-model="username"
@@ -190,7 +219,9 @@ async function goToDashboard() {
                     </Field>
 
                     <Field>
-                      <FieldLabel for="setup-password">{{ t('common.field.password') }}</FieldLabel>
+                      <FieldLabel for="setup-password">{{
+                        t('common.field.password')
+                      }}</FieldLabel>
                       <Input
                         id="setup-password"
                         v-model="password"
@@ -202,7 +233,9 @@ async function goToDashboard() {
                     </Field>
 
                     <Field>
-                      <FieldLabel for="setup-confirm-password">{{ t('common.field.confirmPassword') }}</FieldLabel>
+                      <FieldLabel for="setup-confirm-password">{{
+                        t('common.field.confirmPassword')
+                      }}</FieldLabel>
                       <Input
                         id="setup-confirm-password"
                         v-model="confirmPassword"
@@ -228,7 +261,9 @@ async function goToDashboard() {
                           v-else
                           class="me-2 block-4 inline-4"
                         />
-                        {{ submitting ? t('setup.creating') : t('setup.submit') }}
+                        {{
+                          submitting ? t('setup.creating') : t('setup.submit')
+                        }}
                       </Button>
                     </Field>
                   </FieldGroup>
@@ -236,13 +271,19 @@ async function goToDashboard() {
               </template>
 
               <template v-else>
-                <div class="flex flex-1 flex-col items-center justify-center gap-8 py-6 text-center sm:py-10">
-                  <div class="flex items-center justify-center rounded-full bg-primary/10 text-primary block-20 inline-20">
+                <div
+                  class="flex flex-1 flex-col items-center justify-center gap-8 py-6 text-center sm:py-10"
+                >
+                  <div
+                    class="flex items-center justify-center rounded-full bg-primary/10 text-primary block-20 inline-20"
+                  >
                     <Check class="block-10 inline-10" />
                   </div>
 
                   <div class="space-y-3">
-                    <h2 class="text-3xl font-bold tracking-tight">{{ t('setup.success') }}</h2>
+                    <h2 class="text-3xl font-bold tracking-tight">
+                      {{ t('setup.success') }}
+                    </h2>
                   </div>
 
                   <Button

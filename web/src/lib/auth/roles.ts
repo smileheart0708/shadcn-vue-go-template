@@ -35,7 +35,9 @@ export function getUserRoleLabelKey(role: RoleKey | null | undefined) {
   }
 }
 
-export function getUserRoleBadgeVariant(role: RoleKey | null | undefined): 'warning' | 'outline' {
+export function getUserRoleBadgeVariant(
+  role: RoleKey | null | undefined,
+): 'warning' | 'outline' {
   switch (role) {
     case ROLE_KEY.owner:
       return 'warning'
@@ -44,6 +46,9 @@ export function getUserRoleBadgeVariant(role: RoleKey | null | undefined): 'warn
   }
 }
 
-export function hasCapability(capabilities: readonly string[] | null | undefined, capability: Capability) {
+export function hasCapability(
+  capabilities: readonly string[] | null | undefined,
+  capability: Capability,
+) {
   return Array.isArray(capabilities) && capabilities.includes(capability)
 }

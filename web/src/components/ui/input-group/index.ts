@@ -15,10 +15,14 @@ export const inputGroupAddonVariants = cva(
   {
     variants: {
       align: {
-        'inline-start': 'order-first ps-3 has-[>button]:ms-[-0.45rem] has-[>kbd]:ms-[-0.35rem]',
-        'inline-end': 'order-last pe-3 has-[>button]:me-[-0.45rem] has-[>kbd]:me-[-0.35rem]',
-        'block-start': 'order-first justify-start px-3 pbs-3 inline-full group-has-[>input]/input-group:pbs-2.5 [.border-b]:pbe-3',
-        'block-end': 'order-last justify-start px-3 pbe-3 inline-full group-has-[>input]/input-group:pbe-2.5 [.border-t]:pbs-3',
+        'inline-start':
+          'order-first ps-3 has-[>button]:ms-[-0.45rem] has-[>kbd]:ms-[-0.35rem]',
+        'inline-end':
+          'order-last pe-3 has-[>button]:me-[-0.45rem] has-[>kbd]:me-[-0.35rem]',
+        'block-start':
+          'order-first justify-start px-3 pbs-3 inline-full group-has-[>input]/input-group:pbs-2.5 [.border-b]:pbe-3',
+        'block-end':
+          'order-last justify-start px-3 pbe-3 inline-full group-has-[>input]/input-group:pbe-2.5 [.border-t]:pbs-3',
       },
     },
     defaultVariants: {
@@ -29,21 +33,27 @@ export const inputGroupAddonVariants = cva(
 
 export type InputGroupVariants = VariantProps<typeof inputGroupAddonVariants>
 
-export const inputGroupButtonVariants = cva('flex items-center gap-2 text-sm shadow-none', {
-  variants: {
-    size: {
-      xs: "gap-1 rounded-[calc(var(--radius)-5px)] px-2 block-6 has-[>svg]:px-2 [&>svg:not([class*='size-'])]:block-3.5 [&>svg:not([class*='size-'])]:inline-3.5",
-      sm: 'gap-1.5 rounded-md px-2.5 block-8 has-[>svg]:px-2.5',
-      'icon-xs': 'rounded-[calc(var(--radius)-5px)] p-0 block-6 inline-6 has-[>svg]:p-0',
-      'icon-sm': 'p-0 block-8 inline-8 has-[>svg]:p-0',
+export const inputGroupButtonVariants = cva(
+  'flex items-center gap-2 text-sm shadow-none',
+  {
+    variants: {
+      size: {
+        xs: "gap-1 rounded-[calc(var(--radius)-5px)] px-2 block-6 has-[>svg]:px-2 [&>svg:not([class*='size-'])]:block-3.5 [&>svg:not([class*='size-'])]:inline-3.5",
+        sm: 'gap-1.5 rounded-md px-2.5 block-8 has-[>svg]:px-2.5',
+        'icon-xs':
+          'rounded-[calc(var(--radius)-5px)] p-0 block-6 inline-6 has-[>svg]:p-0',
+        'icon-sm': 'p-0 block-8 inline-8 has-[>svg]:p-0',
+      },
+    },
+    defaultVariants: {
+      size: 'xs',
     },
   },
-  defaultVariants: {
-    size: 'xs',
-  },
-})
+)
 
-export type InputGroupButtonVariants = VariantProps<typeof inputGroupButtonVariants>
+export type InputGroupButtonVariants = VariantProps<
+  typeof inputGroupButtonVariants
+>
 
 export interface InputGroupButtonProps {
   variant?: ButtonVariants['variant']

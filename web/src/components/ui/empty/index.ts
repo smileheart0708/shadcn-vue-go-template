@@ -8,14 +8,17 @@ export { default as EmptyHeader } from './EmptyHeader.vue'
 export { default as EmptyMedia } from './EmptyMedia.vue'
 export { default as EmptyTitle } from './EmptyTitle.vue'
 
-export const emptyMediaVariants = cva('mbe-2 flex shrink-0 items-center justify-center [&_svg]:pointer-events-none [&_svg]:shrink-0', {
-  variants: {
-    variant: {
-      default: 'bg-transparent',
-      icon: "flex shrink-0 items-center justify-center rounded-lg bg-muted text-foreground block-10 inline-10 [&_svg:not([class*='size-'])]:block-6 [&_svg:not([class*='size-'])]:inline-6",
+export const emptyMediaVariants = cva(
+  'mbe-2 flex shrink-0 items-center justify-center [&_svg]:pointer-events-none [&_svg]:shrink-0',
+  {
+    variants: {
+      variant: {
+        default: 'bg-transparent',
+        icon: "flex shrink-0 items-center justify-center rounded-lg bg-muted text-foreground block-10 inline-10 [&_svg:not([class*='size-'])]:block-6 [&_svg:not([class*='size-'])]:inline-6",
+      },
     },
+    defaultVariants: { variant: 'default' },
   },
-  defaultVariants: { variant: 'default' },
-})
+)
 
 export type EmptyMediaVariants = VariantProps<typeof emptyMediaVariants>

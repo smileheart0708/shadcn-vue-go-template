@@ -6,9 +6,26 @@ import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty'
-import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyTitle,
+} from '@/components/ui/empty'
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+} from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Spinner } from '@/components/ui/spinner'
@@ -31,7 +48,9 @@ const password = ref('')
 const confirmPassword = ref('')
 const isSubmitting = ref(false)
 
-const registrationEnabled = computed(() => authStore.publicAuthConfig?.registrationEnabled === true)
+const registrationEnabled = computed(
+  () => authStore.publicAuthConfig?.registrationEnabled === true,
+)
 
 onMounted(() => {
   void loadPolicy()
@@ -69,7 +88,8 @@ async function handleSubmit() {
   toast.promise(registerPromise, {
     loading: t('auth.signUp.creating'),
     success: () => t('auth.signUp.registerSuccess'),
-    error: (error: unknown) => getAPIErrorMessage(t, error, 'auth.signUp.registerFailed'),
+    error: (error: unknown) =>
+      getAPIErrorMessage(t, error, 'auth.signUp.registerFailed'),
   })
 
   try {
@@ -105,7 +125,9 @@ async function handleSubmit() {
     <Card v-else-if="loadFailed">
       <CardHeader class="text-center">
         <CardTitle>{{ t('auth.signUp.loadFailedTitle') }}</CardTitle>
-        <CardDescription>{{ t('auth.signUp.policyLoadFailed') }}</CardDescription>
+        <CardDescription>{{
+          t('auth.signUp.policyLoadFailed')
+        }}</CardDescription>
       </CardHeader>
       <CardContent class="flex justify-center">
         <Button @click="loadPolicy">{{ t('auth.signUp.retry') }}</Button>
@@ -117,11 +139,15 @@ async function handleSubmit() {
         <Empty>
           <EmptyHeader>
             <EmptyTitle>{{ t('auth.signUp.disabledTitle') }}</EmptyTitle>
-            <EmptyDescription>{{ t('auth.signUp.disabledDescription') }}</EmptyDescription>
+            <EmptyDescription>{{
+              t('auth.signUp.disabledDescription')
+            }}</EmptyDescription>
           </EmptyHeader>
           <EmptyContent>
             <Button as-child>
-              <RouterLink :to="{ name: 'login' }">{{ t('auth.signUp.signIn') }}</RouterLink>
+              <RouterLink :to="{ name: 'login' }">{{
+                t('auth.signUp.signIn')
+              }}</RouterLink>
             </Button>
           </EmptyContent>
         </Empty>
@@ -147,7 +173,9 @@ async function handleSubmit() {
         </div>
 
         <Field>
-          <FieldLabel for="username">{{ t('common.field.username') }}</FieldLabel>
+          <FieldLabel for="username">{{
+            t('common.field.username')
+          }}</FieldLabel>
           <Input
             id="username"
             v-model="username"
@@ -167,11 +195,15 @@ async function handleSubmit() {
             :placeholder="t('auth.signUp.emailPlaceholder')"
             type="email"
           />
-          <FieldDescription>{{ t('auth.signUp.emailOptional') }}</FieldDescription>
+          <FieldDescription>{{
+            t('auth.signUp.emailOptional')
+          }}</FieldDescription>
         </Field>
 
         <Field>
-          <FieldLabel for="password">{{ t('common.field.password') }}</FieldLabel>
+          <FieldLabel for="password">{{
+            t('common.field.password')
+          }}</FieldLabel>
           <Input
             id="password"
             v-model="password"
@@ -184,7 +216,9 @@ async function handleSubmit() {
         </Field>
 
         <Field>
-          <FieldLabel for="confirmPassword">{{ t('auth.signUp.confirmPassword') }}</FieldLabel>
+          <FieldLabel for="confirmPassword">{{
+            t('auth.signUp.confirmPassword')
+          }}</FieldLabel>
           <Input
             id="confirmPassword"
             v-model="confirmPassword"
@@ -205,7 +239,9 @@ async function handleSubmit() {
               v-if="isSubmitting"
               class="me-2"
             />
-            {{ isSubmitting ? t('auth.signUp.creating') : t('auth.signUp.submit') }}
+            {{
+              isSubmitting ? t('auth.signUp.creating') : t('auth.signUp.submit')
+            }}
           </Button>
         </Field>
       </FieldGroup>

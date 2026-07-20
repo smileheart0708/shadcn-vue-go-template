@@ -1,10 +1,19 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import { Badge } from '@/components/ui/badge'
-import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty'
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyTitle,
+} from '@/components/ui/empty'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { SystemLogEntry } from '@/lib/api/system-logs'
-import { formatSystemLogTimestamp, getLevelBadgeVariant } from '@/utils/system-logs/console'
+import {
+  formatSystemLogTimestamp,
+  getLevelBadgeVariant,
+} from '@/utils/system-logs/console'
 
 defineProps<{
   entries: readonly SystemLogEntry[]
@@ -33,7 +42,9 @@ const { t } = useI18n()
     <Empty>
       <EmptyHeader>
         <EmptyTitle>{{ t('systemLogs.empty.title') }}</EmptyTitle>
-        <EmptyDescription>{{ t('systemLogs.empty.description') }}</EmptyDescription>
+        <EmptyDescription>{{
+          t('systemLogs.empty.description')
+        }}</EmptyDescription>
       </EmptyHeader>
       <EmptyContent />
     </Empty>
@@ -48,8 +59,12 @@ const { t } = useI18n()
       :key="entry.id"
       class="grid grid-cols-[auto_auto_auto_1fr] items-start gap-2 rounded-lg border border-transparent px-3 py-2 transition-colors hover:bg-muted/60"
     >
-      <span class="text-muted-foreground tabular-nums">{{ formatSystemLogTimestamp(entry.timestamp) }}</span>
-      <Badge :variant="getLevelBadgeVariant(entry.level)">{{ entry.level }}</Badge>
+      <span class="text-muted-foreground tabular-nums">{{
+        formatSystemLogTimestamp(entry.timestamp)
+      }}</span>
+      <Badge :variant="getLevelBadgeVariant(entry.level)">{{
+        entry.level
+      }}</Badge>
       <span class="text-muted-foreground">{{ entry.source }}</span>
       <span>{{ entry.text }}</span>
     </div>

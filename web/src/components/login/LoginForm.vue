@@ -11,7 +11,12 @@ import { useAuthStore } from '@/stores/auth'
 
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field'
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+} from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 
 const props = defineProps<{ class?: HTMLAttributes['class'] }>()
@@ -24,7 +29,9 @@ const authStore = useAuthStore()
 const identifier = ref('')
 const password = ref('')
 const isSubmitting = ref(false)
-const canRegister = computed(() => authStore.publicAuthConfig?.registrationEnabled === true)
+const canRegister = computed(
+  () => authStore.publicAuthConfig?.registrationEnabled === true,
+)
 
 const internalRedirectPathSchema = z.string().refine(isInternalRedirectPath)
 const dashboardRedirectTarget = { name: 'dashboard' as const }
@@ -39,17 +46,23 @@ async function handleSubmit() {
   }
 
   isSubmitting.value = true
-  const loginPromise = authStore.login({ identifier: identifier.value, password: password.value })
+  const loginPromise = authStore.login({
+    identifier: identifier.value,
+    password: password.value,
+  })
 
   toast.promise(loginPromise, {
     loading: t('auth.signIn.signingIn'),
     success: () => t('auth.signIn.loginSuccess'),
-    error: (error: unknown) => getAPIErrorMessage(t, error, 'auth.signIn.loginFailed'),
+    error: (error: unknown) =>
+      getAPIErrorMessage(t, error, 'auth.signIn.loginFailed'),
   })
 
   try {
     await loginPromise
-    const redirectTarget = parseExternalValue(internalRedirectPathSchema, route.query.redirect) ?? dashboardRedirectTarget
+    const redirectTarget =
+      parseExternalValue(internalRedirectPathSchema, route.query.redirect) ??
+      dashboardRedirectTarget
     await router.push(redirectTarget)
   } catch {
     return
@@ -59,7 +72,12 @@ async function handleSubmit() {
 }
 
 function isInternalRedirectPath(value: string) {
-  return value.startsWith('/') && !value.startsWith('//') && !value.startsWith('/\\') && !/^[A-Za-z][A-Za-z\d+.-]*:/.test(value)
+  return (
+    value.startsWith('/') &&
+    !value.startsWith('//') &&
+    !value.startsWith('/\\') &&
+    !/^[A-Za-z][A-Za-z\d+.-]*:/.test(value)
+  )
 }
 </script>
 
@@ -79,7 +97,9 @@ function isInternalRedirectPath(value: string) {
           </p>
         </div>
         <Field>
-          <FieldLabel for="identifier"> {{ t('common.field.usernameOrEmail') }} </FieldLabel>
+          <FieldLabel for="identifier">
+            {{ t('common.field.usernameOrEmail') }}
+          </FieldLabel>
           <Input
             id="identifier"
             v-model="identifier"
@@ -90,7 +110,9 @@ function isInternalRedirectPath(value: string) {
           />
         </Field>
         <Field>
-          <FieldLabel for="password"> {{ t('common.field.password') }} </FieldLabel>
+          <FieldLabel for="password">
+            {{ t('common.field.password') }}
+          </FieldLabel>
           <Input
             id="password"
             v-model="password"
@@ -105,7 +127,11 @@ function isInternalRedirectPath(value: string) {
             type="submit"
             :disabled="isSubmitting"
           >
-            {{ isSubmitting ? t('auth.signIn.signingIn') : t('auth.signIn.submit') }}
+            {{
+              isSubmitting
+                ? t('auth.signIn.signingIn')
+                : t('auth.signIn.submit')
+            }}
           </Button>
         </Field>
         <Field v-if="canRegister">

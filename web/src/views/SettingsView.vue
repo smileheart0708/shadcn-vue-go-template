@@ -11,7 +11,9 @@ const { t } = useI18n()
   <div class="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
     <div>
       <h1 class="text-2xl font-semibold">{{ t('settings.title') }}</h1>
-      <p class="text-sm text-muted-foreground">{{ t('settings.description') }}</p>
+      <p class="text-sm text-muted-foreground">
+        {{ t('settings.description') }}
+      </p>
     </div>
 
     <Tabs
@@ -20,7 +22,9 @@ const { t } = useI18n()
     >
       <TabsList>
         <TabsTrigger value="basic">{{ t('settings.tabs.basic') }}</TabsTrigger>
-        <TabsTrigger value="account">{{ t('settings.tabs.account') }}</TabsTrigger>
+        <TabsTrigger value="account">{{
+          t('settings.tabs.account')
+        }}</TabsTrigger>
       </TabsList>
 
       <TabsContent

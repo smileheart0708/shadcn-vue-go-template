@@ -8,7 +8,12 @@ const props = defineProps<{ class?: HTMLAttributes['class'] }>()
 <template>
   <th
     data-slot="table-head"
-    :class="cn('px-2 text-start align-middle font-medium whitespace-nowrap text-foreground block-10 has-[[role=checkbox]]:pe-0 *:[[role=checkbox]]:translate-y-[2px]', props.class)"
+    :class="
+      cn(
+        'px-2 text-start align-middle font-medium whitespace-nowrap text-foreground block-10 has-[[role=checkbox]]:pe-0 *:[[role=checkbox]]:translate-y-[2px]',
+        props.class,
+      )
+    "
   >
     <slot />
   </th>

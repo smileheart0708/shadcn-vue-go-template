@@ -7,7 +7,9 @@ import { computed, onMounted, onUnmounted } from 'vue'
 import { cn } from '@/lib/utils'
 import { useCommand, useCommandGroup } from '.'
 
-const props = defineProps<ListboxItemProps & { class?: HTMLAttributes['class'] }>()
+const props = defineProps<
+  ListboxItemProps & { class?: HTMLAttributes['class'] }
+>()
 const emits = defineEmits<ListboxItemEmits>()
 
 const delegatedProps = reactiveOmit(props, 'class')
@@ -20,7 +22,11 @@ const groupContext = useCommandGroup()
 
 function getItemTextValue(value: ListboxItemProps['value']) {
   if (typeof value === 'string') return value
-  if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint') {
+  if (
+    typeof value === 'number' ||
+    typeof value === 'boolean' ||
+    typeof value === 'bigint'
+  ) {
     return String(value)
   }
 
@@ -50,7 +56,10 @@ onMounted(() => {
   }
 
   // textValue to perform filter
-  allItems.value.set(id, currentElement.textContent || getItemTextValue(props.value))
+  allItems.value.set(
+    id,
+    currentElement.textContent || getItemTextValue(props.value),
+  )
 
   const groupId = groupContext.id
   if (groupId !== undefined) {

@@ -2,10 +2,18 @@
 import type { TooltipContentEmits, TooltipContentProps } from 'reka-ui'
 import type { HTMLAttributes } from 'vue'
 import { reactiveOmit } from '@vueuse/core'
-import { TooltipArrow, TooltipContent, TooltipPortal, useForwardPropsEmits } from 'reka-ui'
+import {
+  TooltipArrow,
+  TooltipContent,
+  TooltipPortal,
+  useForwardPropsEmits,
+} from 'reka-ui'
 import { cn } from '@/lib/utils'
 
-const props = withDefaults(defineProps<TooltipContentProps & { class?: HTMLAttributes['class'] }>(), { sideOffset: 4 })
+const props = withDefaults(
+  defineProps<TooltipContentProps & { class?: HTMLAttributes['class'] }>(),
+  { sideOffset: 4 },
+)
 
 const emits = defineEmits<TooltipContentEmits>()
 
@@ -29,7 +37,9 @@ const forwarded = useForwardPropsEmits(delegatedProps, emits)
     >
       <slot />
 
-      <TooltipArrow class="z-50 translate-y-[calc(-50%-2px)] rotate-45 rounded-[2px] bg-foreground fill-foreground block-2.5 inline-2.5" />
+      <TooltipArrow
+        class="z-50 translate-y-[calc(-50%-2px)] rotate-45 rounded-[2px] bg-foreground fill-foreground block-2.5 inline-2.5"
+      />
     </TooltipContent>
   </TooltipPortal>
 </template>

@@ -5,10 +5,17 @@ export const AVATAR_ACCEPTED_FILE_TYPES = 'image/jpeg,image/png,image/webp'
 
 export type AvatarValidationFailure = 'unsupported-type' | 'file-too-large'
 
-export type AvatarValidationResult = { ok: true } | { ok: false; failure: AvatarValidationFailure }
+export type AvatarValidationResult =
+  { ok: true } | { ok: false; failure: AvatarValidationFailure }
 
-export function isSupportedAvatarFileType(fileType: string): fileType is 'image/jpeg' | 'image/png' | 'image/webp' {
-  return fileType === 'image/jpeg' || fileType === 'image/png' || fileType === 'image/webp'
+export function isSupportedAvatarFileType(
+  fileType: string,
+): fileType is 'image/jpeg' | 'image/png' | 'image/webp' {
+  return (
+    fileType === 'image/jpeg' ||
+    fileType === 'image/png' ||
+    fileType === 'image/webp'
+  )
 }
 
 export function validateAvatarFile(file: File): AvatarValidationResult {
@@ -32,5 +39,7 @@ export async function compressAvatarFile(file: File): Promise<File> {
     initialQuality: 0.8,
   })
 
-  return compressedAvatar instanceof File ? compressedAvatar : new File([compressedAvatar], file.name, { type: file.type })
+  return compressedAvatar instanceof File
+    ? compressedAvatar
+    : new File([compressedAvatar], file.name, { type: file.type })
 }

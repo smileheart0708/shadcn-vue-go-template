@@ -12,7 +12,10 @@ export const THEMES = { light: '', dark: '.dark' } as const
 type ChartConfigItem = {
   label?: string | Component
   icon?: string | Component
-} & ({ color?: string; theme?: never } | { color?: never; theme: Record<keyof typeof THEMES, string> })
+} & (
+  | { color?: string; theme?: never }
+  | { color?: never; theme: Record<keyof typeof THEMES, string> }
+)
 
 export type ChartConfig = Partial<Record<string, ChartConfigItem>>
 
@@ -21,6 +24,10 @@ interface ChartContextProps {
   config: Ref<ChartConfig>
 }
 
-export const [useChart, provideChartContext] = createContext<ChartContextProps>('Chart')
+export const [useChart, provideChartContext] =
+  createContext<ChartContextProps>('Chart')
 
-export { VisCrosshair as ChartCrosshair, VisTooltip as ChartTooltip } from '@unovis/vue'
+export {
+  VisCrosshair as ChartCrosshair,
+  VisTooltip as ChartTooltip,
+} from '@unovis/vue'

@@ -6,7 +6,9 @@ import { CircleIcon } from 'lucide-vue-next'
 import { RadioGroupIndicator, RadioGroupItem, useForwardProps } from 'reka-ui'
 import { cn } from '@/lib/utils'
 
-const props = defineProps<RadioGroupItemProps & { class?: HTMLAttributes['class'] }>()
+const props = defineProps<
+  RadioGroupItemProps & { class?: HTMLAttributes['class'] }
+>()
 
 const delegatedProps = reactiveOmit(props, 'class')
 
@@ -29,7 +31,9 @@ const forwardedProps = useForwardProps(delegatedProps)
       class="relative flex items-center justify-center"
     >
       <slot>
-        <CircleIcon class="absolute inset-s-1/2 inset-bs-1/2 -translate-1/2 fill-primary block-2 inline-2" />
+        <CircleIcon
+          class="absolute inset-s-1/2 inset-bs-1/2 -translate-1/2 fill-primary block-2 inline-2"
+        />
       </slot>
     </RadioGroupIndicator>
   </RadioGroupItem>

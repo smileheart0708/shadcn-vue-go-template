@@ -19,7 +19,16 @@ import SettingsSectionCard from '@/components/settings/common/SettingsSectionCar
 import { useDeleteAccountFlow } from '@/composables/settings/useDeleteAccountFlow'
 
 const { t } = useI18n()
-const { deleteDialogOpen, deleteCountdown, deleteAccountConfirmed, canDeleteAccount, canOpenDeleteDialog, canSubmitDelete, isDeletingAccount, confirmDelete } = useDeleteAccountFlow()
+const {
+  deleteDialogOpen,
+  deleteCountdown,
+  deleteAccountConfirmed,
+  canDeleteAccount,
+  canOpenDeleteDialog,
+  canSubmitDelete,
+  isDeletingAccount,
+  confirmDelete,
+} = useDeleteAccountFlow()
 </script>
 
 <template>
@@ -36,7 +45,9 @@ const { deleteDialogOpen, deleteCountdown, deleteAccountConfirmed, canDeleteAcco
         id="delete-account"
         v-model="deleteAccountConfirmed"
       />
-      <Label for="delete-account">{{ t('settings.account.dangerZoneConfirm') }}</Label>
+      <Label for="delete-account">{{
+        t('settings.account.dangerZoneConfirm')
+      }}</Label>
     </div>
 
     <template #footer>
@@ -51,11 +62,17 @@ const { deleteDialogOpen, deleteCountdown, deleteAccountConfirmed, canDeleteAcco
         </AlertDialogTrigger>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{{ t('settings.account.deleteAccount') }}</AlertDialogTitle>
-            <AlertDialogDescription>{{ t('settings.account.deleteAccountConfirm') }}</AlertDialogDescription>
+            <AlertDialogTitle>{{
+              t('settings.account.deleteAccount')
+            }}</AlertDialogTitle>
+            <AlertDialogDescription>{{
+              t('settings.account.deleteAccountConfirm')
+            }}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel :disabled="isDeletingAccount">{{ t('common.action.cancel') }}</AlertDialogCancel>
+            <AlertDialogCancel :disabled="isDeletingAccount">{{
+              t('common.action.cancel')
+            }}</AlertDialogCancel>
             <!-- 让确认动作在对话框自动关闭前先进入提交分支。 -->
             <AlertDialogAction
               as-child
@@ -70,7 +87,11 @@ const { deleteDialogOpen, deleteCountdown, deleteAccountConfirmed, canDeleteAcco
                   v-if="isDeletingAccount"
                   class="me-2"
                 />
-                {{ deleteCountdown > 0 ? `${deleteCountdown}s` : t('settings.account.deleteAccount') }}
+                {{
+                  deleteCountdown > 0
+                    ? `${deleteCountdown}s`
+                    : t('settings.account.deleteAccount')
+                }}
               </Button>
             </AlertDialogAction>
           </AlertDialogFooter>

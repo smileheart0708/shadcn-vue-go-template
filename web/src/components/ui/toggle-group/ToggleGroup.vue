@@ -37,7 +37,13 @@ const spacing = computed(() => props.spacing)
 
 provide<ToggleGroupContext>('toggleGroup', { variant, size, spacing })
 
-const delegatedProps = reactiveOmit(props, 'class', 'size', 'spacing', 'variant')
+const delegatedProps = reactiveOmit(
+  props,
+  'class',
+  'size',
+  'spacing',
+  'variant',
+)
 const forwarded = useForwardPropsEmits(delegatedProps, emits)
 </script>
 
@@ -52,7 +58,12 @@ const forwarded = useForwardPropsEmits(delegatedProps, emits)
       '--gap': spacing,
     }"
     v-bind="forwarded"
-    :class="cn('group/toggle-group flex items-center gap-[--spacing(var(--gap))] rounded-md inline-fit data-[spacing=default]:data-[variant=outline]:shadow-xs', props.class)"
+    :class="
+      cn(
+        'group/toggle-group flex items-center gap-[--spacing(var(--gap))] rounded-md inline-fit data-[spacing=default]:data-[variant=outline]:shadow-xs',
+        props.class,
+      )
+    "
   >
     <slot v-bind="slotProps" />
   </ToggleGroupRoot>

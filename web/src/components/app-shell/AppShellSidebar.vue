@@ -6,7 +6,12 @@ import AppShellNavMain from '@/components/app-shell/AppShellNavMain.vue'
 import AppShellNavSecondary from '@/components/app-shell/AppShellNavSecondary.vue'
 import AppShellNavUser from '@/components/app-shell/AppShellNavUser.vue'
 import { useAppShellNavigation } from '@/components/app-shell/navigation'
-import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader } from '@/components/ui/sidebar'
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarHeader,
+} from '@/components/ui/sidebar'
 import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()

@@ -3,10 +3,18 @@ import type { DialogContentEmits, DialogContentProps } from 'reka-ui'
 import type { HTMLAttributes } from 'vue'
 import { reactiveOmit } from '@vueuse/core'
 import { X } from 'lucide-vue-next'
-import { DialogClose, DialogContent, DialogOverlay, DialogPortal, useForwardPropsEmits } from 'reka-ui'
+import {
+  DialogClose,
+  DialogContent,
+  DialogOverlay,
+  DialogPortal,
+  useForwardPropsEmits,
+} from 'reka-ui'
 import { cn } from '@/lib/utils'
 
-const props = defineProps<DialogContentProps & { class?: HTMLAttributes['class'] }>()
+const props = defineProps<
+  DialogContentProps & { class?: HTMLAttributes['class'] }
+>()
 
 const emits = defineEmits<DialogContentEmits>()
 
@@ -25,13 +33,21 @@ const forwarded = useForwardPropsEmits(delegatedProps, emits)
       class="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-black/80 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0"
     >
       <DialogContent
-        :class="cn('relative z-50 my-8 grid gap-4 rounded-lg border border-border bg-background p-6 shadow-lg duration-200 inline-[calc(100%-2rem)] max-inline-lg', props.class)"
+        :class="
+          cn(
+            'relative z-50 my-8 grid gap-4 rounded-lg border border-border bg-background p-6 shadow-lg duration-200 inline-[calc(100%-2rem)] max-inline-lg',
+            props.class,
+          )
+        "
         v-bind="{ ...$attrs, ...forwarded }"
         @pointer-down-outside="
           (event) => {
             const originalEvent = event.detail.originalEvent
             const target = originalEvent.target as HTMLElement
-            if (originalEvent.offsetX > target.clientWidth || originalEvent.offsetY > target.clientHeight) {
+            if (
+              originalEvent.offsetX > target.clientWidth ||
+              originalEvent.offsetY > target.clientHeight
+            ) {
               event.preventDefault()
             }
           }
@@ -39,7 +55,9 @@ const forwarded = useForwardPropsEmits(delegatedProps, emits)
       >
         <slot />
 
-        <DialogClose class="absolute inset-e-4 inset-bs-4 rounded-md p-0.5 transition-colors hover:bg-secondary">
+        <DialogClose
+          class="absolute inset-e-4 inset-bs-4 rounded-md p-0.5 transition-colors hover:bg-secondary"
+        >
           <X class="block-4 inline-4" />
           <span class="sr-only">Close</span>
         </DialogClose>

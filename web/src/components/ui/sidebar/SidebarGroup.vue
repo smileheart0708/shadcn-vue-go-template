@@ -9,7 +9,9 @@ const props = defineProps<{ class?: HTMLAttributes['class'] }>()
   <div
     data-slot="sidebar-group"
     data-sidebar="group"
-    :class="cn('relative flex flex-col p-2 inline-full min-inline-0', props.class)"
+    :class="
+      cn('relative flex flex-col p-2 inline-full min-inline-0', props.class)
+    "
   >
     <slot />
   </div>

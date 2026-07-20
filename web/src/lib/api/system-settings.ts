@@ -27,7 +27,9 @@ export async function getAdminSystemSettings() {
 
 export async function updateSystemSettings(input: UpdateSystemSettingsInput) {
   try {
-    const payload = await authApi.patch('/api/system/settings', { json: input }).json<unknown>()
+    const payload = await authApi
+      .patch('/api/system/settings', { json: input })
+      .json<unknown>()
     return systemSettingsEnvelopeSchema.parse(payload).data
   } catch (error) {
     return normalizeAPIError(error)

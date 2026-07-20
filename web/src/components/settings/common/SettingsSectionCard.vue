@@ -1,6 +1,13 @@
 <script setup lang="ts">
 import type { HTMLAttributes } from 'vue'
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
 
 const props = defineProps<{
   title: string
@@ -16,7 +23,9 @@ const props = defineProps<{
   <Card :class="props.class">
     <CardHeader>
       <CardTitle :class="props.titleClass">{{ props.title }}</CardTitle>
-      <CardDescription v-if="props.description !== undefined">{{ props.description }}</CardDescription>
+      <CardDescription v-if="props.description !== undefined">{{
+        props.description
+      }}</CardDescription>
     </CardHeader>
     <CardContent :class="props.contentClass">
       <slot />

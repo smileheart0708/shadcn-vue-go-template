@@ -3,8 +3,18 @@ import { computed, onWatcherCleanup, ref, watch, type Ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
 import { getAPIErrorMessage } from '@/lib/api/error-messages'
-import { openSystemLogsStream, type SystemLogEntry, type SystemLogHistoryLimit } from '@/lib/api/system-logs'
-import { appendSystemLogEntry, clearSystemLogEntries, getReconnectDelayMs, historyLimitRank, shouldRetryStreamError } from '@/utils/system-logs/console'
+import {
+  openSystemLogsStream,
+  type SystemLogEntry,
+  type SystemLogHistoryLimit,
+} from '@/lib/api/system-logs'
+import {
+  appendSystemLogEntry,
+  clearSystemLogEntries,
+  getReconnectDelayMs,
+  historyLimitRank,
+  shouldRetryStreamError,
+} from '@/utils/system-logs/console'
 
 interface UseSystemLogStreamOptions {
   historyLimit: Ref<SystemLogHistoryLimit>
@@ -108,7 +118,11 @@ export function useSystemLogStream(options: UseSystemLogStreamOptions) {
         connected.value = false
         loading.value = false
 
-        const message = getAPIErrorMessage(t, error, 'apiError.systemLogStreamFailed')
+        const message = getAPIErrorMessage(
+          t,
+          error,
+          'apiError.systemLogStreamFailed',
+        )
         streamError.value = message
 
         if (!shouldRetryStreamError(error)) {
@@ -117,7 +131,12 @@ export function useSystemLogStream(options: UseSystemLogStreamOptions) {
         }
 
         retryAttempt += 1
-        if (!(await waitForReconnect(getReconnectDelayMs(retryAttempt), sessionSignal))) {
+        if (
+          !(await waitForReconnect(
+            getReconnectDelayMs(retryAttempt),
+            sessionSignal,
+          ))
+        ) {
           return
         }
         continue
@@ -136,7 +155,12 @@ export function useSystemLogStream(options: UseSystemLogStreamOptions) {
       loading.value = false
 
       retryAttempt += 1
-      if (!(await waitForReconnect(getReconnectDelayMs(retryAttempt), sessionSignal))) {
+      if (
+        !(await waitForReconnect(
+          getReconnectDelayMs(retryAttempt),
+          sessionSignal,
+        ))
+      ) {
         return
       }
     }
@@ -146,7 +170,10 @@ export function useSystemLogStream(options: UseSystemLogStreamOptions) {
     return abortController === controller && !controller.signal.aborted
   }
 
-  function shouldStopStream(controller: AbortController, sessionSignal: AbortSignal) {
+  function shouldStopStream(
+    controller: AbortController,
+    sessionSignal: AbortSignal,
+  ) {
     return sessionSignal.aborted || !isCurrentStream(controller)
   }
 
@@ -161,7 +188,10 @@ export function useSystemLogStream(options: UseSystemLogStreamOptions) {
   }
 }
 
-async function waitForReconnect(delayMs: number, signal: AbortSignal): Promise<boolean> {
+async function waitForReconnect(
+  delayMs: number,
+  signal: AbortSignal,
+): Promise<boolean> {
   return new Promise((resolve) => {
     if (signal.aborted) {
       resolve(false)

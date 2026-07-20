@@ -10,7 +10,9 @@ const { t } = useI18n()
 </script>
 
 <template>
-  <section class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+  <section
+    class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"
+  >
     <div class="flex flex-wrap items-center gap-3">
       <h1 class="text-2xl font-semibold">{{ t('systemLogs.title') }}</h1>
       <Badge variant="outline">

@@ -3,10 +3,17 @@ import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
 import { usePollingTask } from '@/composables/usePollingTask'
 import { useAuthStore } from '@/stores/auth'
-import { normalizePollingIntervalSeconds, usePollingStore } from '@/stores/polling'
+import {
+  normalizePollingIntervalSeconds,
+  usePollingStore,
+} from '@/stores/polling'
 import { useLocaleStore } from '@/stores/locale'
 import { useThemeStore } from '@/stores/theme'
-import { getLocaleOptions, isAppLocale, isThemePreference } from '@/utils/settings/preferences'
+import {
+  getLocaleOptions,
+  isAppLocale,
+  isThemePreference,
+} from '@/utils/settings/preferences'
 
 export function useSettingsPreferences() {
   const { t } = useI18n()
@@ -15,15 +22,23 @@ export function useSettingsPreferences() {
   const localeStore = useLocaleStore()
   const pollingStore = usePollingStore()
 
-  const pollingIntervalSliderValue = ref([pollingStore.currentUserIntervalSeconds])
+  const pollingIntervalSliderValue = ref([
+    pollingStore.currentUserIntervalSeconds,
+  ])
   const localeOptions = getLocaleOptions()
-  const currentUserPollingIntervalSeconds = computed(() => normalizePollingIntervalSeconds(pollingIntervalSliderValue.value[0] ?? pollingStore.currentUserIntervalSeconds))
+  const currentUserPollingIntervalSeconds = computed(() =>
+    normalizePollingIntervalSeconds(
+      pollingIntervalSliderValue.value[0] ??
+        pollingStore.currentUserIntervalSeconds,
+    ),
+  )
 
   const currentUserPolling = usePollingTask({
     key: 'auth.current-user',
     intervalMs: () => pollingStore.currentUserIntervalMs,
     enabled: () => authStore.isAuthenticated,
-    fetch: async ({ signal }) => authStore.fetchViewer({ signal, backgroundRequest: true }),
+    fetch: async ({ signal }) =>
+      authStore.fetchViewer({ signal, backgroundRequest: true }),
     apply: (viewer) => {
       authStore.applyViewer(viewer)
     },
@@ -66,7 +81,9 @@ export function useSettingsPreferences() {
     }
 
     const sliderValue = value[0]
-    pollingIntervalSliderValue.value = [normalizePollingIntervalSeconds(sliderValue)]
+    pollingIntervalSliderValue.value = [
+      normalizePollingIntervalSeconds(sliderValue),
+    ]
   }
 
   function commitPollingInterval(value: number[] | undefined) {

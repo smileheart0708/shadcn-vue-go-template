@@ -1,5 +1,10 @@
 import ky, { HTTPError } from 'ky'
-import type { AfterResponseHook, BeforeRequestHook, Hooks, RetryOptions } from 'ky'
+import type {
+  AfterResponseHook,
+  BeforeRequestHook,
+  Hooks,
+  RetryOptions,
+} from 'ky'
 import { readAuthToken } from '@/lib/auth/token'
 
 interface APIErrorPayload {
@@ -25,7 +30,12 @@ export class APIError extends Error {
   code?: string
   payload?: unknown
 
-  constructor(status: number, message: string, code?: string, payload?: unknown) {
+  constructor(
+    status: number,
+    message: string,
+    code?: string,
+    payload?: unknown,
+  ) {
     super(message)
     this.name = 'APIError'
     this.status = status
@@ -34,7 +44,10 @@ export class APIError extends Error {
   }
 }
 
-export function registerAuthClientHandlers(handlers: { refreshAccessToken: RefreshAccessTokenHandler; onUnauthorized: UnauthorizedHandler }) {
+export function registerAuthClientHandlers(handlers: {
+  refreshAccessToken: RefreshAccessTokenHandler
+  onUnauthorized: UnauthorizedHandler
+}) {
   refreshAccessTokenHandler = handlers.refreshAccessToken
   unauthorizedHandler = handlers.onUnauthorized
 }
@@ -64,9 +77,19 @@ const applyAuthHeader: BeforeRequestHook = ({ request }) => {
   }
 }
 
-const refreshUnauthorizedResponse: AfterResponseHook = async ({ request, options, response, retryCount }) => {
+const refreshUnauthorizedResponse: AfterResponseHook = async ({
+  request,
+  options,
+  response,
+  retryCount,
+}) => {
   const context = readAPIClientContext(options.context)
-  if (response.status !== 401 || retryCount > 0 || context.skipAuthRefresh === true || isAuthLifecycleRequest(request)) {
+  if (
+    response.status !== 401 ||
+    retryCount > 0 ||
+    context.skipAuthRefresh === true ||
+    isAuthLifecycleRequest(request)
+  ) {
     return response
   }
 
@@ -89,7 +112,9 @@ const refreshUnauthorizedResponse: AfterResponseHook = async ({ request, options
   })
 }
 
-const sharedBeforeRequestHooks: BeforeRequestHook[] = [applySharedRequestHeaders]
+const sharedBeforeRequestHooks: BeforeRequestHook[] = [
+  applySharedRequestHeaders,
+]
 
 const sharedHooks: Hooks = {
   beforeRequest: sharedBeforeRequestHooks,
@@ -120,7 +145,13 @@ export async function toAPIError(error: HTTPError): Promise<APIError> {
   const payload = await readResponsePayload(error.response.clone())
   const errorPayload = isAPIErrorPayload(payload) ? payload : undefined
 
-  return new APIError(error.response.status, errorPayload?.error?.message ?? `Request failed with status ${String(error.response.status)}`, errorPayload?.error?.code, payload)
+  return new APIError(
+    error.response.status,
+    errorPayload?.error?.message ??
+      `Request failed with status ${String(error.response.status)}`,
+    errorPayload?.error?.code,
+    payload,
+  )
 }
 
 export async function normalizeAPIError(error: unknown): Promise<never> {
@@ -165,7 +196,9 @@ async function readResponsePayload(response: Response): Promise<unknown> {
   return text
 }
 
-function readAPIClientContext(context: Record<string, unknown> | undefined): APIClientContext {
+function readAPIClientContext(
+  context: Record<string, unknown> | undefined,
+): APIClientContext {
   if (context === undefined) {
     return {}
   }
@@ -177,7 +210,10 @@ function readAPIClientContext(context: Record<string, unknown> | undefined): API
   }
 }
 
-function createRetriedAuthRequest(request: Request, accessToken: string): Request {
+function createRetriedAuthRequest(
+  request: Request,
+  accessToken: string,
+): Request {
   const headers = new Headers(request.headers)
   headers.set('Authorization', `Bearer ${accessToken}`)
 
@@ -186,7 +222,11 @@ function createRetriedAuthRequest(request: Request, accessToken: string): Reques
 
 function isAuthLifecycleRequest(request: Request): boolean {
   const pathname = new URL(request.url, window.location.origin).pathname
-  return pathname === '/api/auth/login' || pathname === '/api/auth/refresh' || pathname === '/api/auth/logout'
+  return (
+    pathname === '/api/auth/login' ||
+    pathname === '/api/auth/refresh' ||
+    pathname === '/api/auth/logout'
+  )
 }
 
 function isAPIErrorPayload(payload: unknown): payload is APIErrorPayload {
@@ -204,7 +244,10 @@ function isAPIErrorPayload(payload: unknown): payload is APIErrorPayload {
   }
 
   const { code, message } = error
-  return (code === undefined || typeof code === 'string') && (message === undefined || typeof message === 'string')
+  return (
+    (code === undefined || typeof code === 'string') &&
+    (message === undefined || typeof message === 'string')
+  )
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

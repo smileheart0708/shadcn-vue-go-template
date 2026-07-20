@@ -1,6 +1,9 @@
 import type { z } from 'zod'
 
-export function parseExternalValue<TSchema extends z.ZodType>(schema: TSchema, value: unknown): z.infer<TSchema> | null {
+export function parseExternalValue<TSchema extends z.ZodType>(
+  schema: TSchema,
+  value: unknown,
+): z.infer<TSchema> | null {
   const parsedValue = schema.safeParse(value)
   return parsedValue.success ? parsedValue.data : null
 }

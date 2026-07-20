@@ -1,7 +1,12 @@
 <script setup lang="ts">
 import { Moon, Monitor, Sun } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { useThemeStore } from '@/stores/theme'
 import { useI18n } from 'vue-i18n'
 

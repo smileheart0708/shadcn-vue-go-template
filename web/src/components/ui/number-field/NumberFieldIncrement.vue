@@ -6,7 +6,9 @@ import { Plus } from 'lucide-vue-next'
 import { NumberFieldIncrement, useForwardProps } from 'reka-ui'
 import { cn } from '@/lib/utils'
 
-const props = defineProps<NumberFieldIncrementProps & { class?: HTMLAttributes['class'] }>()
+const props = defineProps<
+  NumberFieldIncrementProps & { class?: HTMLAttributes['class'] }
+>()
 
 const delegatedProps = reactiveOmit(props, 'class')
 
@@ -17,7 +19,12 @@ const forwarded = useForwardProps(delegatedProps)
   <NumberFieldIncrement
     data-slot="increment"
     v-bind="forwarded"
-    :class="cn('absolute inset-e-0 inset-bs-1/2 -translate-y-1/2 p-3 disabled:cursor-not-allowed disabled:opacity-20', props.class)"
+    :class="
+      cn(
+        'absolute inset-e-0 inset-bs-1/2 -translate-y-1/2 p-3 disabled:cursor-not-allowed disabled:opacity-20',
+        props.class,
+      )
+    "
   >
     <slot>
       <Plus class="block-4 inline-4" />

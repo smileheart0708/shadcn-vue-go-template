@@ -86,7 +86,9 @@ export interface GetViewerOptions {
 }
 
 const installStateEnvelopeSchema = successEnvelopeSchema(installStateSchema)
-const publicAuthConfigEnvelopeSchema = successEnvelopeSchema(publicAuthConfigSchema)
+const publicAuthConfigEnvelopeSchema = successEnvelopeSchema(
+  publicAuthConfigSchema,
+)
 const sessionEnvelopeSchema = successEnvelopeSchema(sessionPayloadSchema)
 const viewerEnvelopeSchema = successEnvelopeSchema(viewerSchema)
 const logoutEnvelopeSchema = successEnvelopeSchema(logoutPayloadSchema)
@@ -100,9 +102,13 @@ export async function getInstallState() {
   }
 }
 
-export async function completeSetup(input: SetupInput): Promise<SessionResponse> {
+export async function completeSetup(
+  input: SetupInput,
+): Promise<SessionResponse> {
   try {
-    const payload = await baseApi.post('/api/install/setup', { json: input }).json<unknown>()
+    const payload = await baseApi
+      .post('/api/install/setup', { json: input })
+      .json<unknown>()
     return sessionEnvelopeSchema.parse(payload).data
   } catch (error) {
     return normalizeAPIError(error)
@@ -118,9 +124,13 @@ export async function getPublicAuthConfig() {
   }
 }
 
-export async function login(credentials: LoginCredentials): Promise<SessionResponse> {
+export async function login(
+  credentials: LoginCredentials,
+): Promise<SessionResponse> {
   try {
-    const payload = await baseApi.post('/api/auth/login', { json: credentials }).json<unknown>()
+    const payload = await baseApi
+      .post('/api/auth/login', { json: credentials })
+      .json<unknown>()
     return sessionEnvelopeSchema.parse(payload).data
   } catch (error) {
     return normalizeAPIError(error)
@@ -129,7 +139,9 @@ export async function login(credentials: LoginCredentials): Promise<SessionRespo
 
 export async function register(input: RegisterInput): Promise<SessionResponse> {
   try {
-    const payload = await baseApi.post('/api/auth/register', { json: input }).json<unknown>()
+    const payload = await baseApi
+      .post('/api/auth/register', { json: input })
+      .json<unknown>()
     return sessionEnvelopeSchema.parse(payload).data
   } catch (error) {
     return normalizeAPIError(error)

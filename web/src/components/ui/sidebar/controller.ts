@@ -1,5 +1,12 @@
 import { defaultDocument, useMediaQuery } from '@vueuse/core'
-import { computed, getCurrentInstance, ref, watch, type ComputedRef, type Ref } from 'vue'
+import {
+  computed,
+  getCurrentInstance,
+  ref,
+  watch,
+  type ComputedRef,
+  type Ref,
+} from 'vue'
 import { z } from 'zod'
 import { parseExternalValueOrDefault } from '@/lib/external-input'
 import { SIDEBAR_COOKIE_MAX_AGE, SIDEBAR_COOKIE_NAME } from './utils'
@@ -19,9 +26,14 @@ export interface SidebarController {
   toggleSidebar: () => void
 }
 
-const storedSidebarOpenSchema = z.enum(['true', 'false']).transform((value) => value === 'true')
+const storedSidebarOpenSchema = z
+  .enum(['true', 'false'])
+  .transform((value) => value === 'true')
 
-export function useSidebarController(props: SidebarControllerProps, emitUpdateOpen: (value: boolean) => void): SidebarController {
+export function useSidebarController(
+  props: SidebarControllerProps,
+  emitUpdateOpen: (value: boolean) => void,
+): SidebarController {
   const isMobile = useMediaQuery('(max-width: 768px)')
   const openMobile = ref(false)
   const uncontrolledOpen = ref(readStoredSidebarOpen())
@@ -34,7 +46,11 @@ export function useSidebarController(props: SidebarControllerProps, emitUpdateOp
   watch(
     () => props.defaultOpen,
     (defaultOpen) => {
-      if (hasDefaultOpenProp && defaultOpen !== null && defaultOpen !== undefined) {
+      if (
+        hasDefaultOpenProp &&
+        defaultOpen !== null &&
+        defaultOpen !== undefined
+      ) {
         uncontrolledOpen.value = defaultOpen
       }
     },
@@ -42,7 +58,10 @@ export function useSidebarController(props: SidebarControllerProps, emitUpdateOp
   )
 
   const open = computed({
-    get: () => (isOpenControlled ? (props.open ?? uncontrolledOpen.value) : uncontrolledOpen.value),
+    get: () =>
+      isOpenControlled
+        ? (props.open ?? uncontrolledOpen.value)
+        : uncontrolledOpen.value,
     set: (value: boolean) => {
       if (!isOpenControlled) {
         uncontrolledOpen.value = value
@@ -79,11 +98,25 @@ export function useSidebarController(props: SidebarControllerProps, emitUpdateOp
 
   const state = computed(() => (open.value ? 'expanded' : 'collapsed'))
 
-  return { state, open, setOpen, isMobile, openMobile, setOpenMobile, toggleSidebar }
+  return {
+    state,
+    open,
+    setOpen,
+    isMobile,
+    openMobile,
+    setOpenMobile,
+    toggleSidebar,
+  }
 }
 
-function hasPassedProp(instance: ReturnType<typeof getCurrentInstance>, name: 'open' | 'defaultOpen') {
-  return Boolean(instance?.vnode.props && Object.prototype.hasOwnProperty.call(instance.vnode.props, name))
+function hasPassedProp(
+  instance: ReturnType<typeof getCurrentInstance>,
+  name: 'open' | 'defaultOpen',
+) {
+  return Boolean(
+    instance?.vnode.props &&
+    Object.prototype.hasOwnProperty.call(instance.vnode.props, name),
+  )
 }
 
 function persistStoredSidebarOpen(value: boolean) {
@@ -100,7 +133,11 @@ function readStoredSidebarOpen(): boolean {
     return true
   }
 
-  return parseExternalValueOrDefault(storedSidebarOpenSchema, readCookieValue(SIDEBAR_COOKIE_NAME), true)
+  return parseExternalValueOrDefault(
+    storedSidebarOpenSchema,
+    readCookieValue(SIDEBAR_COOKIE_NAME),
+    true,
+  )
 }
 
 function readCookieValue(name: string): string | null {

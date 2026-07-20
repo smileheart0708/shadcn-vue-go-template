@@ -28,8 +28,20 @@ export interface MessageSchema {
       upload: string
       view: string
     }
-    field: { email: string; password: string; username: string; usernameOrEmail: string; name: string; confirmPassword: string }
-    feedback: { loadFailed: string; networkError: string; required: string; unknownError: string }
+    field: {
+      email: string
+      password: string
+      username: string
+      usernameOrEmail: string
+      name: string
+      confirmPassword: string
+    }
+    feedback: {
+      loadFailed: string
+      networkError: string
+      required: string
+      unknownError: string
+    }
     state: {
       completed: string
       disabled: string
@@ -44,7 +56,14 @@ export interface MessageSchema {
       processing: string
       success: string
     }
-    text: { yes: string; no: string; none: string; all: string; optional: string; required: string }
+    text: {
+      yes: string
+      no: string
+      none: string
+      all: string
+      optional: string
+      required: string
+    }
     role: { owner: string; user: string }
   }
   apiError: {
@@ -93,7 +112,13 @@ export interface MessageSchema {
       selfServiceAccountDeletionEnabled: { title: string; description: string }
     }
     actions: { retry: string }
-    feedback: { loadFailedTitle: string; loadFailed: string; saving: string; saved: string; saveFailed: string }
+    feedback: {
+      loadFailedTitle: string
+      loadFailed: string
+      saving: string
+      saved: string
+      saveFailed: string
+    }
   }
   settings: {
     title: string
@@ -308,7 +333,12 @@ export interface MessageSchema {
       rowSelected: string
     }
     select: { assignReviewer: string; view: string }
-    tab: { outline: string; pastPerformance: string; keyPersonnel: string; focusDocuments: string }
+    tab: {
+      outline: string
+      pastPerformance: string
+      keyPersonnel: string
+      focusDocuments: string
+    }
   }
   notFound: { description: string }
   theme: { light: string; dark: string; system: string }
@@ -316,7 +346,13 @@ export interface MessageSchema {
     title: string
     summary: { buffered: string }
     console: { title: string }
-    actions: { clear: string; export: string; pauseFollow: string; resumeFollow: string; reconnect: string }
+    actions: {
+      clear: string
+      export: string
+      pauseFollow: string
+      resumeFollow: string
+      reconnect: string
+    }
     export: {
       title: string
       description: string
@@ -327,16 +363,48 @@ export interface MessageSchema {
     filters: {
       searchPlaceholder: string
       historyPlaceholder: string
-      level: { allSelected: string; noneSelected: string; DEBUG: string; INFO: string; WARN: string; ERROR: string }
-      history: { ALL: string; 100: string; 200: string; 500: string; 1000: string }
+      level: {
+        allSelected: string
+        noneSelected: string
+        DEBUG: string
+        INFO: string
+        WARN: string
+        ERROR: string
+      }
+      history: {
+        ALL: string
+        100: string
+        200: string
+        500: string
+        1000: string
+      }
     }
     empty: { title: string; description: string }
     feedback: { exportSuccess: string; exportEmpty: string }
   }
   nav: {
-    main: { dashboard: string; tasks: string; lifecycle: string; analytics: string; projects: string; team: string }
-    management: { systemConfig: string; users: string; systemLogs: string; label: string }
+    main: {
+      dashboard: string
+      tasks: string
+      lifecycle: string
+      analytics: string
+      projects: string
+      team: string
+    }
+    management: {
+      systemConfig: string
+      users: string
+      systemLogs: string
+      label: string
+    }
     secondary: { settings: string; getHelp: string; search: string }
-    user: { account: string; billing: string; notifications: string; language: string; switchLanguage: string; logout: string }
+    user: {
+      account: string
+      billing: string
+      notifications: string
+      language: string
+      switchLanguage: string
+      logout: string
+    }
   }
 }

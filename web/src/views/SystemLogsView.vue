@@ -9,9 +9,13 @@ import { useSystemLogsPreferencesStore } from '@/stores/system-logs-preferences'
 
 const authStore = useAuthStore()
 const systemLogsPreferences = useSystemLogsPreferencesStore()
-const { levels, historyLimit, exportFormat } = storeToRefs(systemLogsPreferences)
+const { levels, historyLimit, exportFormat } = storeToRefs(
+  systemLogsPreferences,
+)
 
-const canReadSystemLogs = computed(() => authStore.can('management.system_logs.read'))
+const canReadSystemLogs = computed(() =>
+  authStore.can('management.system_logs.read'),
+)
 
 const {
   entries: systemLogEntries,
@@ -27,7 +31,9 @@ const {
 </script>
 
 <template>
-  <div class="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:overflow-hidden lg:p-6 lg:min-block-0">
+  <div
+    class="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:overflow-hidden lg:p-6 lg:min-block-0"
+  >
     <SystemLogsPageHeader :buffered-count="systemLogEntries.length" />
 
     <SystemLogConsolePanel

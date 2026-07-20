@@ -1,11 +1,17 @@
 import { onBeforeUnmount, onMounted, watch } from 'vue'
-import { acquirePollingTask, type PollingTaskHandle, type PollingTaskOptions } from '@/lib/polling/manager'
+import {
+  acquirePollingTask,
+  type PollingTaskHandle,
+  type PollingTaskOptions,
+} from '@/lib/polling/manager'
 
 interface UsePollingTaskOptions<TData> extends PollingTaskOptions<TData> {
   autoStart?: boolean
 }
 
-export function usePollingTask<TData>(options: UsePollingTaskOptions<TData>): PollingTaskHandle {
+export function usePollingTask<TData>(
+  options: UsePollingTaskOptions<TData>,
+): PollingTaskHandle {
   const task = acquirePollingTask(options)
   const autoStart = options.autoStart ?? true
 

@@ -27,7 +27,9 @@ const deleteAccountEnvelopeSchema = successEnvelopeSchema(
 
 export async function updateProfile(input: UpdateProfileInput) {
   try {
-    const payload = await authApi.patch('/api/account/profile', { json: input }).json<unknown>()
+    const payload = await authApi
+      .patch('/api/account/profile', { json: input })
+      .json<unknown>()
     return viewerEnvelopeSchema.parse(payload).data
   } catch (error) {
     return normalizeAPIError(error)
@@ -39,7 +41,9 @@ export async function uploadAvatar(file: File) {
     const formData = new FormData()
     formData.set('avatar', file)
 
-    const payload = await authApi.post('/api/account/avatar', { body: formData }).json<unknown>()
+    const payload = await authApi
+      .post('/api/account/avatar', { body: formData })
+      .json<unknown>()
     return viewerEnvelopeSchema.parse(payload).data
   } catch (error) {
     return normalizeAPIError(error)
@@ -48,7 +52,9 @@ export async function uploadAvatar(file: File) {
 
 export async function updatePassword(input: ChangePasswordInput) {
   try {
-    const payload = await authApi.post('/api/account/password', { json: input }).json<unknown>()
+    const payload = await authApi
+      .post('/api/account/password', { json: input })
+      .json<unknown>()
     return passwordChangedEnvelopeSchema.parse(payload).data
   } catch (error) {
     return normalizeAPIError(error)

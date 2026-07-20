@@ -1,24 +1,27 @@
 import type { VariantProps } from 'class-variance-authority'
 import { cva } from 'class-variance-authority'
 
-export const fieldVariants = cva('group/field flex gap-3 inline-full data-[invalid=true]:text-destructive', {
-  variants: {
-    orientation: {
-      vertical: ['flex-col *:inline-full [&>.sr-only]:inline-auto'],
-      horizontal: [
-        'flex-row items-center',
-        '*:data-[slot=field-label]:flex-auto',
-        'has-[>[data-slot=field-content]]:items-start has-[>[data-slot=field-content]]:[&>[role=checkbox],[role=radio]]:mbs-px',
-      ],
-      responsive: [
-        'flex-col *:inline-full @md/field-group:flex-row @md/field-group:items-center @md/field-group:*:inline-auto [&>.sr-only]:inline-auto',
-        '@md/field-group:*:data-[slot=field-label]:flex-auto',
-        '@md/field-group:has-[>[data-slot=field-content]]:items-start @md/field-group:has-[>[data-slot=field-content]]:[&>[role=checkbox],[role=radio]]:mbs-px',
-      ],
+export const fieldVariants = cva(
+  'group/field flex gap-3 inline-full data-[invalid=true]:text-destructive',
+  {
+    variants: {
+      orientation: {
+        vertical: ['flex-col *:inline-full [&>.sr-only]:inline-auto'],
+        horizontal: [
+          'flex-row items-center',
+          '*:data-[slot=field-label]:flex-auto',
+          'has-[>[data-slot=field-content]]:items-start has-[>[data-slot=field-content]]:[&>[role=checkbox],[role=radio]]:mbs-px',
+        ],
+        responsive: [
+          'flex-col *:inline-full @md/field-group:flex-row @md/field-group:items-center @md/field-group:*:inline-auto [&>.sr-only]:inline-auto',
+          '@md/field-group:*:data-[slot=field-label]:flex-auto',
+          '@md/field-group:has-[>[data-slot=field-content]]:items-start @md/field-group:has-[>[data-slot=field-content]]:[&>[role=checkbox],[role=radio]]:mbs-px',
+        ],
+      },
     },
+    defaultVariants: { orientation: 'vertical' },
   },
-  defaultVariants: { orientation: 'vertical' },
-})
+)
 
 export type FieldVariants = VariantProps<typeof fieldVariants>
 

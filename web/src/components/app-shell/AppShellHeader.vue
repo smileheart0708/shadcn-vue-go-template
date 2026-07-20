@@ -17,7 +17,9 @@ const title = computed(() => {
 </script>
 
 <template>
-  <header class="flex shrink-0 items-center gap-2 border-be transition-[width,height] ease-linear block-(--header-height) group-has-data-[collapsible=icon]/sidebar-wrapper:block-(--header-height)">
+  <header
+    class="flex shrink-0 items-center gap-2 border-be transition-[width,height] ease-linear block-(--header-height) group-has-data-[collapsible=icon]/sidebar-wrapper:block-(--header-height)"
+  >
     <div class="flex items-center gap-1 px-4 inline-full lg:gap-2 lg:px-6">
       <SidebarTrigger class="-ms-1" />
       <Separator

@@ -34,7 +34,14 @@ const zhCN = {
       upload: '上传',
       view: '查看',
     },
-    field: { email: '邮箱', password: '密码', username: '用户名', usernameOrEmail: '用户名或邮箱', name: '姓名', confirmPassword: '确认密码' },
+    field: {
+      email: '邮箱',
+      password: '密码',
+      username: '用户名',
+      usernameOrEmail: '用户名或邮箱',
+      name: '姓名',
+      confirmPassword: '确认密码',
+    },
     feedback: {
       loadFailed: '页面加载失败，请刷新页面后重试。',
       networkError: '网络异常，请稍后重试。',
@@ -55,7 +62,14 @@ const zhCN = {
       processing: '处理中...',
       success: '成功',
     },
-    text: { yes: '是', no: '否', none: '暂无', all: '全部', optional: '可选', required: '必填' },
+    text: {
+      yes: '是',
+      no: '否',
+      none: '暂无',
+      all: '全部',
+      optional: '可选',
+      required: '必填',
+    },
     role: { owner: '所有者', user: '普通用户' },
   },
   apiError: {
@@ -398,10 +412,29 @@ const zhCN = {
     },
   },
   nav: {
-    main: { dashboard: '仪表盘', tasks: '任务', lifecycle: '生命周期', analytics: '分析', projects: '项目', team: '团队' },
-    management: { systemConfig: '系统配置', users: '用户管理', systemLogs: '系统日志', label: '管理' },
+    main: {
+      dashboard: '仪表盘',
+      tasks: '任务',
+      lifecycle: '生命周期',
+      analytics: '分析',
+      projects: '项目',
+      team: '团队',
+    },
+    management: {
+      systemConfig: '系统配置',
+      users: '用户管理',
+      systemLogs: '系统日志',
+      label: '管理',
+    },
     secondary: { settings: '设置', getHelp: '获取帮助', search: '搜索' },
-    user: { account: '账户', billing: '账单', notifications: '通知', language: '语言', switchLanguage: '切换语言', logout: '退出登录' },
+    user: {
+      account: '账户',
+      billing: '账单',
+      notifications: '通知',
+      language: '语言',
+      switchLanguage: '切换语言',
+      logout: '退出登录',
+    },
   },
 } as const satisfies MessageSchema
 

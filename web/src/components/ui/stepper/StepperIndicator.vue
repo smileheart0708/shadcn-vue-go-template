@@ -5,7 +5,9 @@ import { reactiveOmit } from '@vueuse/core'
 import { StepperIndicator, useForwardProps } from 'reka-ui'
 import { cn } from '@/lib/utils'
 
-const props = defineProps<StepperIndicatorProps & { class?: HTMLAttributes['class'] }>()
+const props = defineProps<
+  StepperIndicatorProps & { class?: HTMLAttributes['class'] }
+>()
 
 const delegatedProps = reactiveOmit(props, 'class')
 

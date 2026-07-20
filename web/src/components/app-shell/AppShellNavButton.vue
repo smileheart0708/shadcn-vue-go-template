@@ -17,11 +17,16 @@ const isActive = computed(() => {
 
   const target = router.resolve(props.item.to)
 
-  return route.path === target.path || (target.path !== '/' && route.path.startsWith(`${target.path}/`))
+  return (
+    route.path === target.path ||
+    (target.path !== '/' && route.path.startsWith(`${target.path}/`))
+  )
 })
 
 const hasTarget = computed(() => props.item.to !== undefined)
-const isDisabled = computed(() => props.item.disabled === true || !hasTarget.value)
+const isDisabled = computed(
+  () => props.item.disabled === true || !hasTarget.value,
+)
 </script>
 
 <template>

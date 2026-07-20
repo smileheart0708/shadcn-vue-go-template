@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import { Slider } from '@/components/ui/slider'
-import { POLLING_INTERVAL_MAX_SECONDS, POLLING_INTERVAL_MIN_SECONDS } from '@/stores/polling'
+import {
+  POLLING_INTERVAL_MAX_SECONDS,
+  POLLING_INTERVAL_MIN_SECONDS,
+} from '@/stores/polling'
 import SettingsSectionCard from '@/components/settings/common/SettingsSectionCard.vue'
 
 const props = defineProps<{
@@ -20,7 +23,11 @@ const { t } = useI18n()
 <template>
   <SettingsSectionCard
     :title="t('settings.basic.dataRefreshInterval')"
-    :description="t('settings.basic.dataRefreshIntervalDesc', { seconds: props.currentSeconds })"
+    :description="
+      t('settings.basic.dataRefreshIntervalDesc', {
+        seconds: props.currentSeconds,
+      })
+    "
   >
     <Slider
       :model-value="props.sliderValue"

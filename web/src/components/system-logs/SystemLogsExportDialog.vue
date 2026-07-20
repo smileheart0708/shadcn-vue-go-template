@@ -3,12 +3,36 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import type { SystemLogEntry, SystemLogHistoryLimit, SystemLogLevel } from '@/lib/api/system-logs'
-import { SYSTEM_LOG_EXPORT_FORMAT_VALUES, type SystemLogExportFormat } from '@/stores/system-logs-preferences'
-import { createSystemLogExportBlob, getSystemLogExportFileName, selectSystemLogEntries } from '@/utils/system-logs/export'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import type {
+  SystemLogEntry,
+  SystemLogHistoryLimit,
+  SystemLogLevel,
+} from '@/lib/api/system-logs'
+import {
+  SYSTEM_LOG_EXPORT_FORMAT_VALUES,
+  type SystemLogExportFormat,
+} from '@/stores/system-logs-preferences'
+import {
+  createSystemLogExportBlob,
+  getSystemLogExportFileName,
+  selectSystemLogEntries,
+} from '@/utils/system-logs/export'
 
 interface Props {
   entries: readonly SystemLogEntry[]
@@ -25,7 +49,9 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 
-const exportFormat = defineModel<SystemLogExportFormat>('format', { default: 'csv' })
+const exportFormat = defineModel<SystemLogExportFormat>('format', {
+  default: 'csv',
+})
 
 const openModel = computed({
   get: () => props.open,
@@ -56,7 +82,10 @@ function handleExport() {
   openModel.value = false
 }
 
-function downloadSystemLogs(entries: readonly SystemLogEntry[], format: SystemLogExportFormat) {
+function downloadSystemLogs(
+  entries: readonly SystemLogEntry[],
+  format: SystemLogExportFormat,
+) {
   const blob = createSystemLogExportBlob(entries, format)
   const url = window.URL.createObjectURL(blob)
   const link = document.createElement('a')
@@ -83,7 +112,9 @@ function downloadSystemLogs(entries: readonly SystemLogEntry[], format: SystemLo
           <Label>{{ t('systemLogs.export.fields.format') }}</Label>
           <Select v-model="exportFormat">
             <SelectTrigger>
-              <SelectValue :placeholder="t('systemLogs.export.fields.format')" />
+              <SelectValue
+                :placeholder="t('systemLogs.export.fields.format')"
+              />
             </SelectTrigger>
             <SelectContent>
               <SelectItem

@@ -21,6 +21,8 @@ const fallbackText = computed(() => getAvatarFallbackText(props.username))
       :src="props.avatarUrl"
       :alt="props.username"
     />
-    <AvatarFallback :class="props.fallbackClass">{{ fallbackText }}</AvatarFallback>
+    <AvatarFallback :class="props.fallbackClass">{{
+      fallbackText
+    }}</AvatarFallback>
   </Avatar>
 </template>

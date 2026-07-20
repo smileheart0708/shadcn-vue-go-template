@@ -19,10 +19,21 @@ export function useDeleteAccountFlow() {
   const isDeletingAccount = ref(false)
   const countdown = useCountdown(DELETE_COUNTDOWN_SECONDS)
 
-  const canDeleteAccount = computed(() => authStore.can(CAPABILITY.accountDeleteSelf))
-  const deleteCountdown = computed(() => (deleteDialogOpen.value ? countdown.remaining.value : 0))
-  const canOpenDeleteDialog = computed(() => canDeleteAccount.value && deleteAccountConfirmed.value && !isDeletingAccount.value)
-  const canSubmitDelete = computed(() => canOpenDeleteDialog.value && deleteCountdown.value <= 0)
+  const canDeleteAccount = computed(() =>
+    authStore.can(CAPABILITY.accountDeleteSelf),
+  )
+  const deleteCountdown = computed(() =>
+    deleteDialogOpen.value ? countdown.remaining.value : 0,
+  )
+  const canOpenDeleteDialog = computed(
+    () =>
+      canDeleteAccount.value &&
+      deleteAccountConfirmed.value &&
+      !isDeletingAccount.value,
+  )
+  const canSubmitDelete = computed(
+    () => canOpenDeleteDialog.value && deleteCountdown.value <= 0,
+  )
 
   watch(canDeleteAccount, (allowed) => {
     if (allowed) {

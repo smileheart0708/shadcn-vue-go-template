@@ -1,9 +1,29 @@
 <script setup lang="ts">
-import { IconChartAreaLine, IconClockPause, IconTrendingDown, IconTrendingUp } from '@tabler/icons-vue'
+import {
+  IconChartAreaLine,
+  IconClockPause,
+  IconTrendingDown,
+  IconTrendingUp,
+} from '@tabler/icons-vue'
 
 import { Badge } from '@/components/ui/badge'
-import { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
-import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from '@/components/ui/empty'
 import LineChart from '@/components/dashboard/LineChart.vue'
 
 const metrics = [
@@ -52,7 +72,9 @@ const metrics = [
       >
         <CardHeader class="pbe-0">
           <CardDescription>{{ metric.title }}</CardDescription>
-          <CardTitle class="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
+          <CardTitle
+            class="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl"
+          >
             {{ metric.value }}
           </CardTitle>
           <CardAction>
@@ -101,21 +123,36 @@ const metrics = [
                 <IconChartAreaLine class="block-5 inline-5" />
               </EmptyMedia>
               <EmptyTitle>Reserved for the next dashboard module</EmptyTitle>
-              <EmptyDescription> Keep this panel available for alerts, conversion funnels, or a quick summary table without changing the current desktop fold. </EmptyDescription>
+              <EmptyDescription>
+                Keep this panel available for alerts, conversion funnels, or a
+                quick summary table without changing the current desktop fold.
+              </EmptyDescription>
             </EmptyHeader>
             <EmptyContent class="max-inline-none min-inline-0">
               <div class="grid gap-3 inline-full">
-                <div class="flex items-center justify-between gap-3 rounded-lg border bg-background/80 px-4 py-3 min-inline-0">
+                <div
+                  class="flex items-center justify-between gap-3 rounded-lg border bg-background/80 px-4 py-3 min-inline-0"
+                >
                   <span class="text-muted-foreground">Suggested width</span>
-                  <span class="truncate text-end font-medium">Right-side companion card</span>
+                  <span class="truncate text-end font-medium"
+                    >Right-side companion card</span
+                  >
                 </div>
-                <div class="flex items-center justify-between gap-3 rounded-lg border bg-background/80 px-4 py-3 min-inline-0">
+                <div
+                  class="flex items-center justify-between gap-3 rounded-lg border bg-background/80 px-4 py-3 min-inline-0"
+                >
                   <span class="text-muted-foreground">Suggested content</span>
-                  <span class="truncate text-end font-medium">Tasks, notices, or small table</span>
+                  <span class="truncate text-end font-medium"
+                    >Tasks, notices, or small table</span
+                  >
                 </div>
-                <div class="flex items-center justify-between gap-3 rounded-lg border bg-background/80 px-4 py-3 min-inline-0">
+                <div
+                  class="flex items-center justify-between gap-3 rounded-lg border bg-background/80 px-4 py-3 min-inline-0"
+                >
                   <span class="text-muted-foreground">Viewport rule</span>
-                  <span class="truncate text-end font-medium">No vertical scroll on desktop</span>
+                  <span class="truncate text-end font-medium"
+                    >No vertical scroll on desktop</span
+                  >
                 </div>
               </div>
             </EmptyContent>

@@ -38,7 +38,8 @@ export function useSystemLogViewport() {
       return
     }
 
-    const distanceFromBottom = target.scrollHeight - target.scrollTop - target.clientHeight
+    const distanceFromBottom =
+      target.scrollHeight - target.scrollTop - target.clientHeight
     autoScroll.value = distanceFromBottom <= SCROLL_BOTTOM_THRESHOLD
   }
 

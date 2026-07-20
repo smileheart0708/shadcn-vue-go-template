@@ -1,6 +1,12 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { IconCreditCard, IconDotsVertical, IconLogout, IconNotification, IconUserCircle } from '@tabler/icons-vue'
+import {
+  IconCreditCard,
+  IconDotsVertical,
+  IconLogout,
+  IconNotification,
+  IconUserCircle,
+} from '@tabler/icons-vue'
 import { Globe } from 'lucide-vue-next'
 import UserAvatar from '@/components/common/UserAvatar.vue'
 import { Badge } from '@/components/ui/badge'
@@ -18,7 +24,12 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from '@/components/ui/sidebar'
+import {
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  useSidebar,
+} from '@/components/ui/sidebar'
 import { getUserRoleBadgeVariant, getUserRoleLabelKey } from '@/lib/auth/roles'
 import type { RoleKey } from '@/lib/api/auth'
 import { useI18n } from 'vue-i18n'
@@ -40,7 +51,9 @@ const { isMobile } = useSidebar()
 const { t } = useI18n()
 const localeStore = useLocaleStore()
 const roleLabel = computed(() => t(getUserRoleLabelKey(props.user.role)))
-const roleBadgeVariant = computed(() => getUserRoleBadgeVariant(props.user.role))
+const roleBadgeVariant = computed(() =>
+  getUserRoleBadgeVariant(props.user.role),
+)
 
 function switchLanguage(newLocale: AppLocale) {
   localeStore.setLocale(newLocale)

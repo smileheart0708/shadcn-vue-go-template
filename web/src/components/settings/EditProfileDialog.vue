@@ -2,7 +2,16 @@
 import { useI18n } from 'vue-i18n'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 
@@ -63,7 +72,9 @@ function saveProfile() {
     <DialogContent class="sm:max-inline-110">
       <DialogHeader>
         <DialogTitle>{{ t('settings.account.editProfile') }}</DialogTitle>
-        <DialogDescription>{{ t('settings.account.editProfileDesc') }}</DialogDescription>
+        <DialogDescription>{{
+          t('settings.account.editProfileDesc')
+        }}</DialogDescription>
       </DialogHeader>
 
       <div class="grid gap-4 py-4">
@@ -74,7 +85,9 @@ function saveProfile() {
               :src="props.avatarImageSrc"
               :alt="props.username"
             />
-            <AvatarFallback class="rounded-full">{{ props.avatarFallbackText }}</AvatarFallback>
+            <AvatarFallback class="rounded-full">{{
+              props.avatarFallbackText
+            }}</AvatarFallback>
           </Avatar>
           <Button
             variant="outline"
@@ -84,7 +97,9 @@ function saveProfile() {
           >
             {{ t('settings.account.changeAvatar') }}
           </Button>
-          <p class="text-xs text-muted-foreground">{{ t('settings.account.avatarHint') }}</p>
+          <p class="text-xs text-muted-foreground">
+            {{ t('settings.account.avatarHint') }}
+          </p>
           <p
             v-if="props.profileError !== ''"
             class="text-xs text-destructive"
@@ -94,7 +109,9 @@ function saveProfile() {
         </div>
 
         <div class="space-y-2">
-          <Label for="edit-username">{{ t('settings.account.username') }}</Label>
+          <Label for="edit-username">{{
+            t('settings.account.username')
+          }}</Label>
           <Input
             id="edit-username"
             :model-value="props.username"
@@ -123,7 +140,11 @@ function saveProfile() {
           :disabled="props.isSavingProfile"
           @click="saveProfile"
         >
-          {{ props.isSavingProfile ? t('settings.account.savingProfile') : t('settings.account.saveProfile') }}
+          {{
+            props.isSavingProfile
+              ? t('settings.account.savingProfile')
+              : t('settings.account.saveProfile')
+          }}
         </Button>
       </DialogFooter>
     </DialogContent>

@@ -2,7 +2,13 @@
 import { useI18n } from 'vue-i18n'
 import type { AppShellNavItem } from '@/components/app-shell/navigation'
 import AppShellNavButton from '@/components/app-shell/AppShellNavButton.vue'
-import { SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuItem } from '@/components/ui/sidebar'
+import {
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarMenu,
+  SidebarMenuItem,
+} from '@/components/ui/sidebar'
 
 defineProps<{ items: AppShellNavItem[] }>()
 

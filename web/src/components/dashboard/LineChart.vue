@@ -4,9 +4,28 @@ import { useResizeObserver } from '@vueuse/core'
 import { computed, onBeforeUnmount, ref, useTemplateRef, watch } from 'vue'
 import { useSidebar } from '@/components/ui/sidebar'
 import { VisArea, VisAxis, VisLine, VisXYContainer } from '@unovis/vue'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { ChartContainer, ChartCrosshair, ChartLegendContent, ChartTooltip, ChartTooltipContent, componentToString } from '@/components/ui/chart'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
+import {
+  ChartContainer,
+  ChartCrosshair,
+  ChartLegendContent,
+  ChartTooltip,
+  ChartTooltipContent,
+  componentToString,
+} from '@/components/ui/chart'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 
 defineOptions({ name: 'DashboardLineChart' })
 
@@ -139,7 +158,10 @@ const filteredChartData = computed<Data[]>(() => {
 })
 
 const chartMargin = computed(() => {
-  const maxValue = filteredChartData.value.reduce((max, point) => Math.max(max, point.mobile, point.desktop), 0)
+  const maxValue = filteredChartData.value.reduce(
+    (max, point) => Math.max(max, point.mobile, point.desktop),
+    0,
+  )
   const yLabelWidth = maxValue.toLocaleString().length
 
   return {
@@ -185,7 +207,9 @@ const freezeChartDuringSidebarAnimation = () => {
     return
   }
 
-  const visContainer = shell.querySelector<HTMLElement>('[data-vis-xy-container]')
+  const visContainer = shell.querySelector<HTMLElement>(
+    '[data-vis-xy-container]',
+  )
   if (!visContainer) {
     return
   }
@@ -243,10 +267,14 @@ function formatTooltipDate(value: number | Date) {
 
 <template>
   <Card class="flex-col gap-0 overflow-hidden py-0 block-full min-block-0">
-    <CardHeader class="flex items-center gap-2 space-y-0 border-be py-5 sm:flex-row">
+    <CardHeader
+      class="flex items-center gap-2 space-y-0 border-be py-5 sm:flex-row"
+    >
       <div class="grid flex-1 gap-1">
         <CardTitle>Area Chart - Interactive</CardTitle>
-        <CardDescription>Showing total visitors for the last 3 months</CardDescription>
+        <CardDescription
+          >Showing total visitors for the last 3 months</CardDescription
+        >
       </div>
       <Select v-model="timeRange">
         <SelectTrigger
@@ -302,7 +330,11 @@ function formatTooltipDate(value: number | Date) {
                 :color="
                   (datum: Data, index: number) => {
                     void datum
-                    return [chartConfig.mobile.color, chartConfig.desktop.color][index] ?? 'var(--chart-1)'
+                    return (
+                      [chartConfig.mobile.color, chartConfig.desktop.color][
+                        index
+                      ] ?? 'var(--chart-1)'
+                    )
                   }
                 "
                 :opacity="0.4"
@@ -313,7 +345,11 @@ function formatTooltipDate(value: number | Date) {
                 :color="
                   (datum: Data, index: number) => {
                     void datum
-                    return [chartConfig.mobile.color, chartConfig.desktop.color][index] ?? 'var(--chart-1)'
+                    return (
+                      [chartConfig.mobile.color, chartConfig.desktop.color][
+                        index
+                      ] ?? 'var(--chart-1)'
+                    )
                   }
                 "
                 :line-width="1"
@@ -343,7 +379,11 @@ function formatTooltipDate(value: number | Date) {
                 :color="
                   (datum: Data, index: number) => {
                     void datum
-                    return [chartConfig.mobile.color, chartConfig.desktop.color][index % 2] ?? 'var(--chart-1)'
+                    return (
+                      [chartConfig.mobile.color, chartConfig.desktop.color][
+                        index % 2
+                      ] ?? 'var(--chart-1)'
+                    )
                   }
                 "
               />

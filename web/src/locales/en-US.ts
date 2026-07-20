@@ -34,7 +34,14 @@ const enUS = {
       upload: 'Upload',
       view: 'View',
     },
-    field: { email: 'Email', password: 'Password', username: 'Username', usernameOrEmail: 'Username or Email', name: 'Name', confirmPassword: 'Confirm Password' },
+    field: {
+      email: 'Email',
+      password: 'Password',
+      username: 'Username',
+      usernameOrEmail: 'Username or Email',
+      name: 'Name',
+      confirmPassword: 'Confirm Password',
+    },
     feedback: {
       loadFailed: 'Failed to load the page. Please refresh and try again.',
       networkError: 'Network error. Please try again.',
@@ -55,7 +62,14 @@ const enUS = {
       processing: 'Processing...',
       success: 'Success',
     },
-    text: { yes: 'Yes', no: 'No', none: 'None', all: 'All', optional: 'Optional', required: 'Required' },
+    text: {
+      yes: 'Yes',
+      no: 'No',
+      none: 'None',
+      all: 'All',
+      optional: 'Optional',
+      required: 'Required',
+    },
     role: { owner: 'Owner', user: 'User' },
   },
   apiError: {
@@ -69,7 +83,8 @@ const enUS = {
     currentPasswordInvalid: 'Current password is incorrect.',
     passwordTooShort: 'New password must be at least 8 characters.',
     registrationDisabled: 'Registration is currently disabled.',
-    setupRequired: 'The application has not been initialized yet. Complete setup first.',
+    setupRequired:
+      'The application has not been initialized yet. Complete setup first.',
     setupCompleted: 'The application has already been initialized.',
     avatarRequired: 'Please choose an avatar image.',
     avatarInvalidType: 'Please choose a JPG, PNG, or WebP image.',
@@ -92,7 +107,9 @@ const enUS = {
     setup: 'Setup',
     systemLogs: 'System Logs',
     tasks: 'Tasks',
-    feedback: { loadFailed: 'Failed to load the page. Please refresh and try again.' },
+    feedback: {
+      loadFailed: 'Failed to load the page. Please refresh and try again.',
+    },
   },
   systemConfig: {
     title: 'System Configuration',
@@ -106,7 +123,8 @@ const enUS = {
       },
       selfServiceAccountDeletionEnabled: {
         title: 'Allow self-service account deletion',
-        description: 'When enabled, regular users can delete their own account. Owners can never self-delete.',
+        description:
+          'When enabled, regular users can delete their own account. Owners can never self-delete.',
       },
     },
     actions: {
@@ -125,7 +143,11 @@ const enUS = {
     description: 'Manage your account settings and preferences',
     saved: 'Saved!',
     save: 'Save Changes',
-    tabs: { basic: 'Basic', account: 'Account', notifications: 'Notifications' },
+    tabs: {
+      basic: 'Basic',
+      account: 'Account',
+      notifications: 'Notifications',
+    },
     account: {
       profile: 'Profile Information',
       profileDesc: 'Update your personal information',
@@ -133,10 +155,12 @@ const enUS = {
       saveProfile: 'Save Profile',
       savingProfile: 'Saving...',
       changeAvatar: 'Change Avatar',
-      avatarHint: 'Supports JPG, PNG, or WebP up to 5MB. Images are compressed in the browser.',
+      avatarHint:
+        'Supports JPG, PNG, or WebP up to 5MB. Images are compressed in the browser.',
       avatarUnsupportedType: 'Please choose a JPG, PNG, or WebP image.',
       avatarFileTooLarge: 'Image size must be 5MB or smaller.',
-      avatarProcessFailed: 'Avatar processing failed. Please try a different image.',
+      avatarProcessFailed:
+        'Avatar processing failed. Please try a different image.',
       username: 'Username',
       usernameRequired: 'Please enter your username.',
       usernamePlaceholder: 'Enter your username',
@@ -163,7 +187,8 @@ const enUS = {
       dangerZoneDesc: 'Irreversible actions for your account',
       dangerZoneConfirm: 'I understand this action is permanent',
       deleteAccount: 'Delete Account',
-      deleteAccountConfirm: 'This action cannot be undone. All your data will be permanently deleted.',
+      deleteAccountConfirm:
+        'This action cannot be undone. All your data will be permanently deleted.',
       deleteAccountSuccess: 'Account deleted.',
     },
     basic: {
@@ -235,7 +260,8 @@ const enUS = {
       registerSuccess: 'Account created successfully.',
       registerFailed: 'Failed to create account.',
       loadFailedTitle: 'Failed to load registration policy',
-      policyLoadFailed: 'Failed to load the current registration policy. Please try again.',
+      policyLoadFailed:
+        'Failed to load the current registration policy. Please try again.',
       retry: 'Retry',
       submit: 'Create Account',
     },
@@ -286,9 +312,11 @@ const enUS = {
     },
     confirm: {
       disableTitle: 'Disable user',
-      disableDescription: 'Disable {username} and revoke all of their active sessions.',
+      disableDescription:
+        'Disable {username} and revoke all of their active sessions.',
       enableTitle: 'Enable user',
-      enableDescription: 'Restore access for {username}. They will need to sign in again.',
+      enableDescription:
+        'Restore access for {username}. They will need to sign in again.',
     },
     feedback: {
       loadFailedTitle: 'Failed to load users',
@@ -398,10 +426,29 @@ const enUS = {
     },
   },
   nav: {
-    main: { dashboard: 'Dashboard', tasks: 'Tasks', lifecycle: 'Lifecycle', analytics: 'Analytics', projects: 'Projects', team: 'Team' },
-    management: { systemConfig: 'System Configuration', users: 'User Management', systemLogs: 'System Logs', label: 'Management' },
+    main: {
+      dashboard: 'Dashboard',
+      tasks: 'Tasks',
+      lifecycle: 'Lifecycle',
+      analytics: 'Analytics',
+      projects: 'Projects',
+      team: 'Team',
+    },
+    management: {
+      systemConfig: 'System Configuration',
+      users: 'User Management',
+      systemLogs: 'System Logs',
+      label: 'Management',
+    },
     secondary: { settings: 'Settings', getHelp: 'Get Help', search: 'Search' },
-    user: { account: 'Account', billing: 'Billing', notifications: 'Notifications', language: 'Language', switchLanguage: 'Switch Language', logout: 'Log out' },
+    user: {
+      account: 'Account',
+      billing: 'Billing',
+      notifications: 'Notifications',
+      language: 'Language',
+      switchLanguage: 'Switch Language',
+      logout: 'Log out',
+    },
   },
 } as const satisfies MessageSchema
 

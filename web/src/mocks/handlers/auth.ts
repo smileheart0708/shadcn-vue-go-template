@@ -136,7 +136,12 @@ const baseSystemLogs = [
   createSystemLogEntry(3, 'DEBUG', 'setup', 'Mock install state is completed.'),
 ]
 
-function createSystemLogEntry(id: number, level: 'DEBUG' | 'INFO' | 'WARN' | 'ERROR', source: string, text: string) {
+function createSystemLogEntry(
+  id: number,
+  level: 'DEBUG' | 'INFO' | 'WARN' | 'ERROR',
+  source: string,
+  text: string,
+) {
   return {
     id,
     timestamp: Math.floor(Date.now() / 1000),
@@ -152,7 +157,10 @@ function jsonSuccess(data: unknown, init?: ResponseInit) {
 }
 
 function jsonError(status: number, code: string, message: string) {
-  return HttpResponse.json({ success: false, error: { code, message } }, { status })
+  return HttpResponse.json(
+    { success: false, error: { code, message } },
+    { status },
+  )
 }
 
 function getPublicAuthConfig() {
@@ -171,7 +179,8 @@ function getCurrentUserFromRequest(request: Request) {
     return null
   }
 
-  const user = state.users.find((entry) => entry.id === state.session?.userId) ?? null
+  const user =
+    state.users.find((entry) => entry.id === state.session?.userId) ?? null
   if (user === null || user.status !== 'active') {
     return null
   }
@@ -184,7 +193,8 @@ function getCurrentUserFromSession() {
     return null
   }
 
-  const user = state.users.find((entry) => entry.id === state.session?.userId) ?? null
+  const user =
+    state.users.find((entry) => entry.id === state.session?.userId) ?? null
   if (user === null || user.status !== 'active') {
     return null
   }
@@ -206,7 +216,10 @@ function capabilitiesFor(user: MockUser): Capability[] {
     capabilities.add('management.system_logs.read')
   }
 
-  if (state.accountPolicies.selfServiceAccountDeletionEnabled && user.role !== 'owner') {
+  if (
+    state.accountPolicies.selfServiceAccountDeletionEnabled &&
+    user.role !== 'owner'
+  ) {
     capabilities.add('account.delete_self')
   }
 
@@ -229,7 +242,10 @@ function toViewer(user: MockUser) {
   }
 }
 
-function issueSession(user: MockUser, accessToken = `mock-access-${user.id}-${Date.now()}`) {
+function issueSession(
+  user: MockUser,
+  accessToken = `mock-access-${user.id}-${Date.now()}`,
+) {
   user.lastActiveAt = nowISO()
   state.session = createMockSession(user.id, accessToken)
 
@@ -249,7 +265,14 @@ function clearSession(suppressAutoOwnerSession = false) {
 }
 
 function getMockOwner() {
-  return state.users.find((entry) => entry.id === state.installState.ownerUserId && entry.role === 'owner' && entry.status === 'active') ?? null
+  return (
+    state.users.find(
+      (entry) =>
+        entry.id === state.installState.ownerUserId &&
+        entry.role === 'owner' &&
+        entry.status === 'active',
+    ) ?? null
+  )
 }
 
 export function ensureMockOwnerSession() {
@@ -264,7 +287,11 @@ export function ensureMockOwnerSession() {
 }
 
 function usernameTaken(username: string, excludeUserID?: number) {
-  return state.users.some((user) => user.username.toLowerCase() === username.toLowerCase() && user.id !== excludeUserID)
+  return state.users.some(
+    (user) =>
+      user.username.toLowerCase() === username.toLowerCase() &&
+      user.id !== excludeUserID,
+  )
 }
 
 function emailTaken(email: string | null, excludeUserID?: number) {
@@ -272,7 +299,11 @@ function emailTaken(email: string | null, excludeUserID?: number) {
     return false
   }
 
-  return state.users.some((user) => user.email?.toLowerCase() === email.toLowerCase() && user.id !== excludeUserID)
+  return state.users.some(
+    (user) =>
+      user.email?.toLowerCase() === email.toLowerCase() &&
+      user.id !== excludeUserID,
+  )
 }
 
 function requireSetupCompleted() {
@@ -291,7 +322,10 @@ function requireAuthenticated(request: Request) {
 
   const user = getCurrentUserFromRequest(request)
   if (user === null) {
-    return { error: jsonError(401, 'unauthorized', 'Authentication required.'), user: null as MockUser | null }
+    return {
+      error: jsonError(401, 'unauthorized', 'Authentication required.'),
+      user: null as MockUser | null,
+    }
   }
 
   return { error: null, user }
@@ -301,7 +335,11 @@ function hasCapability(user: MockUser, capability: Capability) {
   return capabilitiesFor(user).includes(capability)
 }
 
-function canManageUser(actor: MockUser, target: MockUser, _action: 'update' | 'disable' | 'enable') {
+function canManageUser(
+  actor: MockUser,
+  target: MockUser,
+  _action: 'update' | 'disable' | 'enable',
+) {
   if (actor.id === target.id) {
     return false
   }
@@ -368,7 +406,12 @@ function buildSystemLogStreamResponse(rawTail: string | null) {
       }
 
       intervalId = setInterval(() => {
-        const entry = createSystemLogEntry(state.nextLogId++, 'INFO', 'mock', 'Mock system log placeholder heartbeat.')
+        const entry = createSystemLogEntry(
+          state.nextLogId++,
+          'INFO',
+          'mock',
+          'Mock system log placeholder heartbeat.',
+        )
         controller.enqueue(encoder.encode(formatSystemLogEvent(entry)))
       }, 5_000)
     },
@@ -390,7 +433,11 @@ function buildSystemLogStreamResponse(rawTail: string | null) {
 
 function selectSystemLogReplayEntries(rawTail: string | null) {
   const normalizedTail = rawTail?.trim().toLowerCase()
-  if (normalizedTail === undefined || normalizedTail === '' || normalizedTail === 'all') {
+  if (
+    normalizedTail === undefined ||
+    normalizedTail === '' ||
+    normalizedTail === 'all'
+  ) {
     return baseSystemLogs
   }
 
@@ -411,11 +458,19 @@ export const authHandlers = [
 
   http.post('/api/install/setup', async ({ request }) => {
     if (state.installState.setupCompleted) {
-      return jsonError(409, 'setup_completed', 'Setup has already been completed.')
+      return jsonError(
+        409,
+        'setup_completed',
+        'Setup has already been completed.',
+      )
     }
 
     const payload = await readJSON(request)
-    if (!isRecord(payload) || typeof payload.username !== 'string' || typeof payload.password !== 'string') {
+    if (
+      !isRecord(payload) ||
+      typeof payload.username !== 'string' ||
+      typeof payload.password !== 'string'
+    ) {
       return jsonError(400, 'invalid_request', 'Invalid setup payload.')
     }
 
@@ -424,7 +479,11 @@ export const authHandlers = [
       return jsonError(400, 'username_required', 'Username is required.')
     }
     if (payload.password.trim().length < 8) {
-      return jsonError(400, 'password_too_short', 'Password must be at least 8 characters.')
+      return jsonError(
+        400,
+        'password_too_short',
+        'Password must be at least 8 characters.',
+      )
     }
     if (usernameTaken(username)) {
       return jsonError(409, 'username_taken', 'Username is already in use.')
@@ -469,11 +528,20 @@ export const authHandlers = [
     }
 
     const payload = await readJSON(request)
-    if (!isRecord(payload) || typeof payload.identifier !== 'string' || typeof payload.password !== 'string') {
+    if (
+      !isRecord(payload) ||
+      typeof payload.identifier !== 'string' ||
+      typeof payload.password !== 'string'
+    ) {
       return jsonError(400, 'invalid_request', 'Invalid login payload.')
     }
 
-    const user = state.users.find((entry) => entry.username === payload.identifier || entry.email === payload.identifier) ?? null
+    const user =
+      state.users.find(
+        (entry) =>
+          entry.username === payload.identifier ||
+          entry.email === payload.identifier,
+      ) ?? null
     if (user === null || user.password !== payload.password) {
       return jsonError(401, 'invalid_credentials', 'Invalid credentials.')
     }
@@ -492,21 +560,34 @@ export const authHandlers = [
     }
 
     if (!state.accountPolicies.publicRegistrationEnabled) {
-      return jsonError(403, 'registration_disabled', 'Registration is disabled.')
+      return jsonError(
+        403,
+        'registration_disabled',
+        'Registration is disabled.',
+      )
     }
 
     const payload = await readJSON(request)
-    if (!isRecord(payload) || typeof payload.username !== 'string' || typeof payload.password !== 'string') {
+    if (
+      !isRecord(payload) ||
+      typeof payload.username !== 'string' ||
+      typeof payload.password !== 'string'
+    ) {
       return jsonError(400, 'invalid_request', 'Invalid registration payload.')
     }
 
     const username = payload.username.trim()
-    const email = typeof payload.email === 'string' ? payload.email.trim() || null : null
+    const email =
+      typeof payload.email === 'string' ? payload.email.trim() || null : null
     if (username === '') {
       return jsonError(400, 'username_required', 'Username is required.')
     }
     if (payload.password.trim().length < 8) {
-      return jsonError(400, 'password_too_short', 'Password must be at least 8 characters.')
+      return jsonError(
+        400,
+        'password_too_short',
+        'Password must be at least 8 characters.',
+      )
     }
     if (usernameTaken(username)) {
       return jsonError(409, 'username_taken', 'Username is already in use.')
@@ -535,10 +616,16 @@ export const authHandlers = [
   }),
 
   http.post('/api/auth/refresh', () => {
-    const user = getCurrentUserFromSession() ?? (autoOwnerSessionAvailable ? getMockOwner() : null)
+    const user =
+      getCurrentUserFromSession() ??
+      (autoOwnerSessionAvailable ? getMockOwner() : null)
     if (user === null) {
       clearSession()
-      return jsonError(401, 'invalid_refresh_token', 'Refresh token is invalid.')
+      return jsonError(
+        401,
+        'invalid_refresh_token',
+        'Refresh token is invalid.',
+      )
     }
 
     const sessionResponse = issueSession(user)
@@ -571,7 +658,8 @@ export const authHandlers = [
     }
 
     const username = payload.username.trim()
-    const email = typeof payload.email === 'string' ? payload.email.trim() || null : null
+    const email =
+      typeof payload.email === 'string' ? payload.email.trim() || null : null
     if (username === '') {
       return jsonError(400, 'username_required', 'Username is required.')
     }
@@ -606,14 +694,26 @@ export const authHandlers = [
     }
 
     const payload = await readJSON(request)
-    if (!isRecord(payload) || typeof payload.currentPassword !== 'string' || typeof payload.newPassword !== 'string') {
+    if (
+      !isRecord(payload) ||
+      typeof payload.currentPassword !== 'string' ||
+      typeof payload.newPassword !== 'string'
+    ) {
       return jsonError(400, 'invalid_request', 'Invalid password payload.')
     }
     if (payload.currentPassword !== user.password) {
-      return jsonError(400, 'current_password_invalid', 'Current password is invalid.')
+      return jsonError(
+        400,
+        'current_password_invalid',
+        'Current password is invalid.',
+      )
     }
     if (payload.newPassword.trim().length < 8) {
-      return jsonError(400, 'password_too_short', 'Password must be at least 8 characters.')
+      return jsonError(
+        400,
+        'password_too_short',
+        'Password must be at least 8 characters.',
+      )
     }
 
     user.password = payload.newPassword
@@ -628,7 +728,11 @@ export const authHandlers = [
       return error
     }
     if (!hasCapability(user, 'account.delete_self')) {
-      return jsonError(403, 'account_delete_forbidden', 'This account cannot delete itself.')
+      return jsonError(
+        403,
+        'account_delete_forbidden',
+        'This account cannot delete itself.',
+      )
     }
 
     state.users = state.users.filter((entry) => entry.id !== user.id)
@@ -663,10 +767,12 @@ export const authHandlers = [
     }
 
     if (typeof payload.publicRegistrationEnabled === 'boolean') {
-      state.accountPolicies.publicRegistrationEnabled = payload.publicRegistrationEnabled
+      state.accountPolicies.publicRegistrationEnabled =
+        payload.publicRegistrationEnabled
     }
     if (typeof payload.selfServiceAccountDeletionEnabled === 'boolean') {
-      state.accountPolicies.selfServiceAccountDeletionEnabled = payload.selfServiceAccountDeletionEnabled
+      state.accountPolicies.selfServiceAccountDeletionEnabled =
+        payload.selfServiceAccountDeletionEnabled
     }
 
     return jsonSuccess(state.accountPolicies)
@@ -688,7 +794,12 @@ export const authHandlers = [
     const pageSize = readPositiveInt(url, 'pageSize', 20)
 
     const filtered = state.users.filter((entry) => {
-      if (query !== '' && ![entry.username, entry.email ?? ''].some((value) => value.toLowerCase().includes(query))) {
+      if (
+        query !== '' &&
+        ![entry.username, entry.email ?? ''].some((value) =>
+          value.toLowerCase().includes(query),
+        )
+      ) {
         return false
       }
       if (status && status !== entry.status) {
@@ -698,7 +809,9 @@ export const authHandlers = [
     })
 
     const start = (page - 1) * pageSize
-    const items = filtered.slice(start, start + pageSize).map((entry) => toManagedUser(entry, user))
+    const items = filtered
+      .slice(start, start + pageSize)
+      .map((entry) => toManagedUser(entry, user))
 
     return jsonSuccess({
       items,
@@ -718,17 +831,26 @@ export const authHandlers = [
     }
 
     const payload = await readJSON(request)
-    if (!isRecord(payload) || typeof payload.username !== 'string' || typeof payload.password !== 'string') {
+    if (
+      !isRecord(payload) ||
+      typeof payload.username !== 'string' ||
+      typeof payload.password !== 'string'
+    ) {
       return jsonError(400, 'invalid_request', 'Invalid user payload.')
     }
 
     const username = payload.username.trim()
-    const email = typeof payload.email === 'string' ? payload.email.trim() || null : null
+    const email =
+      typeof payload.email === 'string' ? payload.email.trim() || null : null
     if (username === '') {
       return jsonError(400, 'username_required', 'Username is required.')
     }
     if (payload.password.trim().length < 8) {
-      return jsonError(400, 'password_too_short', 'Password must be at least 8 characters.')
+      return jsonError(
+        400,
+        'password_too_short',
+        'Password must be at least 8 characters.',
+      )
     }
     if (usernameTaken(username)) {
       return jsonError(409, 'username_taken', 'Username is already in use.')
@@ -776,7 +898,8 @@ export const authHandlers = [
     }
 
     const username = payload.username.trim()
-    const email = typeof payload.email === 'string' ? payload.email.trim() || null : null
+    const email =
+      typeof payload.email === 'string' ? payload.email.trim() || null : null
     if (username === '') {
       return jsonError(400, 'username_required', 'Username is required.')
     }

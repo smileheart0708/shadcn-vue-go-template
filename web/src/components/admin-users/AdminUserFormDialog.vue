@@ -1,7 +1,14 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Spinner } from '@/components/ui/spinner'
 
@@ -28,8 +35,16 @@ const { t } = useI18n()
   <Dialog v-model:open="open">
     <DialogContent>
       <DialogHeader>
-        <DialogTitle>{{ mode === 'create' ? t('adminUsers.dialog.createTitle') : t('adminUsers.dialog.editTitle') }}</DialogTitle>
-        <DialogDescription>{{ mode === 'create' ? t('adminUsers.dialog.createDescription') : t('adminUsers.dialog.editDescription') }}</DialogDescription>
+        <DialogTitle>{{
+          mode === 'create'
+            ? t('adminUsers.dialog.createTitle')
+            : t('adminUsers.dialog.editTitle')
+        }}</DialogTitle>
+        <DialogDescription>{{
+          mode === 'create'
+            ? t('adminUsers.dialog.createDescription')
+            : t('adminUsers.dialog.editDescription')
+        }}</DialogDescription>
       </DialogHeader>
 
       <div class="space-y-4 py-2">
@@ -65,7 +80,11 @@ const { t } = useI18n()
             v-if="pending"
             class="me-2"
           />
-          {{ mode === 'create' ? t('adminUsers.dialog.createSubmit') : t('adminUsers.dialog.editSubmit') }}
+          {{
+            mode === 'create'
+              ? t('adminUsers.dialog.createSubmit')
+              : t('adminUsers.dialog.editSubmit')
+          }}
         </Button>
       </DialogFooter>
     </DialogContent>

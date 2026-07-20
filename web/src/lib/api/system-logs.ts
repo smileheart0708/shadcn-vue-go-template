@@ -2,14 +2,28 @@ import { createParser, type EventSourceMessage } from 'eventsource-parser'
 import { z } from 'zod'
 import { APIError, authApi, normalizeAPIError } from '@/lib/api/client'
 
-export const SYSTEM_LOG_LEVEL_VALUES = ['DEBUG', 'INFO', 'WARN', 'ERROR'] as const
-export const SYSTEM_LOG_HISTORY_LIMIT_VALUES = [100, 200, 500, 1000, 'ALL'] as const
+export const SYSTEM_LOG_LEVEL_VALUES = [
+  'DEBUG',
+  'INFO',
+  'WARN',
+  'ERROR',
+] as const
+export const SYSTEM_LOG_HISTORY_LIMIT_VALUES = [
+  100,
+  200,
+  500,
+  1000,
+  'ALL',
+] as const
 
 const systemLogLevelSet = new Set<string>(SYSTEM_LOG_LEVEL_VALUES)
-const systemLogHistoryLimitSet = new Set<unknown>(SYSTEM_LOG_HISTORY_LIMIT_VALUES)
+const systemLogHistoryLimitSet = new Set<unknown>(
+  SYSTEM_LOG_HISTORY_LIMIT_VALUES,
+)
 
 export type SystemLogLevel = (typeof SYSTEM_LOG_LEVEL_VALUES)[number]
-export type SystemLogHistoryLimit = (typeof SYSTEM_LOG_HISTORY_LIMIT_VALUES)[number]
+export type SystemLogHistoryLimit =
+  (typeof SYSTEM_LOG_HISTORY_LIMIT_VALUES)[number]
 
 export const systemLogEntrySchema = z.object({
   id: z.number().int().positive(),
@@ -29,7 +43,9 @@ interface OpenSystemLogsStreamOptions {
   onEntry: (entry: SystemLogEntry) => void
 }
 
-export async function openSystemLogsStream(options: OpenSystemLogsStreamOptions): Promise<void> {
+export async function openSystemLogsStream(
+  options: OpenSystemLogsStreamOptions,
+): Promise<void> {
   try {
     const response = await authApi.get('/api/management/system-logs/stream', {
       headers: {
@@ -42,7 +58,11 @@ export async function openSystemLogsStream(options: OpenSystemLogsStreamOptions)
     })
 
     if (!response.body) {
-      throw new APIError(500, 'System log stream is unavailable.', 'system_log_stream_unavailable')
+      throw new APIError(
+        500,
+        'System log stream is unavailable.',
+        'system_log_stream_unavailable',
+      )
     }
 
     options.onOpen?.()
@@ -75,15 +95,22 @@ export function isSystemLogLevel(value: string): value is SystemLogLevel {
   return systemLogLevelSet.has(value)
 }
 
-export function isSystemLogHistoryLimit(value: unknown): value is SystemLogHistoryLimit {
+export function isSystemLogHistoryLimit(
+  value: unknown,
+): value is SystemLogHistoryLimit {
   return systemLogHistoryLimitSet.has(value)
 }
 
-export function formatSystemLogHistoryLimit(value: SystemLogHistoryLimit): string {
+export function formatSystemLogHistoryLimit(
+  value: SystemLogHistoryLimit,
+): string {
   return value === 'ALL' ? 'all' : String(value)
 }
 
-function handleStreamEvent(event: EventSourceMessage, onEntry: (entry: SystemLogEntry) => void) {
+function handleStreamEvent(
+  event: EventSourceMessage,
+  onEntry: (entry: SystemLogEntry) => void,
+) {
   if (event.event !== 'log') {
     return
   }

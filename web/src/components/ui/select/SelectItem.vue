@@ -3,10 +3,17 @@ import type { SelectItemProps } from 'reka-ui'
 import type { HTMLAttributes } from 'vue'
 import { reactiveOmit } from '@vueuse/core'
 import { Check } from 'lucide-vue-next'
-import { SelectItem, SelectItemIndicator, SelectItemText, useForwardProps } from 'reka-ui'
+import {
+  SelectItem,
+  SelectItemIndicator,
+  SelectItemText,
+  useForwardProps,
+} from 'reka-ui'
 import { cn } from '@/lib/utils'
 
-const props = defineProps<SelectItemProps & { class?: HTMLAttributes['class'] }>()
+const props = defineProps<
+  SelectItemProps & { class?: HTMLAttributes['class'] }
+>()
 
 const delegatedProps = reactiveOmit(props, 'class')
 
@@ -24,7 +31,9 @@ const forwardedProps = useForwardProps(delegatedProps)
       )
     "
   >
-    <span class="absolute inset-e-2 flex items-center justify-center block-3.5 inline-3.5">
+    <span
+      class="absolute inset-e-2 flex items-center justify-center block-3.5 inline-3.5"
+    >
       <SelectItemIndicator>
         <slot name="indicator-icon">
           <Check class="block-4 inline-4" />

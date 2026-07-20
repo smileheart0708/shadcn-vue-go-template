@@ -1,6 +1,15 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Spinner } from '@/components/ui/spinner'
 import type { ManagedUser } from '@/lib/api/admin-users'
 
@@ -23,18 +32,28 @@ const { t } = useI18n()
     <AlertDialogContent>
       <AlertDialogHeader>
         <AlertDialogTitle>
-          {{ target?.status === 'active' ? t('adminUsers.confirm.disableTitle') : t('adminUsers.confirm.enableTitle') }}
+          {{
+            target?.status === 'active'
+              ? t('adminUsers.confirm.disableTitle')
+              : t('adminUsers.confirm.enableTitle')
+          }}
         </AlertDialogTitle>
         <AlertDialogDescription>
           {{
             target?.status === 'active'
-              ? t('adminUsers.confirm.disableDescription', { username: target?.username ?? '' })
-              : t('adminUsers.confirm.enableDescription', { username: target?.username ?? '' })
+              ? t('adminUsers.confirm.disableDescription', {
+                  username: target?.username ?? '',
+                })
+              : t('adminUsers.confirm.enableDescription', {
+                  username: target?.username ?? '',
+                })
           }}
         </AlertDialogDescription>
       </AlertDialogHeader>
       <AlertDialogFooter>
-        <AlertDialogCancel :disabled="pending">{{ t('common.action.cancel') }}</AlertDialogCancel>
+        <AlertDialogCancel :disabled="pending">{{
+          t('common.action.cancel')
+        }}</AlertDialogCancel>
         <AlertDialogAction
           :disabled="pending"
           @click.prevent="emit('confirm')"
@@ -43,7 +62,11 @@ const { t } = useI18n()
             v-if="pending"
             class="me-2"
           />
-          {{ target?.status === 'active' ? t('adminUsers.actions.disable') : t('adminUsers.actions.enable') }}
+          {{
+            target?.status === 'active'
+              ? t('adminUsers.actions.disable')
+              : t('adminUsers.actions.enable')
+          }}
         </AlertDialogAction>
       </AlertDialogFooter>
     </AlertDialogContent>

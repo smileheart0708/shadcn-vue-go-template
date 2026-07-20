@@ -1,6 +1,12 @@
 import { APIError } from '@/lib/api/client'
 import type { BadgeVariants } from '@/components/ui/badge'
-import { isSystemLogHistoryLimit, isSystemLogLevel, type SystemLogEntry, type SystemLogHistoryLimit, type SystemLogLevel } from '@/lib/api/system-logs'
+import {
+  isSystemLogHistoryLimit,
+  isSystemLogLevel,
+  type SystemLogEntry,
+  type SystemLogHistoryLimit,
+  type SystemLogLevel,
+} from '@/lib/api/system-logs'
 
 const LOCAL_STREAM_MAX_BYTES = 1 * 1024 * 1024
 const STREAM_ENTRY_BASE_BYTES = 64
@@ -14,7 +20,9 @@ interface SelectVisibleSystemLogEntriesOptions {
   searchQuery: string
 }
 
-export function selectVisibleSystemLogEntries(options: SelectVisibleSystemLogEntriesOptions): SystemLogEntry[] {
+export function selectVisibleSystemLogEntries(
+  options: SelectVisibleSystemLogEntriesOptions,
+): SystemLogEntry[] {
   const normalizedQuery = options.searchQuery.trim().toLowerCase()
   const selectedLevels = new Set(options.levels)
 
@@ -27,13 +35,18 @@ export function selectVisibleSystemLogEntries(options: SelectVisibleSystemLogEnt
       return true
     }
 
-    return [entry.text, entry.message, entry.source].some((value) => value.toLowerCase().includes(normalizedQuery))
+    return [entry.text, entry.message, entry.source].some((value) =>
+      value.toLowerCase().includes(normalizedQuery),
+    )
   })
 
   return applyHistoryLimit(filteredEntries, options.historyLimit)
 }
 
-export function applyHistoryLimit(sourceEntries: readonly SystemLogEntry[], limit: SystemLogHistoryLimit): SystemLogEntry[] {
+export function applyHistoryLimit(
+  sourceEntries: readonly SystemLogEntry[],
+  limit: SystemLogHistoryLimit,
+): SystemLogEntry[] {
   if (limit === 'ALL') {
     return [...sourceEntries]
   }
@@ -41,7 +54,10 @@ export function applyHistoryLimit(sourceEntries: readonly SystemLogEntry[], limi
   return sourceEntries.slice(-limit)
 }
 
-export function appendSystemLogEntry(sourceEntries: readonly SystemLogEntry[], entry: SystemLogEntry): SystemLogEntry[] {
+export function appendSystemLogEntry(
+  sourceEntries: readonly SystemLogEntry[],
+  entry: SystemLogEntry,
+): SystemLogEntry[] {
   if (sourceEntries.some((sourceEntry) => sourceEntry.id === entry.id)) {
     return [...sourceEntries]
   }
@@ -55,7 +71,9 @@ export function clearSystemLogEntries(): SystemLogEntry[] {
   return []
 }
 
-export function normalizeHistoryLimitSelectValue(value: unknown): SystemLogHistoryLimit | null {
+export function normalizeHistoryLimitSelectValue(
+  value: unknown,
+): SystemLogHistoryLimit | null {
   if (isSystemLogHistoryLimit(value)) {
     return value
   }
@@ -76,7 +94,9 @@ export function historyLimitRank(limit: SystemLogHistoryLimit): number {
   return limit === 'ALL' ? Number.POSITIVE_INFINITY : limit
 }
 
-export function getLevelBadgeVariant(level: string): NonNullable<BadgeVariants['variant']> {
+export function getLevelBadgeVariant(
+  level: string,
+): NonNullable<BadgeVariants['variant']> {
   switch (level) {
     case 'ERROR':
       return 'destructive'
@@ -89,7 +109,10 @@ export function getLevelBadgeVariant(level: string): NonNullable<BadgeVariants['
   }
 }
 
-export function getConnectionStatusLabel(connecting: boolean, connected: boolean): string {
+export function getConnectionStatusLabel(
+  connecting: boolean,
+  connected: boolean,
+): string {
   if (connecting) {
     return 'Connecting'
   }
@@ -99,7 +122,10 @@ export function getConnectionStatusLabel(connecting: boolean, connected: boolean
   return 'Disconnected'
 }
 
-export function getConnectionIndicatorClass(connecting: boolean, connected: boolean): string {
+export function getConnectionIndicatorClass(
+  connecting: boolean,
+  connected: boolean,
+): string {
   if (connecting) {
     return 'bg-amber-500'
   }
@@ -119,10 +145,15 @@ export function shouldRetryStreamError(error: unknown): boolean {
 
 export function getReconnectDelayMs(attempt: number): number {
   const exponent = Math.max(0, attempt - 1)
-  return Math.min(RECONNECT_MAX_DELAY_MS, RECONNECT_BASE_DELAY_MS * 2 ** exponent)
+  return Math.min(
+    RECONNECT_MAX_DELAY_MS,
+    RECONNECT_BASE_DELAY_MS * 2 ** exponent,
+  )
 }
 
-export function formatSystemLogTimestamp(timestamp: number | null | undefined): string {
+export function formatSystemLogTimestamp(
+  timestamp: number | null | undefined,
+): string {
   if (timestamp === null || timestamp === undefined) {
     return ''
   }
@@ -138,7 +169,10 @@ export function formatSystemLogTimestamp(timestamp: number | null | undefined): 
   }).format(new Date(timestamp * 1000))
 }
 
-function findEntryInsertIndex(sourceEntries: readonly SystemLogEntry[], entryId: number): number {
+function findEntryInsertIndex(
+  sourceEntries: readonly SystemLogEntry[],
+  entryId: number,
+): number {
   let low = 0
   let high = sourceEntries.length
   while (low < high) {
@@ -153,11 +187,19 @@ function findEntryInsertIndex(sourceEntries: readonly SystemLogEntry[], entryId:
   return low
 }
 
-function pruneLocalEntries(sourceEntries: readonly SystemLogEntry[]): SystemLogEntry[] {
+function pruneLocalEntries(
+  sourceEntries: readonly SystemLogEntry[],
+): SystemLogEntry[] {
   const nextEntries = [...sourceEntries]
-  let localBufferedBytes = nextEntries.reduce((total, entry) => total + getSystemLogEntrySize(entry), 0)
+  let localBufferedBytes = nextEntries.reduce(
+    (total, entry) => total + getSystemLogEntrySize(entry),
+    0,
+  )
 
-  while (localBufferedBytes > LOCAL_STREAM_MAX_BYTES && nextEntries.length > 0) {
+  while (
+    localBufferedBytes > LOCAL_STREAM_MAX_BYTES &&
+    nextEntries.length > 0
+  ) {
     const removedEntry = nextEntries.shift()
     if (!removedEntry) {
       break
@@ -169,5 +211,11 @@ function pruneLocalEntries(sourceEntries: readonly SystemLogEntry[]): SystemLogE
 }
 
 function getSystemLogEntrySize(entry: SystemLogEntry): number {
-  return STREAM_ENTRY_BASE_BYTES + entry.level.length + entry.message.length + entry.text.length + entry.source.length
+  return (
+    STREAM_ENTRY_BASE_BYTES +
+    entry.level.length +
+    entry.message.length +
+    entry.text.length +
+    entry.source.length
+  )
 }

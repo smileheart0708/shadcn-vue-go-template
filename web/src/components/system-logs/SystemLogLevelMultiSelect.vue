@@ -4,8 +4,16 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ChevronDown } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
-import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import { SYSTEM_LOG_LEVEL_VALUES, type SystemLogLevel } from '@/lib/api/system-logs'
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import {
+  SYSTEM_LOG_LEVEL_VALUES,
+  type SystemLogLevel,
+} from '@/lib/api/system-logs'
 import { cn } from '@/lib/utils'
 
 const props = withDefaults(
@@ -25,7 +33,9 @@ const emit = defineEmits<{
 const { t } = useI18n()
 
 const selectedLevels = computed(() => new Set(props.modelValue))
-const orderedSelectedLevels = computed(() => SYSTEM_LOG_LEVEL_VALUES.filter((level) => selectedLevels.value.has(level)))
+const orderedSelectedLevels = computed(() =>
+  SYSTEM_LOG_LEVEL_VALUES.filter((level) => selectedLevels.value.has(level)),
+)
 const triggerLabel = computed(() => {
   if (orderedSelectedLevels.value.length === SYSTEM_LOG_LEVEL_VALUES.length) {
     return t('systemLogs.filters.level.allSelected')
@@ -33,7 +43,9 @@ const triggerLabel = computed(() => {
   if (orderedSelectedLevels.value.length === 0) {
     return t('systemLogs.filters.level.noneSelected')
   }
-  return orderedSelectedLevels.value.map((level) => t(`systemLogs.filters.level.${level}`)).join(', ')
+  return orderedSelectedLevels.value
+    .map((level) => t(`systemLogs.filters.level.${level}`))
+    .join(', ')
 })
 
 function updateLevel(level: SystemLogLevel, selected: boolean) {
@@ -57,7 +69,9 @@ function updateLevel(level: SystemLogLevel, selected: boolean) {
       <Button
         type="button"
         variant="outline"
-        :class="cn('justify-between gap-2 inline-full md:inline-auto', props.class)"
+        :class="
+          cn('justify-between gap-2 inline-full md:inline-auto', props.class)
+        "
       >
         <span class="truncate">{{ triggerLabel }}</span>
         <ChevronDown class="shrink-0 opacity-60 block-4 inline-4" />

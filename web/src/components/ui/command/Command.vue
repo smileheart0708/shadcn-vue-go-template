@@ -16,9 +16,12 @@ interface FilterState {
   }
 }
 
-const props = withDefaults(defineProps<ListboxRootProps & { class?: HTMLAttributes['class'] }>(), {
-  modelValue: '',
-})
+const props = withDefaults(
+  defineProps<ListboxRootProps & { class?: HTMLAttributes['class'] }>(),
+  {
+    modelValue: '',
+  },
+)
 
 const emits = defineEmits<ListboxRootEmits>()
 
@@ -94,7 +97,12 @@ provideCommandContext({
   <ListboxRoot
     data-slot="command"
     v-bind="forwarded"
-    :class="cn('flex flex-col overflow-hidden rounded-md bg-popover text-popover-foreground block-full inline-full', props.class)"
+    :class="
+      cn(
+        'flex flex-col overflow-hidden rounded-md bg-popover text-popover-foreground block-full inline-full',
+        props.class,
+      )
+    "
   >
     <slot />
   </ListboxRoot>

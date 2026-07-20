@@ -3,19 +3,25 @@ import { defineStore } from 'pinia'
 import { z } from 'zod'
 import { parseExternalValueOrDefault } from '@/lib/external-input'
 
-const CURRENT_USER_INTERVAL_STORAGE_KEY = 'app.polling.current-user-interval-seconds'
+const CURRENT_USER_INTERVAL_STORAGE_KEY =
+  'app.polling.current-user-interval-seconds'
 
 export const POLLING_INTERVAL_MIN_SECONDS = 5
 export const POLLING_INTERVAL_MAX_SECONDS = 60
 export const POLLING_INTERVAL_DEFAULT_SECONDS = 10
-const storedPollingIntervalSecondsSchema = z.coerce.number().transform(normalizePollingIntervalSeconds)
+const storedPollingIntervalSecondsSchema = z.coerce
+  .number()
+  .transform(normalizePollingIntervalSeconds)
 
 export function normalizePollingIntervalSeconds(value: number) {
   if (!Number.isFinite(value)) {
     return POLLING_INTERVAL_DEFAULT_SECONDS
   }
 
-  return Math.min(POLLING_INTERVAL_MAX_SECONDS, Math.max(POLLING_INTERVAL_MIN_SECONDS, Math.round(value)))
+  return Math.min(
+    POLLING_INTERVAL_MAX_SECONDS,
+    Math.max(POLLING_INTERVAL_MIN_SECONDS, Math.round(value)),
+  )
 }
 
 function readStoredCurrentUserIntervalSeconds() {
@@ -23,8 +29,14 @@ function readStoredCurrentUserIntervalSeconds() {
     return POLLING_INTERVAL_DEFAULT_SECONDS
   }
 
-  const rawValue = window.localStorage.getItem(CURRENT_USER_INTERVAL_STORAGE_KEY)
-  return parseExternalValueOrDefault(storedPollingIntervalSecondsSchema, rawValue, POLLING_INTERVAL_DEFAULT_SECONDS)
+  const rawValue = window.localStorage.getItem(
+    CURRENT_USER_INTERVAL_STORAGE_KEY,
+  )
+  return parseExternalValueOrDefault(
+    storedPollingIntervalSecondsSchema,
+    rawValue,
+    POLLING_INTERVAL_DEFAULT_SECONDS,
+  )
 }
 
 function persistCurrentUserIntervalSeconds(value: number) {
@@ -36,12 +48,15 @@ function persistCurrentUserIntervalSeconds(value: number) {
 }
 
 export const usePollingStore = defineStore('polling', () => {
-  const initialCurrentUserIntervalSeconds = readStoredCurrentUserIntervalSeconds()
+  const initialCurrentUserIntervalSeconds =
+    readStoredCurrentUserIntervalSeconds()
   const currentUserIntervalSeconds = ref(initialCurrentUserIntervalSeconds)
 
   persistCurrentUserIntervalSeconds(initialCurrentUserIntervalSeconds)
 
-  const currentUserIntervalMs = computed(() => currentUserIntervalSeconds.value * 1000)
+  const currentUserIntervalMs = computed(
+    () => currentUserIntervalSeconds.value * 1000,
+  )
 
   function setCurrentUserIntervalSeconds(value: number) {
     const nextValue = normalizePollingIntervalSeconds(value)

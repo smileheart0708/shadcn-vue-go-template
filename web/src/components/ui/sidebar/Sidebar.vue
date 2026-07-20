@@ -22,7 +22,12 @@ const { isMobile, state, openMobile, setOpenMobile } = useSidebar()
   <div
     v-if="collapsible === 'none'"
     data-slot="sidebar"
-    :class="cn('flex flex-col bg-sidebar text-sidebar-foreground block-full inline-(--sidebar-width)', props.class)"
+    :class="
+      cn(
+        'flex flex-col bg-sidebar text-sidebar-foreground block-full inline-(--sidebar-width)',
+        props.class,
+      )
+    "
     v-bind="$attrs"
   >
     <slot />
@@ -78,7 +83,9 @@ const { isMobile, state, openMobile, setOpenMobile } = useSidebar()
       :class="
         cn(
           'fixed inset-y-0 z-10 hidden transition-[left,right,width] duration-200 ease-linear block-svh inline-(--sidebar-width) md:flex',
-          side === 'left' ? 'inset-s-0 group-data-[collapsible=offcanvas]:-inset-s-(--sidebar-width)' : 'inset-e-0 group-data-[collapsible=offcanvas]:-inset-e-(--sidebar-width)',
+          side === 'left'
+            ? 'inset-s-0 group-data-[collapsible=offcanvas]:-inset-s-(--sidebar-width)'
+            : 'inset-e-0 group-data-[collapsible=offcanvas]:-inset-e-(--sidebar-width)',
           // Adjust the padding for floating and inset variants.
           variant === 'floating' || variant === 'inset'
             ? 'p-2 group-data-[collapsible=icon]:inline-[calc(var(--sidebar-width-icon)+(--spacing(4))+2px)]'

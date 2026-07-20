@@ -19,7 +19,9 @@ export function useAdminUsersList() {
   const loading = ref(true)
   const refreshing = ref(false)
   const loadFailed = ref(false)
-  const totalPages = computed(() => getAdminUsersTotalPages(total.value, pageSize.value))
+  const totalPages = computed(() =>
+    getAdminUsersTotalPages(total.value, pageSize.value),
+  )
 
   onMounted(() => {
     void loadUsers()
@@ -47,7 +49,9 @@ export function useAdminUsersList() {
       loadFailed.value = false
     } catch (error) {
       loadFailed.value = true
-      toast.error(getAPIErrorMessage(t, error, 'adminUsers.feedback.loadFailed'))
+      toast.error(
+        getAPIErrorMessage(t, error, 'adminUsers.feedback.loadFailed'),
+      )
     } finally {
       loading.value = false
       refreshing.value = false

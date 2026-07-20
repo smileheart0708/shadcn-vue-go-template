@@ -7,7 +7,8 @@ import SettingsSectionCard from '@/components/settings/common/SettingsSectionCar
 import { usePasswordSettings } from '@/composables/settings/usePasswordSettings'
 
 const { t } = useI18n()
-const { passwordForm, passwordError, isUpdatingPassword, updatePassword } = usePasswordSettings()
+const { passwordForm, passwordError, isUpdatingPassword, updatePassword } =
+  usePasswordSettings()
 </script>
 
 <template>
@@ -18,7 +19,9 @@ const { passwordForm, passwordError, isUpdatingPassword, updatePassword } = useP
     footer-class="justify-end"
   >
     <div class="space-y-2">
-      <Label for="current-password">{{ t('settings.account.currentPassword') }}</Label>
+      <Label for="current-password">{{
+        t('settings.account.currentPassword')
+      }}</Label>
       <Input
         id="current-password"
         v-model="passwordForm.currentPassword"
@@ -29,7 +32,9 @@ const { passwordForm, passwordError, isUpdatingPassword, updatePassword } = useP
 
     <div class="grid gap-4 md:grid-cols-2">
       <div class="space-y-2">
-        <Label for="new-password">{{ t('settings.account.newPassword') }}</Label>
+        <Label for="new-password">{{
+          t('settings.account.newPassword')
+        }}</Label>
         <Input
           id="new-password"
           v-model="passwordForm.newPassword"
@@ -39,7 +44,9 @@ const { passwordForm, passwordError, isUpdatingPassword, updatePassword } = useP
       </div>
 
       <div class="space-y-2">
-        <Label for="confirm-password">{{ t('settings.account.confirmPassword') }}</Label>
+        <Label for="confirm-password">{{
+          t('settings.account.confirmPassword')
+        }}</Label>
         <Input
           id="confirm-password"
           v-model="passwordForm.confirmPassword"
@@ -62,7 +69,11 @@ const { passwordForm, passwordError, isUpdatingPassword, updatePassword } = useP
         :disabled="isUpdatingPassword"
         @click="updatePassword"
       >
-        {{ isUpdatingPassword ? t('settings.account.updatingPassword') : t('settings.account.updatePassword') }}
+        {{
+          isUpdatingPassword
+            ? t('settings.account.updatingPassword')
+            : t('settings.account.updatePassword')
+        }}
       </Button>
     </template>
   </SettingsSectionCard>

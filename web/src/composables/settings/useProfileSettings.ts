@@ -6,7 +6,11 @@ import { getAPIErrorMessage } from '@/lib/api/error-messages'
 import { getUserRoleBadgeVariant, getUserRoleLabelKey } from '@/lib/auth/roles'
 import { getAvatarFallbackText } from '@/lib/avatar'
 import { useAuthStore } from '@/stores/auth'
-import { AVATAR_ACCEPTED_FILE_TYPES, compressAvatarFile, validateAvatarFile } from '@/utils/settings/avatar'
+import {
+  AVATAR_ACCEPTED_FILE_TYPES,
+  compressAvatarFile,
+  validateAvatarFile,
+} from '@/utils/settings/avatar'
 import { normalizeOptionalEmail } from '@/utils/settings/preferences'
 
 export function useProfileSettings() {
@@ -29,16 +33,29 @@ export function useProfileSettings() {
   })
 
   const currentIdentity = computed(() => authStore.viewer?.identity ?? null)
-  const currentRoleKey = computed(() => authStore.viewer?.authorization.role ?? null)
-  const avatarFallbackText = computed(() => getAvatarFallbackText(currentIdentity.value?.username))
-  const avatarImageSrc = computed(() => currentIdentity.value?.avatarUrl ?? null)
+  const currentRoleKey = computed(
+    () => authStore.viewer?.authorization.role ?? null,
+  )
+  const avatarFallbackText = computed(() =>
+    getAvatarFallbackText(currentIdentity.value?.username),
+  )
+  const avatarImageSrc = computed(
+    () => currentIdentity.value?.avatarUrl ?? null,
+  )
   const editAvatarFallbackText = computed(() => {
     const username = editForm.value.username.trim()
-    return getAvatarFallbackText(username.length > 0 ? username : currentIdentity.value?.username)
+    return getAvatarFallbackText(
+      username.length > 0 ? username : currentIdentity.value?.username,
+    )
   })
-  const editAvatarImageSrc = computed(() => pendingAvatarPreviewURL.value ?? currentIdentity.value?.avatarUrl ?? null)
+  const editAvatarImageSrc = computed(
+    () =>
+      pendingAvatarPreviewURL.value ?? currentIdentity.value?.avatarUrl ?? null,
+  )
   const roleLabel = computed(() => t(getUserRoleLabelKey(currentRoleKey.value)))
-  const roleBadgeVariant = computed(() => getUserRoleBadgeVariant(currentRoleKey.value))
+  const roleBadgeVariant = computed(() =>
+    getUserRoleBadgeVariant(currentRoleKey.value),
+  )
 
   const stopAvatarChange = avatarDialog.onChange((files) => {
     const file = files?.[0]
@@ -76,7 +93,10 @@ export function useProfileSettings() {
   async function handleSelectedAvatarFile(file: File) {
     const validation = validateAvatarFile(file)
     if (!validation.ok) {
-      profileError.value = validation.failure === 'unsupported-type' ? t('settings.account.avatarUnsupportedType') : t('settings.account.avatarFileTooLarge')
+      profileError.value =
+        validation.failure === 'unsupported-type'
+          ? t('settings.account.avatarUnsupportedType')
+          : t('settings.account.avatarFileTooLarge')
       avatarDialog.reset()
       return
     }
@@ -115,7 +135,11 @@ export function useProfileSettings() {
       toast.success(t('settings.account.profileUpdated'))
       editDialogOpen.value = false
     } catch (error) {
-      const message = getAPIErrorMessage(t, error, 'apiError.profileUpdateFailed')
+      const message = getAPIErrorMessage(
+        t,
+        error,
+        'apiError.profileUpdateFailed',
+      )
       profileError.value = message
       toast.error(message)
     } finally {

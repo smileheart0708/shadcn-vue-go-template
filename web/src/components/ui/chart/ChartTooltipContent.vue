@@ -52,7 +52,9 @@ const payload = computed<TooltipPayloadItem[]>(() => {
   return items
 })
 
-const nestLabel = computed(() => Object.keys(props.payload).length === 1 && props.indicator !== 'dot')
+const nestLabel = computed(
+  () => Object.keys(props.payload).length === 1 && props.indicator !== 'dot',
+)
 const tooltipLabel = computed(() => {
   if (props.hideLabel) {
     return null
@@ -72,7 +74,9 @@ const tooltipLabel = computed(() => {
   return props.x ?? null
 })
 
-function readPayloadColor(payload: Record<string, unknown>): string | undefined {
+function readPayloadColor(
+  payload: Record<string, unknown>,
+): string | undefined {
   const fill = payload.fill
   return typeof fill === 'string' ? fill : undefined
 }
@@ -82,7 +86,11 @@ function formatTooltipValue(value: unknown): string {
     return ''
   }
 
-  if (typeof value === 'number' || typeof value === 'bigint' || typeof value === 'string') {
+  if (
+    typeof value === 'number' ||
+    typeof value === 'bigint' ||
+    typeof value === 'string'
+  ) {
     return value.toLocaleString()
   }
 
@@ -104,7 +112,14 @@ function formatTooltipValue(value: unknown): string {
 </script>
 
 <template>
-  <div :class="cn('grid items-start gap-1.5 rounded-lg border border-border/50 bg-background px-2.5 py-1.5 text-xs shadow-xl min-inline-32', props.class)">
+  <div
+    :class="
+      cn(
+        'grid items-start gap-1.5 rounded-lg border border-border/50 bg-background px-2.5 py-1.5 text-xs shadow-xl min-inline-32',
+        props.class,
+      )
+    "
+  >
     <slot>
       <div
         v-if="!nestLabel && tooltipLabel !== null"
@@ -116,7 +131,12 @@ function formatTooltipValue(value: unknown): string {
         <div
           v-for="{ value, itemConfig, indicatorColor, key } in payload"
           :key="key"
-          :class="cn('flex flex-wrap items-stretch gap-2 inline-full [&>svg]:text-muted-foreground [&>svg]:block-2.5 [&>svg]:inline-2.5', indicator === 'dot' ? 'items-center' : undefined)"
+          :class="
+            cn(
+              'flex flex-wrap items-stretch gap-2 inline-full [&>svg]:text-muted-foreground [&>svg]:block-2.5 [&>svg]:inline-2.5',
+              indicator === 'dot' ? 'items-center' : undefined,
+            )
+          "
         >
           <component
             :is="itemConfig.icon"
@@ -128,15 +148,26 @@ function formatTooltipValue(value: unknown): string {
                 cn('shrink-0 rounded-[2px] border-border bg-(--color-bg)', {
                   'block-2.5 inline-2.5': indicator === 'dot',
                   'inline-1': indicator === 'line',
-                  'border-[1.5px] border-dashed bg-transparent inline-0': indicator === 'dashed',
+                  'border-[1.5px] border-dashed bg-transparent inline-0':
+                    indicator === 'dashed',
                   'my-0.5': nestLabel && indicator === 'dashed',
                 })
               "
-              :style="{ '--color-bg': indicatorColor, '--color-border': indicatorColor }"
+              :style="{
+                '--color-bg': indicatorColor,
+                '--color-border': indicatorColor,
+              }"
             />
           </template>
 
-          <div :class="cn('flex flex-1 justify-between leading-none', nestLabel ? 'items-end' : 'items-center')">
+          <div
+            :class="
+              cn(
+                'flex flex-1 justify-between leading-none',
+                nestLabel ? 'items-end' : 'items-center',
+              )
+            "
+          >
             <div class="grid gap-1.5">
               <div
                 v-if="nestLabel"

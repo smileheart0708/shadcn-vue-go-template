@@ -47,12 +47,22 @@ onMounted(() => {
 <template>
   <div
     v-if="containerSelector !== ''"
-    :class="cn('flex items-center justify-center gap-4', verticalAlign === 'top' ? 'pbe-3' : 'pbs-3', props.class)"
+    :class="
+      cn(
+        'flex items-center justify-center gap-4',
+        verticalAlign === 'top' ? 'pbe-3' : 'pbs-3',
+        props.class,
+      )
+    "
   >
     <div
       v-for="{ key, itemConfig } in payload"
       :key="key"
-      :class="cn('flex items-center gap-1.5 [&>svg]:text-muted-foreground [&>svg]:block-3 [&>svg]:inline-3')"
+      :class="
+        cn(
+          'flex items-center gap-1.5 [&>svg]:text-muted-foreground [&>svg]:block-3 [&>svg]:inline-3',
+        )
+      "
     >
       <component
         :is="itemConfig.icon"

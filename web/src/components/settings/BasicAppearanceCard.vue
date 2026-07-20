@@ -1,7 +1,13 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import type { AppLocale } from '@/plugins/i18n/locales'
 import type { ThemePreference } from '@/stores/theme'
@@ -35,9 +41,13 @@ const { t } = useI18n()
         @update:model-value="emit('update:theme', $event)"
       >
         <TabsList>
-          <TabsTrigger value="light">{{ t('settings.basic.light') }}</TabsTrigger>
+          <TabsTrigger value="light">{{
+            t('settings.basic.light')
+          }}</TabsTrigger>
           <TabsTrigger value="dark">{{ t('settings.basic.dark') }}</TabsTrigger>
-          <TabsTrigger value="system">{{ t('settings.basic.system') }}</TabsTrigger>
+          <TabsTrigger value="system">{{
+            t('settings.basic.system')
+          }}</TabsTrigger>
         </TabsList>
       </Tabs>
     </div>

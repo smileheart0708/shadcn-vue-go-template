@@ -3,7 +3,12 @@ import type { DialogContentEmits, DialogContentProps } from 'reka-ui'
 import type { HTMLAttributes } from 'vue'
 import { reactiveOmit } from '@vueuse/core'
 import { X } from 'lucide-vue-next'
-import { DialogClose, DialogContent, DialogPortal, useForwardPropsEmits } from 'reka-ui'
+import {
+  DialogClose,
+  DialogContent,
+  DialogPortal,
+  useForwardPropsEmits,
+} from 'reka-ui'
 import { cn } from '@/lib/utils'
 import SheetOverlay from './SheetOverlay.vue'
 
@@ -31,10 +36,14 @@ const forwarded = useForwardPropsEmits(delegatedProps, emits)
       :class="
         cn(
           'fixed z-50 flex flex-col gap-4 bg-background p-4 shadow-lg transition ease-in-out data-[state=closed]:animate-out data-[state=closed]:duration-300 data-[state=open]:animate-in data-[state=open]:duration-500',
-          side === 'right' && 'inset-y-0 inset-e-0 border-s block-full inline-3/4 data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right sm:max-inline-sm',
-          side === 'left' && 'inset-y-0 inset-s-0 border-e block-full inline-3/4 data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left sm:max-inline-sm',
-          side === 'top' && 'inset-x-0 inset-bs-0 border-be block-auto data-[state=closed]:slide-out-to-top data-[state=open]:slide-in-from-top',
-          side === 'bottom' && 'inset-x-0 inset-be-0 border-bs block-auto data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom',
+          side === 'right' &&
+            'inset-y-0 inset-e-0 border-s block-full inline-3/4 data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right sm:max-inline-sm',
+          side === 'left' &&
+            'inset-y-0 inset-s-0 border-e block-full inline-3/4 data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left sm:max-inline-sm',
+          side === 'top' &&
+            'inset-x-0 inset-bs-0 border-be block-auto data-[state=closed]:slide-out-to-top data-[state=open]:slide-in-from-top',
+          side === 'bottom' &&
+            'inset-x-0 inset-be-0 border-bs block-auto data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom',
           props.class,
         )
       "

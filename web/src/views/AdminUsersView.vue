@@ -14,7 +14,9 @@ import { useAdminUserMutations } from '@/composables/admin-users/useAdminUserMut
 
 const { t } = useI18n()
 const authStore = useAuthStore()
-const canCreateUsers = computed(() => authStore.can(CAPABILITY.managementUsersCreate))
+const canCreateUsers = computed(() =>
+  authStore.can(CAPABILITY.managementUsersCreate),
+)
 
 const {
   users,
@@ -57,7 +59,9 @@ const {
     <section class="flex items-start justify-between gap-4">
       <div class="space-y-1">
         <h2 class="text-2xl font-semibold">{{ t('adminUsers.title') }}</h2>
-        <p class="text-sm text-muted-foreground">{{ t('adminUsers.description') }}</p>
+        <p class="text-sm text-muted-foreground">
+          {{ t('adminUsers.description') }}
+        </p>
       </div>
 
       <Button

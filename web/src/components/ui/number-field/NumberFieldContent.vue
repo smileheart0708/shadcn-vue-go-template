@@ -8,7 +8,14 @@ const props = defineProps<{
 </script>
 
 <template>
-  <div :class="cn('relative **:data-[slot=input]:has-[data-slot=decrement]:ps-5 **:data-[slot=input]:has-[data-slot=increment]:pe-5', props.class)">
+  <div
+    :class="
+      cn(
+        'relative **:data-[slot=input]:has-[data-slot=decrement]:ps-5 **:data-[slot=input]:has-[data-slot=increment]:pe-5',
+        props.class,
+      )
+    "
+  >
     <slot />
   </div>
 </template>

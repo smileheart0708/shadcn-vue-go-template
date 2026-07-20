@@ -218,7 +218,11 @@ class InternalPollingTask {
   }
 
   private flushImmediateRun() {
-    if (this.pendingImmediateReason === null || this.inFlight || !this.running.value) {
+    if (
+      this.pendingImmediateReason === null ||
+      this.inFlight ||
+      !this.running.value
+    ) {
       this.syncPausedState()
       return
     }
@@ -258,14 +262,23 @@ class InternalPollingTask {
     try {
       await options.execute({ reason, signal: controller.signal })
 
-      if (!controller.signal.aborted && runId === this.runId && this.isRunning()) {
+      if (
+        !controller.signal.aborted &&
+        runId === this.runId &&
+        this.isRunning()
+      ) {
         this.failureCount = 0
         this.lastUpdatedAt.value = Date.now()
         this.error.value = null
         nextDelayMs = this.getSuccessDelayMs(options)
       }
     } catch (error) {
-      if (!isAbortError(error) && !controller.signal.aborted && runId === this.runId && this.isRunning()) {
+      if (
+        !isAbortError(error) &&
+        !controller.signal.aborted &&
+        runId === this.runId &&
+        this.isRunning()
+      ) {
         this.failureCount += 1
         this.error.value = error
         nextDelayMs = this.getFailureDelayMs(options)
@@ -345,7 +358,9 @@ class InternalPollingTask {
   }
 
   private syncPausedState() {
-    this.paused.value = this.running.value && (this.manualPaused || !isDocumentVisible() || !this.isEnabled())
+    this.paused.value =
+      this.running.value &&
+      (this.manualPaused || !isDocumentVisible() || !this.isEnabled())
   }
 
   private isEnabled() {
@@ -364,7 +379,9 @@ class InternalPollingTask {
   }
 }
 
-export function acquirePollingTask<TData>(options: PollingTaskOptions<TData>): PollingTaskSubscription {
+export function acquirePollingTask<TData>(
+  options: PollingTaskOptions<TData>,
+): PollingTaskSubscription {
   const normalizedOptions = toInternalPollingTaskOptions(options)
   let task = taskRegistry.get(options.key)
 
@@ -387,7 +404,11 @@ function ensureVisibilityListener() {
 }
 
 function maybeRemoveVisibilityListener() {
-  if (!visibilityListenerInstalled || taskRegistry.size > 0 || typeof document === 'undefined') {
+  if (
+    !visibilityListenerInstalled ||
+    taskRegistry.size > 0 ||
+    typeof document === 'undefined'
+  ) {
     return
   }
 
@@ -402,14 +423,20 @@ function handleVisibilityChange() {
 }
 
 function isDocumentVisible() {
-  return typeof document === 'undefined' || document.visibilityState === 'visible'
+  return (
+    typeof document === 'undefined' || document.visibilityState === 'visible'
+  )
 }
 
 function isAbortError(error: unknown) {
-  return error instanceof DOMException ? error.name === 'AbortError' : error instanceof Error && error.name === 'AbortError'
+  return error instanceof DOMException
+    ? error.name === 'AbortError'
+    : error instanceof Error && error.name === 'AbortError'
 }
 
-function toInternalPollingTaskOptions<TData>(options: PollingTaskOptions<TData>): InternalPollingTaskOptions {
+function toInternalPollingTaskOptions<TData>(
+  options: PollingTaskOptions<TData>,
+): InternalPollingTaskOptions {
   return {
     key: options.key,
     intervalMs: options.intervalMs,

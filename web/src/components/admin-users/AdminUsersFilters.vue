@@ -1,7 +1,13 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import { Input } from '@/components/ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import type { AdminUsersStatusFilter } from '@/composables/admin-users/useAdminUsersList'
 
 const emit = defineEmits<{
@@ -9,7 +15,9 @@ const emit = defineEmits<{
 }>()
 
 const searchQuery = defineModel<string>('searchQuery', { required: true })
-const statusFilter = defineModel<AdminUsersStatusFilter>('statusFilter', { required: true })
+const statusFilter = defineModel<AdminUsersStatusFilter>('statusFilter', {
+  required: true,
+})
 
 const { t } = useI18n()
 </script>
@@ -31,9 +39,15 @@ const { t } = useI18n()
         <SelectValue :placeholder="t('adminUsers.filters.statusPlaceholder')" />
       </SelectTrigger>
       <SelectContent>
-        <SelectItem value="ALL">{{ t('adminUsers.filters.statusAll') }}</SelectItem>
-        <SelectItem value="active">{{ t('adminUsers.status.active') }}</SelectItem>
-        <SelectItem value="disabled">{{ t('adminUsers.status.disabled') }}</SelectItem>
+        <SelectItem value="ALL">{{
+          t('adminUsers.filters.statusAll')
+        }}</SelectItem>
+        <SelectItem value="active">{{
+          t('adminUsers.status.active')
+        }}</SelectItem>
+        <SelectItem value="disabled">{{
+          t('adminUsers.status.disabled')
+        }}</SelectItem>
       </SelectContent>
     </Select>
   </section>

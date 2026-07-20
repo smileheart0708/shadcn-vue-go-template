@@ -5,13 +5,32 @@ import { ShieldBan, ShieldCheck } from 'lucide-vue-next'
 import UserAvatar from '@/components/common/UserAvatar.vue'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty'
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyTitle,
+} from '@/components/ui/empty'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Spinner } from '@/components/ui/spinner'
-import { Table, TableBody, TableCell, TableEmpty, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableEmpty,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import type { ManagedUser } from '@/lib/api/admin-users'
 import { getUserRoleBadgeVariant, getUserRoleLabelKey } from '@/lib/auth/roles'
-import { createAdminUserDateFormatter, formatNullableAdminUserDateTime, getAdminUserStatusBadgeVariant, hasAdminUserAction } from '@/utils/admin-users/table'
+import {
+  createAdminUserDateFormatter,
+  formatNullableAdminUserDateTime,
+  getAdminUserStatusBadgeVariant,
+  hasAdminUserAction,
+} from '@/utils/admin-users/table'
 
 defineProps<{
   users: readonly ManagedUser[]
@@ -33,7 +52,9 @@ const emit = defineEmits<{
 
 const { t, locale } = useI18n()
 
-const dateTimeFormatter = computed(() => createAdminUserDateFormatter(locale.value))
+const dateTimeFormatter = computed(() =>
+  createAdminUserDateFormatter(locale.value),
+)
 const neverUsedLabel = computed(() => t('common.state.neverUsed'))
 </script>
 
@@ -51,7 +72,9 @@ const neverUsedLabel = computed(() => t('common.state.neverUsed'))
           <TableHead>{{ t('adminUsers.table.status') }}</TableHead>
           <TableHead>{{ t('adminUsers.table.lastActiveAt') }}</TableHead>
           <TableHead>{{ t('adminUsers.table.createdAt') }}</TableHead>
-          <TableHead class="text-end">{{ t('adminUsers.table.actions') }}</TableHead>
+          <TableHead class="text-end">{{
+            t('adminUsers.table.actions')
+          }}</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -77,10 +100,14 @@ const neverUsedLabel = computed(() => t('common.state.neverUsed'))
     <Empty>
       <EmptyHeader>
         <EmptyTitle>{{ t('adminUsers.feedback.loadFailedTitle') }}</EmptyTitle>
-        <EmptyDescription>{{ t('adminUsers.feedback.loadFailed') }}</EmptyDescription>
+        <EmptyDescription>{{
+          t('adminUsers.feedback.loadFailed')
+        }}</EmptyDescription>
       </EmptyHeader>
       <EmptyContent>
-        <Button @click="emit('retry')">{{ t('adminUsers.actions.retry') }}</Button>
+        <Button @click="emit('retry')">{{
+          t('adminUsers.actions.retry')
+        }}</Button>
       </EmptyContent>
     </Empty>
   </div>
@@ -99,7 +126,9 @@ const neverUsedLabel = computed(() => t('common.state.neverUsed'))
             <TableHead>{{ t('adminUsers.table.status') }}</TableHead>
             <TableHead>{{ t('adminUsers.table.lastActiveAt') }}</TableHead>
             <TableHead>{{ t('adminUsers.table.createdAt') }}</TableHead>
-            <TableHead class="text-end">{{ t('adminUsers.table.actions') }}</TableHead>
+            <TableHead class="text-end">{{
+              t('adminUsers.table.actions')
+            }}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -119,7 +148,9 @@ const neverUsedLabel = computed(() => t('common.state.neverUsed'))
                   <span class="truncate font-medium">{{ user.username }}</span>
                 </div>
               </TableCell>
-              <TableCell>{{ user.email ?? t('adminUsers.table.noEmail') }}</TableCell>
+              <TableCell>{{
+                user.email ?? t('adminUsers.table.noEmail')
+              }}</TableCell>
               <TableCell>
                 <Badge :variant="getUserRoleBadgeVariant(user.role)">
                   {{ t(getUserRoleLabelKey(user.role)) }}
@@ -127,11 +158,27 @@ const neverUsedLabel = computed(() => t('common.state.neverUsed'))
               </TableCell>
               <TableCell>
                 <Badge :variant="getAdminUserStatusBadgeVariant(user.status)">
-                  {{ user.status === 'active' ? t('adminUsers.status.active') : t('adminUsers.status.disabled') }}
+                  {{
+                    user.status === 'active'
+                      ? t('adminUsers.status.active')
+                      : t('adminUsers.status.disabled')
+                  }}
                 </Badge>
               </TableCell>
-              <TableCell>{{ formatNullableAdminUserDateTime(user.lastActiveAt, dateTimeFormatter, neverUsedLabel) }}</TableCell>
-              <TableCell>{{ formatNullableAdminUserDateTime(user.createdAt, dateTimeFormatter, neverUsedLabel) }}</TableCell>
+              <TableCell>{{
+                formatNullableAdminUserDateTime(
+                  user.lastActiveAt,
+                  dateTimeFormatter,
+                  neverUsedLabel,
+                )
+              }}</TableCell>
+              <TableCell>{{
+                formatNullableAdminUserDateTime(
+                  user.createdAt,
+                  dateTimeFormatter,
+                  neverUsedLabel,
+                )
+              }}</TableCell>
               <TableCell>
                 <div
                   v-if="user.role === 'owner'"
@@ -153,15 +200,26 @@ const neverUsedLabel = computed(() => t('common.state.neverUsed'))
                   </Button>
                   <Button
                     size="sm"
-                    :variant="user.status === 'active' ? 'destructive' : 'outline'"
-                    :disabled="!(hasAdminUserAction(user, 'disable') || hasAdminUserAction(user, 'enable'))"
+                    :variant="
+                      user.status === 'active' ? 'destructive' : 'outline'
+                    "
+                    :disabled="
+                      !(
+                        hasAdminUserAction(user, 'disable') ||
+                        hasAdminUserAction(user, 'enable')
+                      )
+                    "
                     @click="emit('toggle-status', user)"
                   >
                     <component
                       :is="user.status === 'active' ? ShieldBan : ShieldCheck"
                       class="me-2 block-4 inline-4"
                     />
-                    {{ user.status === 'active' ? t('adminUsers.actions.disable') : t('adminUsers.actions.enable') }}
+                    {{
+                      user.status === 'active'
+                        ? t('adminUsers.actions.disable')
+                        : t('adminUsers.actions.enable')
+                    }}
                   </Button>
                 </div>
               </TableCell>

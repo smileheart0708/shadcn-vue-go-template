@@ -2,8 +2,23 @@ import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import type { Router } from 'vue-router'
 import type { ChangePasswordInput, UpdateProfileInput } from '@/lib/api/account'
-import { deleteAccount as deleteAccountRequest, updatePassword as updatePasswordRequest, updateProfile as updateProfileRequest, uploadAvatar as uploadAvatarRequest } from '@/lib/api/account'
-import type { Capability, InstallState, LoginCredentials, PublicAuthConfig, RegisterInput, RoleKey, SessionResponse, SetupInput, Viewer } from '@/lib/api/auth'
+import {
+  deleteAccount as deleteAccountRequest,
+  updatePassword as updatePasswordRequest,
+  updateProfile as updateProfileRequest,
+  uploadAvatar as uploadAvatarRequest,
+} from '@/lib/api/account'
+import type {
+  Capability,
+  InstallState,
+  LoginCredentials,
+  PublicAuthConfig,
+  RegisterInput,
+  RoleKey,
+  SessionResponse,
+  SetupInput,
+  Viewer,
+} from '@/lib/api/auth'
 import {
   completeSetup as completeSetupRequest,
   getInstallState,
@@ -14,7 +29,10 @@ import {
   refreshSession,
   register as registerRequest,
 } from '@/lib/api/auth'
-import { clearAuthClientHandlers, registerAuthClientHandlers } from '@/lib/api/client'
+import {
+  clearAuthClientHandlers,
+  registerAuthClientHandlers,
+} from '@/lib/api/client'
 import { clearAuthToken, readAuthToken, writeAuthToken } from '@/lib/auth/token'
 
 export const useAuthStore = defineStore('auth', () => {
@@ -26,9 +44,15 @@ export const useAuthStore = defineStore('auth', () => {
   const installState = ref<InstallState | null>(null)
   const publicAuthConfig = ref<PublicAuthConfig | null>(null)
 
-  const isSetupComplete = computed(() => installState.value?.setupCompleted === true)
-  const isAuthenticated = computed(() => token.value !== null && viewer.value !== null)
-  const capabilities = computed(() => viewer.value?.authorization.capabilities ?? [])
+  const isSetupComplete = computed(
+    () => installState.value?.setupCompleted === true,
+  )
+  const isAuthenticated = computed(
+    () => token.value !== null && viewer.value !== null,
+  )
+  const capabilities = computed(
+    () => viewer.value?.authorization.capabilities ?? [],
+  )
   const currentRole = computed(() => viewer.value?.authorization.role ?? null)
 
   let initializePromise: Promise<void> | null = null
@@ -96,12 +120,17 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function refreshPublicState() {
-    const [nextInstallState, nextPublicAuthConfig] = await Promise.all([getInstallState(), getPublicAuthConfig()])
+    const [nextInstallState, nextPublicAuthConfig] = await Promise.all([
+      getInstallState(),
+      getPublicAuthConfig(),
+    ])
     installState.value = nextInstallState
     publicAuthConfig.value = nextPublicAuthConfig
   }
 
-  async function refreshViewer(options: { signal?: AbortSignal; backgroundRequest?: boolean } = {}) {
+  async function refreshViewer(
+    options: { signal?: AbortSignal; backgroundRequest?: boolean } = {},
+  ) {
     if (token.value === null || !isSetupComplete.value) {
       return null
     }
@@ -112,12 +141,17 @@ export const useAuthStore = defineStore('auth', () => {
     return nextViewer
   }
 
-  async function fetchViewer(options: { signal?: AbortSignal; backgroundRequest?: boolean } = {}) {
+  async function fetchViewer(
+    options: { signal?: AbortSignal; backgroundRequest?: boolean } = {},
+  ) {
     return getViewer(options)
   }
 
   async function initialize() {
-    if (initialized.value && (!isSetupComplete.value || viewer.value !== null)) {
+    if (
+      initialized.value &&
+      (!isSetupComplete.value || viewer.value !== null)
+    ) {
       return
     }
 
@@ -227,7 +261,8 @@ export const useAuthStore = defineStore('auth', () => {
       return
     }
 
-    const redirect = currentRoute.fullPath !== '/login' ? currentRoute.fullPath : undefined
+    const redirect =
+      currentRoute.fullPath !== '/login' ? currentRoute.fullPath : undefined
     await boundRouter
       .push({
         name: 'login',

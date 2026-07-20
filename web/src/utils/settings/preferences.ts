@@ -1,4 +1,9 @@
-import { isSupportedLocale, localeNames, supportedLocales, type AppLocale } from '@/plugins/i18n/locales'
+import {
+  isSupportedLocale,
+  localeNames,
+  supportedLocales,
+  type AppLocale,
+} from '@/plugins/i18n/locales'
 import type { ThemePreference } from '@/stores/theme'
 
 export interface LocaleOption {

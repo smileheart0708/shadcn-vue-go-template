@@ -28,7 +28,11 @@ const API_ERROR_MESSAGE_KEYS = {
 type Translate = (key: string) => string
 type APIErrorMessageCode = keyof typeof API_ERROR_MESSAGE_KEYS
 
-export function getAPIErrorMessage(t: Translate, error: unknown, fallbackKey = 'apiError.unknown'): string {
+export function getAPIErrorMessage(
+  t: Translate,
+  error: unknown,
+  fallbackKey = 'apiError.unknown',
+): string {
   if (isAPIError(error) && error.code !== undefined && error.code !== '') {
     const key = getAPIErrorMessageKey(error.code)
     if (key) {
@@ -39,7 +43,9 @@ export function getAPIErrorMessage(t: Translate, error: unknown, fallbackKey = '
   return t(fallbackKey)
 }
 
-function getAPIErrorMessageKey(code: string): (typeof API_ERROR_MESSAGE_KEYS)[keyof typeof API_ERROR_MESSAGE_KEYS] | null {
+function getAPIErrorMessageKey(
+  code: string,
+): (typeof API_ERROR_MESSAGE_KEYS)[keyof typeof API_ERROR_MESSAGE_KEYS] | null {
   if (!hasAPIErrorMessageKey(code)) {
     return null
   }
@@ -48,7 +54,9 @@ function getAPIErrorMessageKey(code: string): (typeof API_ERROR_MESSAGE_KEYS)[ke
 }
 
 function isAPIError(error: unknown): error is APIError {
-  return error instanceof Error && error.name === 'APIError' && 'status' in error
+  return (
+    error instanceof Error && error.name === 'APIError' && 'status' in error
+  )
 }
 
 function hasAPIErrorMessageKey(code: string): code is APIErrorMessageCode {
