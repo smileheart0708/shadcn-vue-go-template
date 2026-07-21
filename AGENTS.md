@@ -1,38 +1,47 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-- `main.go` starts the Go server; `frontend_embed.go` embeds the built frontend into the binary.
-- `internal/` holds backend code: `auth`, `config`, `database`, `httpapi`, `logging`, and `users`.
-- `web/src/` contains the Vue 3 app. Key areas are `components/`, `views/`, `layouts/`, `router/`, `stores/`, `lib/`, `plugins/`, `mocks/`, and `locales/`.
-- `web/src/components/ui/` contains reusable shadcn-vue style primitives. `web/dist/` is generated output and should not be edited.
+
+- `main.go` is the Go composition root. `frontend_embed.go` embeds the built `web/dist` assets into the server binary.
+- `internal/` contains Go packages for authentication, authorization, database access, HTTP handlers, identity, logging, setup, and users. Tests live beside code as `*_test.go`.
+- `web/src/` contains the Vue 3 app: `components/`, `views/`, `layouts/`, `router/`, `stores/`, `composables/`, `lib/`, `locales/`, `mocks/`, and `utils/`. Reusable shadcn-vue primitives live under `web/src/components/ui/`.
+- `web/dist/`, `.data/`, `node_modules/`, and compiled executables are generated or local-only files.
+
+## Project-Level Constraints
+
+This is a starter, not a compatibility layer. Optimize for a clean, current foundation:
+
+- Do not preserve legacy wrappers, deprecated exports, shims, or historical package structure unless requested.
+- Prefer clear boundaries, explicit data flow, and production-safe defaults over speculative flexibility.
+- When contracts change, update callers, tests, mocks, and docs together; add no branches for old callers.
 
 ## Build, Test, and Development Commands
-- `cd web && pnpm install` installs frontend dependencies.
-- `cd web && pnpm dev` starts the Vite dev server.
-- `cd web && pnpm build` builds the frontend for production.
-- `cd web && pnpm lint` runs ESLint; `cd web && pnpm typecheck` runs Vue/TypeScript checks.
-- `go test ./...` runs all Go tests.
-- `go build .` builds the backend binary.
-- `.\build.ps1` builds the frontend, then the Go app into `app.exe`.
+
+Run frontend commands in `web/` with pinned `pnpm`:
+
+```text
+pnpm install --frozen-lockfile  # install the locked dependencies
+pnpm dev           # start Vite development mode
+pnpm lint          # run ESLint
+pnpm typecheck     # run vue-tsc
+pnpm format:check  # verify Prettier formatting
+pnpm build         # create web/dist for embedding
+```
+
+From the repository root, use `go test ./...` for all Go tests and `go build .` for the backend. On Windows, `.\build.ps1` builds the frontend and then produces `app.exe`.
 
 ## Coding Style & Naming Conventions
-- Use `gofmt` for Go code and keep packages focused and small.
-- Frontend formatting follows Prettier: no semicolons, single quotes, 200 character print width, trailing commas, and LF line endings.
-- Follow existing Vue naming patterns: components in `PascalCase.vue`, composables as `use*.ts`, and route/store files with descriptive lowercase names.
-- Keep translation keys grouped logically in `web/src/locales/` and reuse shared namespaces such as `common.*`.
-- For new page or component loading states, keep the dependency explicit and local to the relevant view or subcomponent: prefer `Skeleton` for first-load placeholders that should preserve layout, and use the local shadcn `Spinner` for compact inline pending states such as button, dialog, or refresh actions. Do not auto-register or globally inject loading UI.
+
+Format Go with `gofmt`; keep business logic out of Vue views when a composable or service boundary exists. Use `PascalCase.vue` components, `use`-prefixed composables, and `*_test.go` tests. Prettier enforces no semicolons, single quotes, trailing commas, LF endings, and one attribute per line.
 
 ## Testing Guidelines
-- Go tests live beside the code as `*_test.go` files.
-- There is no separate frontend test runner configured; use `pnpm lint`, `pnpm typecheck`, and `pnpm build` to validate UI changes.
-- Add or update tests for backend changes in `config`, `httpapi`, `logging`, or `users` when behavior changes.
+
+Add focused Go tests beside behavior changes. No frontend test runner is configured; validate UI changes with `pnpm lint`, `pnpm typecheck`, `pnpm format:check`, and `pnpm build`.
 
 ## Commit & Pull Request Guidelines
-- Commit history uses scoped prefixes like `feat(web): ...`, `fix(backend): ...`, and `style(web): ...`.
-- PRs should describe the change, list validation commands run, and include screenshots for UI updates when relevant.
-- Link related issues when available and call out any migration or config impact.
+
+Use scoped Conventional Commit subjects such as `feat(sqlite): ...`, `chore(web): ...`, or `fix(httpapi): ...`. PRs should explain the change, list validation, include relevant screenshots, and call out migrations or configuration changes.
 
 ## Security & Configuration Tips
-- Do not commit `.env`, `.data/`, `node_modules/`, `web/dist/`, or built executables.
-- Runtime data lives under `.data/`; the JWT secret is loaded from `JWT_SECRET` or generated there automatically.
-- Frontend auth mocking is controlled by `VITE_API_MOCKING=true` in `web/.env.local`.
+
+Use `.env.example` for local configuration. Never commit `.env`, `.data/`, secrets, or build outputs. Treat `JWT_SECRET`, database paths, and `VITE_API_MOCKING` as environment-specific.

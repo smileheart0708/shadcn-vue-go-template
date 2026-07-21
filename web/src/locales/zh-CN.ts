@@ -2,7 +2,7 @@ import type { MessageSchema } from '@/locales/schema'
 
 const zhCN = {
   app: {
-    name: '模板',
+    name: '起始点',
     title: '{name}',
     titleWithPage: '{name}-{page}',
   },

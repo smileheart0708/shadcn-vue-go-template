@@ -16,7 +16,6 @@ import (
 )
 
 const (
-	defaultIssuer         = "shadcn-vue-go-template"
 	defaultAccessTTL      = 10 * time.Minute
 	defaultRefreshIdleTTL = 7 * 24 * time.Hour
 	defaultRefreshAbsTTL  = 30 * 24 * time.Hour
@@ -38,7 +37,6 @@ var (
 )
 
 type Options struct {
-	Issuer             string
 	Secret             []byte
 	TTL                time.Duration
 	RefreshIdleTTL     time.Duration
@@ -47,7 +45,6 @@ type Options struct {
 }
 
 type Service struct {
-	issuer             string
 	secret             []byte
 	ttl                time.Duration
 	refreshIdleTTL     time.Duration
@@ -122,9 +119,6 @@ type SessionRepository interface {
 }
 
 func NewService(options Options, sessions SessionRepository, identities *identity.Service, authorizationService *authorization.Service, policies *accountpolicies.Service) *Service {
-	if options.Issuer == "" {
-		options.Issuer = defaultIssuer
-	}
 	if options.TTL <= 0 {
 		options.TTL = defaultAccessTTL
 	}
@@ -136,7 +130,6 @@ func NewService(options Options, sessions SessionRepository, identities *identit
 	}
 
 	return &Service{
-		issuer:             options.Issuer,
 		secret:             options.Secret,
 		ttl:                options.TTL,
 		refreshIdleTTL:     options.RefreshIdleTTL,
@@ -449,7 +442,7 @@ func (s *Service) ParseAccessToken(token string) (Principal, error) {
 			return nil, ErrInvalidToken
 		}
 		return s.secret, nil
-	}, jwt.WithIssuer(s.issuer), jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}))
+	}, jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}))
 	if err != nil {
 		return Principal{}, ErrInvalidToken
 	}
@@ -531,7 +524,6 @@ func (s *Service) issueAccessToken(user identity.User, sessionID string) (string
 		SecurityVersion: user.SecurityVersion,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject:   strconv.FormatInt(user.ID, 10),
-			Issuer:    s.issuer,
 			IssuedAt:  jwt.NewNumericDate(now),
 			NotBefore: jwt.NewNumericDate(now),
 			ExpiresAt: jwt.NewNumericDate(expiresAt),

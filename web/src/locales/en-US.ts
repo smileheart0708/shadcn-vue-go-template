@@ -2,7 +2,7 @@ import type { MessageSchema } from '@/locales/schema'
 
 const enUS = {
   app: {
-    name: 'template',
+    name: 'Starter',
     title: '{name}',
     titleWithPage: '{name} - {page}',
   },

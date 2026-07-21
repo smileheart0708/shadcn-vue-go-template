@@ -445,7 +445,6 @@ func newTestContext(t *testing.T) *testContext {
 	policiesService := accountpolicies.NewService(dbRuntime.AccountPolicies)
 	setupService := setup.NewService(dbRuntime.Setup)
 	authService := auth.NewService(auth.Options{
-		Issuer:             "test-suite",
 		Secret:             []byte("test-secret"),
 		TTL:                time.Hour,
 		RefreshIdleTTL:     7 * 24 * time.Hour,

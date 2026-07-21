@@ -1,118 +1,61 @@
-# shadcn-vue-go-template
+# shadcn-vue-go-starter
 
-一个可直接起步的全栈模板项目：前端使用 Vue 3 + TypeScript + Vite + Tailwind CSS v4，后端使用 Go 1.26+ + SQLite。项目已经内置了登录、注册、用户信息、实时系统日志、任务列表、主题切换、国际化和前端 mock 等基础能力，适合作为后台管理系统或业务 SPA 的起点。
+`shadcn-vue-go-starter` 是一个面向新业务系统的全栈起始点。它提供一套可以直接继续建设的 Go + Vue 3 基础工程，把认证、授权、数据库、应用壳和常见后台页面先铺好，让新项目从清晰的架构边界开始，而不是从空白脚手架或历史兼容层开始。
 
-## 你可以直接得到什么
+## 项目定位
 
-- 前后端分离的完整项目结构，Go 负责 API 和静态资源托管
-- 基于 JWT 的认证流程
-- shadcn-vue 风格的组件和页面骨架
-- `MSW` 前端 mock，方便不启动后端也能开发登录相关页面
-- Vue I18n、Pinia、Vue Router、表格、图表、拖拽等常用能力
+- Go 服务负责配置加载、JWT 会话、角色与 capability 授权、SQLite 持久化、HTTP API 和前端静态资源托管。
+- Vue 应用提供登录、注册、初始化设置、Dashboard、个人设置、系统设置、用户管理、任务页和系统日志等可运行页面。
+- 前端使用 Pinia、Vue Router、Vue I18n、Tailwind CSS 和 shadcn-vue 风格组件；`MSW` 可通过 `VITE_API_MOCKING=true` 提供登录相关 mock。
+- 生产构建会把 `web/dist` 嵌入 Go 二进制，适合从一个仓库继续发展为独立业务应用。
 
-## 快速上手
+## 技术栈
 
-### 1. 安装依赖
+- Backend: Go 1.26.3, SQLite, `net/http`
+- Frontend: Vue 3, TypeScript, Vite 8, Tailwind CSS 4
+- Tooling: pnpm 11, ESLint, Prettier, `vue-tsc`
 
-```bash
+## 快速开始
+
+需要 Go 1.26.3、Node.js 和仓库指定版本的 pnpm。首次运行时可按需复制配置模板：
+
+```powershell
+Copy-Item .env.example .env
 cd web
-pnpm install
-```
-
-### 2. 启动前端开发
-
-```bash
-cd web
-pnpm dev
-```
-
-默认运行在 `http://localhost:5173`。
-
-### 3. 启动后端开发
-
-先构建前端，再启动 Go 服务：
-
-```bash
-cd web
+pnpm install --frozen-lockfile
 pnpm build
-
 cd ..
 go run .
 ```
 
-后端默认运行在 `http://localhost:8080`。
-
-### 4. Windows 一键构建
+服务默认监听 `http://localhost:8080`。前端开发服务器需要代理后端 API 时，在另一个终端运行：
 
 ```powershell
-.\build.ps1
-```
-
-会生成带前端资源的单文件可执行程序 `app.exe`。
-
-## 项目结构
-
-```text
-.
-├── main.go                # Go 入口
-├── frontend_embed.go      # 前端资源嵌入
-├── internal/              # 后端业务代码
-│   ├── auth/
-│   ├── config/
-│   ├── database/
-│   ├── httpapi/
-│   ├── logging/
-│   └── users/
-└── web/                   # Vue 前端
-    ├── src/
-    │   ├── components/
-    │   ├── layouts/
-    │   ├── lib/
-    │   ├── locales/
-    │   ├── router/
-    │   ├── stores/
-    │   └── views/
-    └── dist/              # 构建产物
+cd web
+pnpm dev
 ```
 
 ## 常用命令
 
-### 前端
-
-```bash
+```powershell
 cd web
-pnpm build         # 生产构建
-pnpm lint          # ESLint 检查
-pnpm typecheck     # TypeScript 检查
-pnpm format:check  # Prettier 检查
+pnpm lint
+pnpm typecheck
+pnpm format:check
+pnpm build
+
+cd ..
+go test ./...
+go build .
+.\build.ps1
 ```
 
-### 后端
+`build.ps1` 会先构建前端，再生成包含前端资源的 `app.exe`。也可以使用仓库中的 `Dockerfile` 构建 Linux 镜像。
 
-```bash
-go test ./...              # 运行全部测试
-go build .                  # 构建后端
-```
+## 目录与扩展方式
 
-## 配置说明
+- `internal/`：后端领域服务、数据库、HTTP API、认证和基础设施。
+- `web/src/views/`：页面；`web/src/components/`：可复用组件；`web/src/lib/api/`：前端 API 客户端；`web/src/locales/`：多语言资源。
+- 新领域功能应同时明确后端边界、API 契约、前端状态和页面职责；不要为了兼容旧结构增加包装层。
 
-常用环境变量：
-
-- `PORT`：后端端口，默认 `8080`
-- `DATA_DIR`：应用本地数据目录，默认 `./.data`
-- `DATABASE_DRIVER`：数据库后端，默认 `sqlite`；当前二进制仅内置 SQLite
-- `DATABASE_DSN`：数据库连接串；SQLite 未配置时默认使用 `DATA_DIR/data.db`
-- `JWT_SECRET`：JWT 密钥；不配置时会自动生成并持久化
-- `VITE_API_MOCKING`：启用前端 auth mock
-
-前端 mock 模式只覆盖登录和当前用户接口，适合 UI 联调。
-
-## 适合怎么改
-
-如果你要基于这个模板继续开发，通常从这几处开始：
-
-- 新页面放到 `web/src/views/`
-- 可复用组件放到 `web/src/components/`
-- API 封装放到 `web/src/lib/api/`
-- 后端接口放到 `internal/httpapi/`
-- 用户和认证逻辑放到 `internal/users/` 和 `internal/auth/`
+运行数据默认位于 `.data/`，JWT secret 会从 `JWT_SECRET` 读取；未配置时应用会在数据目录生成并保存随机 secret。不要提交 `.env`、`.data/`、secret 或构建产物。
