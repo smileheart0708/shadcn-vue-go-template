@@ -102,7 +102,6 @@ function Start-Build {
 
     Write-Host "正在构建 Go 项目..." -ForegroundColor Yellow
     $buildArgs = @(
-        "-tags=go_json"
         "-ldflags=-s -w"
         "-o", $Script:BackendOutput
         "."

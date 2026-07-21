@@ -12,7 +12,7 @@
 - `cd web && pnpm build` builds the frontend for production.
 - `cd web && pnpm lint` runs ESLint; `cd web && pnpm typecheck` runs Vue/TypeScript checks.
 - `go test ./...` runs all Go tests.
-- `go build -tags=go_json .` builds the backend binary.
+- `go build .` builds the backend binary.
 - `.\build.ps1` builds the frontend, then the Go app into `app.exe`.
 
 ## Coding Style & Naming Conventions

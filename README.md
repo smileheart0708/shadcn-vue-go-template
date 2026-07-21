@@ -91,7 +91,7 @@ pnpm format:check  # Prettier 检查
 
 ```bash
 go test ./...              # 运行全部测试
-go build -tags=go_json .    # 构建后端
+go build .                  # 构建后端
 ```
 
 ## 配置说明
