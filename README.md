@@ -99,8 +99,9 @@ go build -tags=go_json .    # 构建后端
 常用环境变量：
 
 - `PORT`：后端端口，默认 `8080`
-- `DATA_DIR`：SQLite 数据目录，默认 `./.data`
-- `DB_NAME`：数据库文件名，默认 `data.db`
+- `DATA_DIR`：应用本地数据目录，默认 `./.data`
+- `DATABASE_DRIVER`：数据库后端，默认 `sqlite`；当前二进制仅内置 SQLite
+- `DATABASE_DSN`：数据库连接串；SQLite 未配置时默认使用 `DATA_DIR/data.db`
 - `JWT_SECRET`：JWT 密钥；不配置时会自动生成并持久化
 - `VITE_API_MOCKING`：启用前端 auth mock
 

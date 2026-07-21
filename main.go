@@ -58,30 +58,30 @@ func run() error {
 		return fmt.Errorf("resolve data directory %q: %w", cfg.DataDir, err)
 	}
 
-	dbPath := filepath.Join(dataDir, cfg.DBName)
 	listenAddr := fmt.Sprintf(":%d", cfg.Port)
 
 	logging.LogStartupBanner(logger, listenAddr, dataDir)
 
-	dbContainer, err := database.Open(context.Background(), database.Options{
-		Path: dbPath,
+	dbRuntime, err := database.Open(context.Background(), database.Config{
+		Driver: cfg.Database.Driver,
+		DSN:    cfg.Database.DSN,
 	})
 	if err != nil {
-		return fmt.Errorf("open database %q: %w", dbPath, err)
+		return fmt.Errorf("open database driver %q: %w", cfg.Database.Driver, err)
 	}
-	defer closeDB(dbContainer)
+	defer closeDB(dbRuntime)
 
 	authorizationService := authorization.NewService()
-	identityService := identity.NewService(dbContainer.DB())
-	accountPoliciesService := accountpolicies.NewService(dbContainer.DB())
-	setupService := setup.NewService(dbContainer.DB(), identityService)
+	identityService := identity.NewService(dbRuntime.Identity)
+	accountPoliciesService := accountpolicies.NewService(dbRuntime.AccountPolicies)
+	setupService := setup.NewService(dbRuntime.Setup)
 	authService := auth.NewService(auth.Options{
 		Secret:             []byte(cfg.JWTSecret),
 		TTL:                cfg.JWTTTL,
 		RefreshIdleTTL:     cfg.RefreshIdleTTL,
 		RefreshAbsoluteTTL: cfg.RefreshAbsoluteTTL,
 		RefreshCookieName:  cfg.RefreshCookieName,
-	}, dbContainer.DB(), identityService, authorizationService, accountPoliciesService)
+	}, dbRuntime.Sessions, identityService, authorizationService, accountPoliciesService)
 
 	server := &http.Server{
 		Addr: listenAddr,
@@ -142,13 +142,13 @@ func run() error {
 	return nil
 }
 
-func closeDB(dbContainer *database.DBContainer) {
-	if dbContainer == nil {
+func closeDB(runtime *database.Runtime) {
+	if runtime == nil {
 		return
 	}
-	if err := dbContainer.Close(); err != nil {
+	if err := runtime.Close(); err != nil {
 		slog.Error("failed to close database", "error", err)
 		return
 	}
-	slog.Info("database closed", "path", dbContainer.Path())
+	slog.Info("database closed", "driver", runtime.Driver())
 }

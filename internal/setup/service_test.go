@@ -1,4 +1,4 @@
-package setup
+package setup_test
 
 import (
 	"context"
@@ -6,28 +6,28 @@ import (
 	"testing"
 
 	"main/internal/database"
-	"main/internal/identity"
+	"main/internal/setup"
 )
 
 func TestCompleteOnlyRunsOnceAndPersistsOwner(t *testing.T) {
 	t.Parallel()
 
-	container, err := database.Open(context.Background(), database.Options{
-		Path: filepath.Join(t.TempDir(), "app.db"),
+	runtime, err := database.Open(context.Background(), database.Config{
+		Driver: database.DriverSQLite,
+		DSN:    filepath.Join(t.TempDir(), "app.db"),
 	})
 	if err != nil {
 		t.Fatalf("failed to open database: %v", err)
 	}
 	t.Cleanup(func() {
-		if err := container.Close(); err != nil {
+		if err := runtime.Close(); err != nil {
 			t.Fatalf("failed to close database: %v", err)
 		}
 	})
 
-	identities := identity.NewService(container.DB())
-	service := NewService(container.DB(), identities)
+	service := setup.NewService(runtime.Setup)
 
-	owner, err := service.Complete(context.Background(), CompleteSetupInput{
+	owner, err := service.Complete(context.Background(), setup.CompleteSetupInput{
 		Username: "owner",
 		Password: "owner1234",
 	})
@@ -41,11 +41,11 @@ func TestCompleteOnlyRunsOnceAndPersistsOwner(t *testing.T) {
 		t.Fatalf("expected owner role, got %+v", owner.Role)
 	}
 
-	_, err = service.Complete(context.Background(), CompleteSetupInput{
+	_, err = service.Complete(context.Background(), setup.CompleteSetupInput{
 		Username: "other",
 		Password: "password123",
 	})
-	if err != ErrAlreadyCompleted {
+	if err != setup.ErrAlreadyCompleted {
 		t.Fatalf("expected ErrAlreadyCompleted, got %v", err)
 	}
 
@@ -56,12 +56,7 @@ func TestCompleteOnlyRunsOnceAndPersistsOwner(t *testing.T) {
 	if !state.SetupCompleted {
 		t.Fatal("expected setup state to be completed")
 	}
-
-	var ownerCount int
-	if err := container.DB().QueryRow(`SELECT COUNT(*) FROM users WHERE role = 'owner'`).Scan(&ownerCount); err != nil {
-		t.Fatalf("failed to count owners: %v", err)
-	}
-	if ownerCount != 1 {
-		t.Fatalf("expected exactly one owner, got %d", ownerCount)
+	if state.OwnerUserID == nil || *state.OwnerUserID != owner.ID {
+		t.Fatalf("expected owner ID %d in setup state, got %v", owner.ID, state.OwnerUserID)
 	}
 }

@@ -2,7 +2,6 @@ package identity
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"path/filepath"
@@ -10,7 +9,6 @@ import (
 	"time"
 
 	"main/internal/authorization"
-	"main/internal/database"
 )
 
 const (
@@ -74,244 +72,118 @@ type ListUsersResult struct {
 	Total    int
 }
 
+// Repository is the persistence seam for identity data. Implementations own
+// SQL dialects, constraint decoding, and transactions required by each method.
+type Repository interface {
+	CreateUser(ctx context.Context, params CreateUserParams) (User, error)
+	GetUserByID(ctx context.Context, userID int64) (User, error)
+	GetAuthRecordByID(ctx context.Context, userID int64) (AuthRecord, error)
+	GetAuthRecordByIdentifier(ctx context.Context, identifier string) (AuthRecord, error)
+	UpdateProfile(ctx context.Context, userID int64, username string, email *string) (User, error)
+	UpdateAvatar(ctx context.Context, userID int64, avatarPath *string) (User, error)
+	UpdateManagedUser(ctx context.Context, userID int64, params UpdateManagedUserParams) (User, error)
+	SetUserStatus(ctx context.Context, userID int64, status string) (User, error)
+	DeleteUser(ctx context.Context, userID int64) error
+	ListUsers(ctx context.Context, params ListUsersParams) (ListUsersResult, error)
+}
+
 type Service struct {
-	db *sql.DB
+	repository Repository
 }
 
-func NewService(db *sql.DB) *Service {
-	return &Service{db: db}
-}
-
-func (s *Service) DB() *sql.DB {
-	if s == nil {
-		return nil
-	}
-	return s.db
+func NewService(repository Repository) *Service {
+	return &Service{repository: repository}
 }
 
 func (s *Service) CreateUser(ctx context.Context, params CreateUserParams) (User, error) {
-	if s == nil || s.db == nil {
-		return User{}, errors.New("identity: nil service")
-	}
-
-	username := normalizeUsername(params.Username)
-	if username == "" {
-		return User{}, fmt.Errorf("identity: username is required")
-	}
-	role := normalizeRole(params.Role)
-	if role == "" {
-		return User{}, fmt.Errorf("identity: role is required")
-	}
-	passwordHash := strings.TrimSpace(params.PasswordHash)
-	if passwordHash == "" {
-		return User{}, fmt.Errorf("identity: password hash is required")
-	}
-
-	var created User
-	err := database.WithTx(ctx, s.db, func(tx *sql.Tx) error {
-		now := time.Now().UTC()
-		result, err := tx.ExecContext(
-			ctx,
-			`INSERT INTO users (
-				username,
-				email,
-				avatar_path,
-				status,
-				role,
-				security_version,
-				disabled_at,
-				created_at,
-				updated_at
-			) VALUES (?, ?, NULL, ?, ?, 1, NULL, ?, ?)`,
-			username,
-			normalizeEmailPointer(params.Email),
-			StatusActive,
-			role,
-			now.Unix(),
-			now.Unix(),
-		)
-		if err != nil {
-			return mapWriteError(err)
-		}
-
-		userID, err := result.LastInsertId()
-		if err != nil {
-			return fmt.Errorf("identity: read inserted user id: %w", err)
-		}
-
-		_, err = tx.ExecContext(
-			ctx,
-			`INSERT INTO credentials (
-				user_id,
-				password_hash,
-				password_changed_at,
-				created_at,
-				updated_at
-			) VALUES (?, ?, ?, ?, ?)`,
-			userID,
-			passwordHash,
-			now.Unix(),
-			now.Unix(),
-			now.Unix(),
-		)
-		if err != nil {
-			return fmt.Errorf("identity: insert credential: %w", err)
-		}
-
-		created, err = s.getUserQuerier(ctx, tx, userID)
-		return err
-	})
+	repository, err := s.requireRepository()
 	if err != nil {
 		return User{}, err
 	}
 
-	return created, nil
+	params.Username = normalizeUsername(params.Username)
+	if params.Username == "" {
+		return User{}, fmt.Errorf("identity: username is required")
+	}
+	params.Role = normalizeRole(params.Role)
+	if params.Role == "" {
+		return User{}, fmt.Errorf("identity: role is required")
+	}
+	params.PasswordHash = strings.TrimSpace(params.PasswordHash)
+	if params.PasswordHash == "" {
+		return User{}, fmt.Errorf("identity: password hash is required")
+	}
+	params.Email = normalizeEmailPointer(params.Email)
+
+	return repository.CreateUser(ctx, params)
 }
 
 func (s *Service) GetUserByID(ctx context.Context, userID int64) (User, error) {
-	if s == nil || s.db == nil {
-		return User{}, errors.New("identity: nil service")
+	repository, err := s.requireRepository()
+	if err != nil {
+		return User{}, err
 	}
-	return s.getUserQuerier(ctx, s.db, userID)
+	return repository.GetUserByID(ctx, userID)
 }
 
 func (s *Service) GetAuthRecordByID(ctx context.Context, userID int64) (AuthRecord, error) {
-	if s == nil || s.db == nil {
-		return AuthRecord{}, errors.New("identity: nil service")
+	repository, err := s.requireRepository()
+	if err != nil {
+		return AuthRecord{}, err
 	}
-	return getAuthRecord(ctx, s.db, userIDSelectQuery(), userID)
+	return repository.GetAuthRecordByID(ctx, userID)
 }
 
 func (s *Service) GetAuthRecordByIdentifier(ctx context.Context, identifier string) (AuthRecord, error) {
-	if s == nil || s.db == nil {
-		return AuthRecord{}, errors.New("identity: nil service")
+	repository, err := s.requireRepository()
+	if err != nil {
+		return AuthRecord{}, err
 	}
 
-	trimmed := strings.TrimSpace(identifier)
-	if trimmed == "" {
+	identifier = strings.TrimSpace(identifier)
+	if identifier == "" {
 		return AuthRecord{}, ErrUserNotFound
 	}
-
-	return getAuthRecord(
-		ctx,
-		s.db,
-		`SELECT
-			u.id,
-			u.username,
-			u.email,
-			u.avatar_path,
-			u.status,
-			u.role,
-			u.security_version,
-			u.disabled_at,
-			u.created_at,
-			u.updated_at,
-			c.password_hash,
-			c.password_changed_at
-		FROM users u
-		INNER JOIN credentials c ON c.user_id = u.id
-		WHERE u.username = ? COLLATE NOCASE OR u.email = ? COLLATE NOCASE
-		ORDER BY u.id
-		LIMIT 1`,
-		trimmed,
-		strings.ToLower(trimmed),
-	)
+	return repository.GetAuthRecordByIdentifier(ctx, identifier)
 }
 
 func (s *Service) UpdateProfile(ctx context.Context, userID int64, username string, email *string) (User, error) {
-	if s == nil || s.db == nil {
-		return User{}, errors.New("identity: nil service")
-	}
-
-	result, err := s.db.ExecContext(
-		ctx,
-		`UPDATE users
-		SET username = ?, email = ?, updated_at = ?
-		WHERE id = ?`,
-		normalizeUsername(username),
-		normalizeEmailPointer(email),
-		time.Now().UTC().Unix(),
-		userID,
-	)
+	repository, err := s.requireRepository()
 	if err != nil {
-		return User{}, mapWriteError(err)
+		return User{}, err
 	}
-	if affectedErr := ensureRowsAffected(result); affectedErr != nil {
-		return User{}, affectedErr
-	}
-
-	return s.GetUserByID(ctx, userID)
+	return repository.UpdateProfile(ctx, userID, normalizeUsername(username), normalizeEmailPointer(email))
 }
 
 func (s *Service) UpdateAvatar(ctx context.Context, userID int64, avatarPath *string) (User, error) {
-	if s == nil || s.db == nil {
-		return User{}, errors.New("identity: nil service")
-	}
-
-	result, err := s.db.ExecContext(
-		ctx,
-		`UPDATE users
-		SET avatar_path = ?, updated_at = ?
-		WHERE id = ?`,
-		avatarPath,
-		time.Now().UTC().Unix(),
-		userID,
-	)
+	repository, err := s.requireRepository()
 	if err != nil {
-		return User{}, fmt.Errorf("identity: update avatar: %w", err)
+		return User{}, err
 	}
-	if affectedErr := ensureRowsAffected(result); affectedErr != nil {
-		return User{}, affectedErr
-	}
-
-	return s.GetUserByID(ctx, userID)
+	return repository.UpdateAvatar(ctx, userID, avatarPath)
 }
 
 func (s *Service) UpdateManagedUser(ctx context.Context, userID int64, params UpdateManagedUserParams) (User, error) {
-	if s == nil || s.db == nil {
-		return User{}, errors.New("identity: nil service")
+	repository, err := s.requireRepository()
+	if err != nil {
+		return User{}, err
 	}
-
-	if _, err := s.GetUserByID(ctx, userID); err != nil {
+	if _, err := repository.GetUserByID(ctx, userID); err != nil {
 		return User{}, err
 	}
 
-	var updated User
-	err := database.WithTx(ctx, s.db, func(tx *sql.Tx) error {
-		now := time.Now().UTC()
-		result, err := tx.ExecContext(
-			ctx,
-			`UPDATE users
-			SET username = ?, email = ?, updated_at = ?
-			WHERE id = ?`,
-			normalizeUsername(params.Username),
-			normalizeEmailPointer(params.Email),
-			now.Unix(),
-			userID,
-		)
-		if err != nil {
-			return mapWriteError(err)
-		}
-		if affectedErr := ensureRowsAffected(result); affectedErr != nil {
-			return affectedErr
-		}
+	params.Username = normalizeUsername(params.Username)
+	params.Email = normalizeEmailPointer(params.Email)
+	return repository.UpdateManagedUser(ctx, userID, params)
+}
 
-		updated, err = s.getUserQuerier(ctx, tx, userID)
-		return err
-	})
+func (s *Service) SetUserStatus(ctx context.Context, userID int64, status string) (User, error) {
+	repository, err := s.requireRepository()
 	if err != nil {
 		return User{}, err
 	}
 
-	return updated, nil
-}
-
-func (s *Service) SetUserStatus(ctx context.Context, userID int64, status string) (User, error) {
-	if s == nil || s.db == nil {
-		return User{}, errors.New("identity: nil service")
-	}
-
-	current, err := s.GetUserByID(ctx, userID)
+	current, err := repository.GetUserByID(ctx, userID)
 	if err != nil {
 		return User{}, err
 	}
@@ -323,402 +195,33 @@ func (s *Service) SetUserStatus(ctx context.Context, userID int64, status string
 	if current.Status == status {
 		return current, nil
 	}
-
-	var updated User
-	err = database.WithTx(ctx, s.db, func(tx *sql.Tx) error {
-		now := time.Now().UTC()
-		var disabledAt any
-		if status == StatusDisabled {
-			disabledAt = now.Unix()
-		}
-
-		result, updateErr := tx.ExecContext(
-			ctx,
-			`UPDATE users
-			SET status = ?,
-				disabled_at = ?,
-				security_version = security_version + 1,
-				updated_at = ?
-			WHERE id = ?`,
-			status,
-			disabledAt,
-			now.Unix(),
-			userID,
-		)
-		if updateErr != nil {
-			return fmt.Errorf("identity: update status: %w", updateErr)
-		}
-		if affectedErr := ensureRowsAffected(result); affectedErr != nil {
-			return affectedErr
-		}
-
-		if revokeErr := revokeUserSessionsTx(ctx, tx, userID, "status_changed", now); revokeErr != nil {
-			return revokeErr
-		}
-
-		updated, err = s.getUserQuerier(ctx, tx, userID)
-		return err
-	})
-	if err != nil {
-		return User{}, err
-	}
-
-	return updated, nil
+	return repository.SetUserStatus(ctx, userID, status)
 }
 
 func (s *Service) DeleteUser(ctx context.Context, userID int64) error {
-	if s == nil || s.db == nil {
-		return errors.New("identity: nil service")
-	}
-
-	if _, err := s.GetUserByID(ctx, userID); err != nil {
+	repository, err := s.requireRepository()
+	if err != nil {
 		return err
 	}
-
-	return database.WithTx(ctx, s.db, func(tx *sql.Tx) error {
-		result, err := tx.ExecContext(ctx, `DELETE FROM users WHERE id = ?`, userID)
-		if err != nil {
-			return fmt.Errorf("identity: delete user: %w", err)
-		}
-		if affectedErr := ensureRowsAffected(result); affectedErr != nil {
-			return affectedErr
-		}
-		return nil
-	})
+	if _, err := repository.GetUserByID(ctx, userID); err != nil {
+		return err
+	}
+	return repository.DeleteUser(ctx, userID)
 }
 
 func (s *Service) ListUsers(ctx context.Context, params ListUsersParams) (ListUsersResult, error) {
-	if s == nil || s.db == nil {
-		return ListUsersResult{}, errors.New("identity: nil service")
-	}
-
-	params = normalizeListParams(params)
-	query := buildListUsersQuery(params)
-
-	var total int
-	if err := s.db.QueryRowContext(ctx, query.countSQL(), query.args...).Scan(&total); err != nil {
-		return ListUsersResult{}, fmt.Errorf("identity: count users: %w", err)
-	}
-
-	rows, err := s.db.QueryContext(ctx, query.listSQL(), query.listArgs(params)...)
+	repository, err := s.requireRepository()
 	if err != nil {
-		return ListUsersResult{}, fmt.Errorf("identity: list users: %w", err)
+		return ListUsersResult{}, err
 	}
-
-	items := make([]User, 0, params.PageSize)
-	for rows.Next() {
-		item, scanErr := scanUser(rows)
-		if scanErr != nil {
-			return ListUsersResult{}, errors.Join(scanErr, closeRows(rows))
-		}
-		items = append(items, item)
-	}
-	if iterErr := errors.Join(rows.Err(), closeRows(rows)); iterErr != nil {
-		return ListUsersResult{}, fmt.Errorf("identity: iterate users: %w", iterErr)
-	}
-
-	return ListUsersResult{
-		Items:    items,
-		Page:     params.Page,
-		PageSize: params.PageSize,
-		Total:    total,
-	}, nil
+	return repository.ListUsers(ctx, normalizeListParams(params))
 }
 
-func (s *Service) getUserQuerier(ctx context.Context, db database.DBTX, userID int64) (User, error) {
-	row := db.QueryRowContext(
-		ctx,
-		`SELECT
-			u.id,
-			u.username,
-			u.email,
-			u.avatar_path,
-			u.status,
-			u.role,
-			u.security_version,
-			u.disabled_at,
-			(SELECT MAX(s.last_used_at) FROM auth_sessions s WHERE s.user_id = u.id) AS last_active_at,
-			u.created_at,
-			u.updated_at
-		FROM users u
-		WHERE u.id = ?`,
-		userID,
-	)
-	return scanUser(row)
-}
-
-func getAuthRecord(ctx context.Context, db database.DBTX, query string, args ...any) (AuthRecord, error) {
-	var record AuthRecord
-	var email sql.NullString
-	var avatarPath sql.NullString
-	var disabledAt sql.NullInt64
-	var passwordChangedAt sql.NullInt64
-	var createdAt int64
-	var updatedAt int64
-
-	err := db.QueryRowContext(ctx, query, args...).Scan(
-		&record.ID,
-		&record.Username,
-		&email,
-		&avatarPath,
-		&record.Status,
-		&record.Role,
-		&record.SecurityVersion,
-		&disabledAt,
-		&createdAt,
-		&updatedAt,
-		&record.PasswordHash,
-		&passwordChangedAt,
-	)
-	if errors.Is(err, sql.ErrNoRows) {
-		return AuthRecord{}, ErrUserNotFound
+func (s *Service) requireRepository() (Repository, error) {
+	if s == nil || s.repository == nil {
+		return nil, errors.New("identity: nil service")
 	}
-	if err != nil {
-		return AuthRecord{}, fmt.Errorf("identity: get auth record: %w", err)
-	}
-
-	record.Email = nullableStringPointer(email)
-	record.AvatarPath = nullableStringPointer(avatarPath)
-	record.DisabledAt = nullableUnixTimePointer(disabledAt)
-	record.PasswordChangedAt = nullableUnixTimePointer(passwordChangedAt)
-	record.CreatedAt = time.Unix(createdAt, 0).UTC()
-	record.UpdatedAt = time.Unix(updatedAt, 0).UTC()
-	return record, nil
-}
-
-func userIDSelectQuery() string {
-	return `SELECT
-		u.id,
-		u.username,
-		u.email,
-		u.avatar_path,
-		u.status,
-		u.role,
-		u.security_version,
-		u.disabled_at,
-		u.created_at,
-		u.updated_at,
-		c.password_hash,
-		c.password_changed_at
-	FROM users u
-	INNER JOIN credentials c ON c.user_id = u.id
-	WHERE u.id = ?`
-}
-
-func scanUser(scanner interface{ Scan(dest ...any) error }) (User, error) {
-	var user User
-	var email sql.NullString
-	var avatarPath sql.NullString
-	var disabledAt sql.NullInt64
-	var lastActiveAt sql.NullInt64
-	var createdAt int64
-	var updatedAt int64
-
-	err := scanner.Scan(
-		&user.ID,
-		&user.Username,
-		&email,
-		&avatarPath,
-		&user.Status,
-		&user.Role,
-		&user.SecurityVersion,
-		&disabledAt,
-		&lastActiveAt,
-		&createdAt,
-		&updatedAt,
-	)
-	if errors.Is(err, sql.ErrNoRows) {
-		return User{}, ErrUserNotFound
-	}
-	if err != nil {
-		return User{}, fmt.Errorf("identity: scan user: %w", err)
-	}
-
-	user.Email = nullableStringPointer(email)
-	user.AvatarPath = nullableStringPointer(avatarPath)
-	user.DisabledAt = nullableUnixTimePointer(disabledAt)
-	user.LastActiveAt = nullableUnixTimePointer(lastActiveAt)
-	user.CreatedAt = time.Unix(createdAt, 0).UTC()
-	user.UpdatedAt = time.Unix(updatedAt, 0).UTC()
-	return user, nil
-}
-
-func revokeUserSessionsTx(ctx context.Context, tx *sql.Tx, userID int64, reason string, now time.Time) error {
-	if _, err := tx.ExecContext(
-		ctx,
-		`UPDATE auth_sessions
-		SET revoked_at = COALESCE(revoked_at, ?),
-			revoke_reason = COALESCE(revoke_reason, ?)
-		WHERE user_id = ? AND revoked_at IS NULL`,
-		now.Unix(),
-		strings.TrimSpace(reason),
-		userID,
-	); err != nil {
-		return fmt.Errorf("identity: revoke sessions: %w", err)
-	}
-	return nil
-}
-
-type listUsersQuery struct {
-	whereSQL string
-	args     []any
-}
-
-func buildListUsersQuery(params ListUsersParams) listUsersQuery {
-	query := listUsersQuery{args: make([]any, 0, 3)}
-	query.addSearchFilter(params.Query)
-	query.addStatusFilter(params.Status)
-	return query
-}
-
-func (q *listUsersQuery) addSearchFilter(value string) {
-	if value == "" {
-		return
-	}
-	pattern := "%" + value + "%"
-	q.appendWhere("(u.username LIKE ? COLLATE NOCASE OR u.email LIKE ? COLLATE NOCASE)", pattern, pattern)
-}
-
-func (q *listUsersQuery) addStatusFilter(value string) {
-	if value == "" {
-		return
-	}
-	q.appendWhere("u.status = ?", value)
-}
-
-func (q *listUsersQuery) appendWhere(clause string, args ...any) {
-	if q.whereSQL == "" {
-		q.whereSQL = " WHERE " + clause
-	} else {
-		q.whereSQL += " AND " + clause
-	}
-	q.args = append(q.args, args...)
-}
-
-func (q listUsersQuery) countSQL() string {
-	switch q.whereSQL {
-	case "":
-		return listUsersCountSQL
-	case " WHERE (u.username LIKE ? COLLATE NOCASE OR u.email LIKE ? COLLATE NOCASE)":
-		return listUsersCountSQLSearch
-	case " WHERE u.status = ?":
-		return listUsersCountSQLStatus
-	case " WHERE (u.username LIKE ? COLLATE NOCASE OR u.email LIKE ? COLLATE NOCASE) AND u.status = ?":
-		return listUsersCountSQLSearchStatus
-	default:
-		panic("identity: unsupported list users count filter")
-	}
-}
-
-func (q listUsersQuery) listSQL() string {
-	switch q.whereSQL {
-	case "":
-		return listUsersSQL
-	case " WHERE (u.username LIKE ? COLLATE NOCASE OR u.email LIKE ? COLLATE NOCASE)":
-		return listUsersSQLSearch
-	case " WHERE u.status = ?":
-		return listUsersSQLStatus
-	case " WHERE (u.username LIKE ? COLLATE NOCASE OR u.email LIKE ? COLLATE NOCASE) AND u.status = ?":
-		return listUsersSQLSearchStatus
-	default:
-		panic("identity: unsupported list users filter")
-	}
-}
-
-func (q listUsersQuery) listArgs(params ListUsersParams) []any {
-	args := make([]any, 0, len(q.args)+2)
-	args = append(args, q.args...)
-	args = append(args, params.PageSize, (params.Page-1)*params.PageSize)
-	return args
-}
-
-const listUsersCountSQL = `SELECT COUNT(*)
-		FROM users u`
-
-const listUsersCountSQLSearch = `SELECT COUNT(*)
-		FROM users u
-		WHERE (u.username LIKE ? COLLATE NOCASE OR u.email LIKE ? COLLATE NOCASE)`
-
-const listUsersCountSQLStatus = `SELECT COUNT(*)
-		FROM users u
-		WHERE u.status = ?`
-
-const listUsersCountSQLSearchStatus = `SELECT COUNT(*)
-		FROM users u
-		WHERE (u.username LIKE ? COLLATE NOCASE OR u.email LIKE ? COLLATE NOCASE) AND u.status = ?`
-
-const listUsersSQL = `SELECT
-			u.id,
-			u.username,
-			u.email,
-			u.avatar_path,
-			u.status,
-			u.role,
-			u.security_version,
-			u.disabled_at,
-			(SELECT MAX(s.last_used_at) FROM auth_sessions s WHERE s.user_id = u.id) AS last_active_at,
-			u.created_at,
-			u.updated_at
-		FROM users u
-		ORDER BY u.created_at DESC, u.id DESC
-		LIMIT ? OFFSET ?`
-
-const listUsersSQLSearch = `SELECT
-			u.id,
-			u.username,
-			u.email,
-			u.avatar_path,
-			u.status,
-			u.role,
-			u.security_version,
-			u.disabled_at,
-			(SELECT MAX(s.last_used_at) FROM auth_sessions s WHERE s.user_id = u.id) AS last_active_at,
-			u.created_at,
-			u.updated_at
-		FROM users u
-		WHERE (u.username LIKE ? COLLATE NOCASE OR u.email LIKE ? COLLATE NOCASE)
-		ORDER BY u.created_at DESC, u.id DESC
-		LIMIT ? OFFSET ?`
-
-const listUsersSQLStatus = `SELECT
-			u.id,
-			u.username,
-			u.email,
-			u.avatar_path,
-			u.status,
-			u.role,
-			u.security_version,
-			u.disabled_at,
-			(SELECT MAX(s.last_used_at) FROM auth_sessions s WHERE s.user_id = u.id) AS last_active_at,
-			u.created_at,
-			u.updated_at
-		FROM users u
-		WHERE u.status = ?
-		ORDER BY u.created_at DESC, u.id DESC
-		LIMIT ? OFFSET ?`
-
-const listUsersSQLSearchStatus = `SELECT
-			u.id,
-			u.username,
-			u.email,
-			u.avatar_path,
-			u.status,
-			u.role,
-			u.security_version,
-			u.disabled_at,
-			(SELECT MAX(s.last_used_at) FROM auth_sessions s WHERE s.user_id = u.id) AS last_active_at,
-			u.created_at,
-			u.updated_at
-		FROM users u
-		WHERE (u.username LIKE ? COLLATE NOCASE OR u.email LIKE ? COLLATE NOCASE) AND u.status = ?
-		ORDER BY u.created_at DESC, u.id DESC
-		LIMIT ? OFFSET ?`
-
-func closeRows(rows *sql.Rows) error {
-	if err := rows.Close(); err != nil {
-		return fmt.Errorf("identity: close user rows: %w", err)
-	}
-	return nil
+	return s.repository, nil
 }
 
 func normalizeListParams(params ListUsersParams) ListUsersParams {
@@ -771,51 +274,7 @@ func normalizeEmailPointer(email *string) *string {
 	if normalized == "" {
 		return nil
 	}
-	return new(normalized)
-}
-
-func nullableStringPointer(value sql.NullString) *string {
-	if !value.Valid {
-		return nil
-	}
-	return new(value.String)
-}
-
-func nullableUnixTimePointer(value sql.NullInt64) *time.Time {
-	if !value.Valid {
-		return nil
-	}
-	next := time.Unix(value.Int64, 0).UTC()
-	return &next
-}
-
-func ensureRowsAffected(result sql.Result) error {
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("identity: rows affected: %w", err)
-	}
-	if rowsAffected == 0 {
-		return ErrUserNotFound
-	}
-	return nil
-}
-
-func mapWriteError(err error) error {
-	if err == nil {
-		return nil
-	}
-
-	message := strings.ToLower(err.Error())
-	switch {
-	case strings.Contains(message, "unique constraint failed: users.username"):
-		return ErrUsernameTaken
-	case strings.Contains(message, "unique constraint failed: users.email"):
-		return ErrEmailTaken
-	case strings.Contains(message, "unique constraint failed: users.role"):
-		return ErrOwnerAlreadyExists
-	default:
-		return fmt.Errorf("identity: write failed: %w", err)
-	}
+	return &normalized
 }
 
 func AvatarDir(dataDir string) string {

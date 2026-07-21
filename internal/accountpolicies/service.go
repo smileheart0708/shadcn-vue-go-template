@@ -2,12 +2,8 @@ package accountpolicies
 
 import (
 	"context"
-	"database/sql"
 	"errors"
-	"fmt"
 )
-
-const singletonID = 1
 
 type Policies struct {
 	PublicRegistrationEnabled         bool `json:"publicRegistrationEnabled"`
@@ -23,73 +19,36 @@ type PublicAuthConfig struct {
 	RegistrationEnabled bool `json:"registrationEnabled"`
 }
 
-type Service struct {
-	db *sql.DB
+// Repository is the persistence seam for the singleton account policies.
+// Implementations apply partial updates atomically so independent changes do
+// not overwrite each other.
+type Repository interface {
+	GetPolicies(ctx context.Context) (Policies, error)
+	UpdatePolicies(ctx context.Context, input UpdateInput) (Policies, error)
 }
 
-func NewService(db *sql.DB) *Service {
-	return &Service{db: db}
+type Service struct {
+	repository Repository
+}
+
+func NewService(repository Repository) *Service {
+	return &Service{repository: repository}
 }
 
 func (s *Service) Get(ctx context.Context) (Policies, error) {
-	if s == nil || s.db == nil {
-		return Policies{}, errors.New("accountpolicies: nil service")
-	}
-
-	var policies Policies
-	var publicRegistrationEnabled int64
-	var selfServiceAccountDeletionEnabled int64
-
-	err := s.db.QueryRowContext(
-		ctx,
-		`SELECT
-			public_registration_enabled,
-			self_service_account_deletion_enabled
-		FROM account_policies
-		WHERE id = ?`,
-		singletonID,
-	).Scan(&publicRegistrationEnabled, &selfServiceAccountDeletionEnabled)
-	if errors.Is(err, sql.ErrNoRows) {
-		return Policies{}, fmt.Errorf("accountpolicies: policies row not found: %w", err)
-	}
-	if err != nil {
-		return Policies{}, fmt.Errorf("accountpolicies: get policies: %w", err)
-	}
-
-	policies.PublicRegistrationEnabled = publicRegistrationEnabled == 1
-	policies.SelfServiceAccountDeletionEnabled = selfServiceAccountDeletionEnabled == 1
-	return policies, nil
-}
-
-func (s *Service) Update(ctx context.Context, input UpdateInput) (Policies, error) {
-	current, err := s.Get(ctx)
+	repository, err := s.requireRepository()
 	if err != nil {
 		return Policies{}, err
 	}
+	return repository.GetPolicies(ctx)
+}
 
-	next := current
-	if input.PublicRegistrationEnabled != nil {
-		next.PublicRegistrationEnabled = *input.PublicRegistrationEnabled
-	}
-	if input.SelfServiceAccountDeletionEnabled != nil {
-		next.SelfServiceAccountDeletionEnabled = *input.SelfServiceAccountDeletionEnabled
-	}
-
-	_, err = s.db.ExecContext(
-		ctx,
-		`UPDATE account_policies
-		SET public_registration_enabled = ?,
-			self_service_account_deletion_enabled = ?
-		WHERE id = ?`,
-		boolToSQLiteInteger(next.PublicRegistrationEnabled),
-		boolToSQLiteInteger(next.SelfServiceAccountDeletionEnabled),
-		singletonID,
-	)
+func (s *Service) Update(ctx context.Context, input UpdateInput) (Policies, error) {
+	repository, err := s.requireRepository()
 	if err != nil {
-		return Policies{}, fmt.Errorf("accountpolicies: update policies: %w", err)
+		return Policies{}, err
 	}
-
-	return s.Get(ctx)
+	return repository.UpdatePolicies(ctx, input)
 }
 
 func (s *Service) PublicAuthConfig(ctx context.Context) (PublicAuthConfig, error) {
@@ -103,9 +62,9 @@ func (s *Service) PublicAuthConfig(ctx context.Context) (PublicAuthConfig, error
 	}, nil
 }
 
-func boolToSQLiteInteger(value bool) int {
-	if value {
-		return 1
+func (s *Service) requireRepository() (Repository, error) {
+	if s == nil || s.repository == nil {
+		return nil, errors.New("accountpolicies: nil service")
 	}
-	return 0
+	return s.repository, nil
 }

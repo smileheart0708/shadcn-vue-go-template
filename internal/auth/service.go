@@ -3,7 +3,6 @@ package auth
 import (
 	"context"
 	"crypto/subtle"
-	"database/sql"
 	"errors"
 	"fmt"
 	"strconv"
@@ -13,7 +12,6 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"main/internal/accountpolicies"
 	"main/internal/authorization"
-	"main/internal/database"
 	"main/internal/identity"
 )
 
@@ -36,6 +34,7 @@ var (
 	ErrRegistrationDisabled   = errors.New("auth: registration is disabled")
 	ErrPasswordTooShort       = errors.New("auth: password too short")
 	ErrCurrentPasswordInvalid = errors.New("auth: current password invalid")
+	ErrSessionNotFound        = errors.New("auth: session not found")
 )
 
 type Options struct {
@@ -54,7 +53,7 @@ type Service struct {
 	refreshIdleTTL     time.Duration
 	refreshAbsoluteTTL time.Duration
 	refreshCookieName  string
-	db                 *sql.DB
+	sessions           SessionRepository
 	identities         *identity.Service
 	authorization      *authorization.Service
 	policies           *accountpolicies.Service
@@ -97,7 +96,7 @@ type refreshClaims struct {
 	jwt.RegisteredClaims
 }
 
-type sessionRow struct {
+type Session struct {
 	ID               string
 	UserID           int64
 	RefreshTokenHash string
@@ -108,9 +107,21 @@ type sessionRow struct {
 	IdleExpiresAt    time.Time
 	RevokedAt        *time.Time
 	RevokeReason     *string
+	IP               *string
+	UserAgent        *string
 }
 
-func NewService(options Options, db *sql.DB, identities *identity.Service, authorizationService *authorization.Service, policies *accountpolicies.Service) *Service {
+// SessionRepository is the persistence seam for refresh-token state. Its
+// mutation methods own their transaction so token safety is not driver-specific.
+type SessionRepository interface {
+	CreateSession(ctx context.Context, session Session) error
+	GetSession(ctx context.Context, sessionID string) (Session, error)
+	RotateSession(ctx context.Context, sessionID string, expectedHash string, nextHash string, lastUsedAt time.Time, idleExpiresAt time.Time) (bool, error)
+	RevokeSession(ctx context.Context, sessionID string, reason string, revokedAt time.Time) error
+	UpdatePasswordAndRevokeSessions(ctx context.Context, userID int64, passwordHash string, changedAt time.Time) error
+}
+
+func NewService(options Options, sessions SessionRepository, identities *identity.Service, authorizationService *authorization.Service, policies *accountpolicies.Service) *Service {
 	if options.Issuer == "" {
 		options.Issuer = defaultIssuer
 	}
@@ -131,7 +142,7 @@ func NewService(options Options, db *sql.DB, identities *identity.Service, autho
 		refreshIdleTTL:     options.RefreshIdleTTL,
 		refreshAbsoluteTTL: options.RefreshAbsoluteTTL,
 		refreshCookieName:  ResolveRefreshCookieName(options),
-		db:                 db,
+		sessions:           sessions,
 		identities:         identities,
 		authorization:      authorizationService,
 		policies:           policies,
@@ -238,7 +249,7 @@ func (s *Service) Refresh(ctx context.Context, rawToken string, ip string, userA
 	}
 
 	session, err := s.getSessionByID(ctx, sessionID)
-	if errors.Is(err, sql.ErrNoRows) {
+	if errors.Is(err, ErrSessionNotFound) {
 		return SessionResult{}, ErrInvalidRefreshToken
 	}
 	if err != nil {
@@ -294,29 +305,11 @@ func (s *Service) Refresh(ctx context.Context, rawToken string, ip string, userA
 	nextTokenHash := hashRefreshToken(nextRefreshToken)
 	nextIdleExpiresAt := now.Add(s.refreshIdleTTL)
 
-	result, err := s.db.ExecContext(
-		ctx,
-		`UPDATE auth_sessions
-		SET refresh_token_hash = ?,
-			last_used_at = ?,
-			last_rotated_at = ?,
-			idle_expires_at = ?
-		WHERE id = ? AND refresh_token_hash = ? AND revoked_at IS NULL`,
-		nextTokenHash,
-		now.Unix(),
-		now.Unix(),
-		nextIdleExpiresAt.Unix(),
-		session.ID,
-		expectedHash,
-	)
+	rotated, err := s.rotateSession(ctx, session.ID, expectedHash, nextTokenHash, now, nextIdleExpiresAt)
 	if err != nil {
-		return SessionResult{}, fmt.Errorf("auth: rotate refresh session: %w", err)
+		return SessionResult{}, err
 	}
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return SessionResult{}, fmt.Errorf("auth: rotate refresh session rows affected: %w", err)
-	}
-	if rowsAffected == 0 {
+	if !rotated {
 		if revokeErr := s.revokeSessionByID(ctx, session.ID, "token_reuse_detected"); revokeErr != nil {
 			return SessionResult{}, revokeErr
 		}
@@ -351,7 +344,7 @@ func (s *Service) Logout(ctx context.Context, rawToken string, ip string, userAg
 	}
 
 	_, err = s.getSessionByID(ctx, sessionID)
-	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+	if err != nil && !errors.Is(err, ErrSessionNotFound) {
 		return err
 	}
 
@@ -384,47 +377,14 @@ func (s *Service) ChangePassword(ctx context.Context, actor Actor, currentPasswo
 		return err
 	}
 
-	return database.WithTx(ctx, s.db, func(tx *sql.Tx) error {
-		now := time.Now().UTC()
-		if _, updateCredentialErr := tx.ExecContext(
-			ctx,
-			`UPDATE credentials
-			SET password_hash = ?, password_changed_at = ?, updated_at = ?
-			WHERE user_id = ?`,
-			passwordHash,
-			now.Unix(),
-			now.Unix(),
-			actor.User.ID,
-		); updateCredentialErr != nil {
-			return fmt.Errorf("auth: update password credential: %w", updateCredentialErr)
-		}
-
-		if _, bumpVersionErr := tx.ExecContext(
-			ctx,
-			`UPDATE users
-			SET security_version = security_version + 1,
-				updated_at = ?
-			WHERE id = ?`,
-			now.Unix(),
-			actor.User.ID,
-		); bumpVersionErr != nil {
-			return fmt.Errorf("auth: bump security version: %w", bumpVersionErr)
-		}
-
-		if _, revokeSessionsErr := tx.ExecContext(
-			ctx,
-			`UPDATE auth_sessions
-			SET revoked_at = COALESCE(revoked_at, ?),
-				revoke_reason = COALESCE(revoke_reason, 'password_changed')
-			WHERE user_id = ? AND revoked_at IS NULL`,
-			now.Unix(),
-			actor.User.ID,
-		); revokeSessionsErr != nil {
-			return fmt.Errorf("auth: revoke sessions after password change: %w", revokeSessionsErr)
-		}
-
-		return nil
-	})
+	sessions, err := s.requireSessions()
+	if err != nil {
+		return err
+	}
+	if err := sessions.UpdatePasswordAndRevokeSessions(ctx, actor.User.ID, passwordHash, time.Now().UTC()); err != nil {
+		return fmt.Errorf("auth: change password: %w", err)
+	}
+	return nil
 }
 
 func (s *Service) IssueSessionForUser(ctx context.Context, user identity.User, ip string, userAgent string) (SessionResult, error) {
@@ -443,33 +403,22 @@ func (s *Service) IssueSessionForUser(ctx context.Context, user identity.User, i
 	}
 
 	refreshToken := composeRefreshToken(sessionID, sessionSecret)
-	if _, insertSessionErr := s.db.ExecContext(
-		ctx,
-		`INSERT INTO auth_sessions (
-			id,
-			user_id,
-			refresh_token_hash,
-			created_at,
-			last_used_at,
-			last_rotated_at,
-			expires_at,
-			idle_expires_at,
-			revoked_at,
-			revoke_reason,
-			ip,
-			user_agent
-		) VALUES (?, ?, ?, ?, ?, NULL, ?, ?, NULL, NULL, ?, ?)`,
-		sessionID,
-		user.ID,
-		hashRefreshToken(refreshToken),
-		now.Unix(),
-		now.Unix(),
-		now.Add(s.refreshAbsoluteTTL).Unix(),
-		now.Add(s.refreshIdleTTL).Unix(),
-		stringPointerOrNil(ip),
-		stringPointerOrNil(userAgent),
-	); insertSessionErr != nil {
-		return SessionResult{}, fmt.Errorf("auth: create refresh session: %w", insertSessionErr)
+	sessions, err := s.requireSessions()
+	if err != nil {
+		return SessionResult{}, err
+	}
+	if err := sessions.CreateSession(ctx, Session{
+		ID:               sessionID,
+		UserID:           user.ID,
+		RefreshTokenHash: hashRefreshToken(refreshToken),
+		CreatedAt:        now,
+		LastUsedAt:       now,
+		ExpiresAt:        now.Add(s.refreshAbsoluteTTL),
+		IdleExpiresAt:    now.Add(s.refreshIdleTTL),
+		IP:               stringPointerOrNil(ip),
+		UserAgent:        stringPointerOrNil(userAgent),
+	}); err != nil {
+		return SessionResult{}, fmt.Errorf("auth: create refresh session: %w", err)
 	}
 
 	accessToken, expiresAt, err := s.issueAccessToken(user, sessionID)
@@ -596,81 +545,42 @@ func (s *Service) issueAccessToken(user identity.User, sessionID string) (string
 	return encoded, expiresAt, nil
 }
 
-func (s *Service) getSessionByID(ctx context.Context, sessionID string) (sessionRow, error) {
-	var session sessionRow
-	var createdAt int64
-	var lastUsedAt int64
-	var lastRotatedAt sql.NullInt64
-	var expiresAt int64
-	var idleExpiresAt int64
-	var revokedAt sql.NullInt64
-	var revokeReason sql.NullString
-
-	err := s.db.QueryRowContext(
-		ctx,
-		`SELECT
-			id,
-			user_id,
-			refresh_token_hash,
-			created_at,
-			last_used_at,
-			last_rotated_at,
-			expires_at,
-			idle_expires_at,
-			revoked_at,
-			revoke_reason
-		FROM auth_sessions
-		WHERE id = ?`,
-		sessionID,
-	).Scan(
-		&session.ID,
-		&session.UserID,
-		&session.RefreshTokenHash,
-		&createdAt,
-		&lastUsedAt,
-		&lastRotatedAt,
-		&expiresAt,
-		&idleExpiresAt,
-		&revokedAt,
-		&revokeReason,
-	)
+func (s *Service) getSessionByID(ctx context.Context, sessionID string) (Session, error) {
+	sessions, err := s.requireSessions()
 	if err != nil {
-		return sessionRow{}, err
+		return Session{}, err
 	}
+	return sessions.GetSession(ctx, sessionID)
+}
 
-	session.CreatedAt = time.Unix(createdAt, 0).UTC()
-	session.LastUsedAt = time.Unix(lastUsedAt, 0).UTC()
-	if lastRotatedAt.Valid {
-		next := time.Unix(lastRotatedAt.Int64, 0).UTC()
-		session.LastRotatedAt = &next
+func (s *Service) rotateSession(ctx context.Context, sessionID string, expectedHash string, nextHash string, now time.Time, idleExpiresAt time.Time) (bool, error) {
+	sessions, err := s.requireSessions()
+	if err != nil {
+		return false, err
 	}
-	session.ExpiresAt = time.Unix(expiresAt, 0).UTC()
-	session.IdleExpiresAt = time.Unix(idleExpiresAt, 0).UTC()
-	if revokedAt.Valid {
-		next := time.Unix(revokedAt.Int64, 0).UTC()
-		session.RevokedAt = &next
+	rotated, err := sessions.RotateSession(ctx, sessionID, expectedHash, nextHash, now, idleExpiresAt)
+	if err != nil {
+		return false, fmt.Errorf("auth: rotate refresh session: %w", err)
 	}
-	if revokeReason.Valid {
-		session.RevokeReason = &revokeReason.String
-	}
-	return session, nil
+	return rotated, nil
 }
 
 func (s *Service) revokeSessionByID(ctx context.Context, sessionID string, reason string) error {
-	_, err := s.db.ExecContext(
-		ctx,
-		`UPDATE auth_sessions
-		SET revoked_at = COALESCE(revoked_at, ?),
-			revoke_reason = COALESCE(revoke_reason, ?)
-		WHERE id = ?`,
-		time.Now().UTC().Unix(),
-		strings.TrimSpace(reason),
-		sessionID,
-	)
+	sessions, err := s.requireSessions()
 	if err != nil {
+		return err
+	}
+	if err := sessions.RevokeSession(ctx, sessionID, strings.TrimSpace(reason), time.Now().UTC()); err != nil {
 		return fmt.Errorf("auth: revoke session: %w", err)
 	}
 	return nil
+}
+
+func (s *Service) requireSessions() (SessionRepository, error) {
+	if s == nil || s.sessions == nil {
+		return nil, errors.New("auth: nil service")
+	}
+	return s.sessions, nil
 }
 
 func (s *Service) revokeSessionAfterAccessTokenIssueFailure(ctx context.Context, sessionID string, issueErr error) error {

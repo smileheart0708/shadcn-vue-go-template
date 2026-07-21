@@ -422,14 +422,15 @@ func newTestContext(t *testing.T) *testContext {
 
 	dataDir := t.TempDir()
 	distDir := createTestDist(t)
-	dbContainer, err := database.Open(context.Background(), database.Options{
-		Path: filepath.Join(dataDir, "test.db"),
+	dbRuntime, err := database.Open(context.Background(), database.Config{
+		Driver: database.DriverSQLite,
+		DSN:    filepath.Join(dataDir, "test.db"),
 	})
 	if err != nil {
 		t.Fatalf("failed to open test database: %v", err)
 	}
 	t.Cleanup(func() {
-		if err := dbContainer.Close(); err != nil {
+		if err := dbRuntime.Close(); err != nil {
 			t.Fatalf("failed to close test database: %v", err)
 		}
 	})
@@ -440,16 +441,16 @@ func newTestContext(t *testing.T) *testContext {
 	})
 
 	authzService := authorization.NewService()
-	identityService := identity.NewService(dbContainer.DB())
-	policiesService := accountpolicies.NewService(dbContainer.DB())
-	setupService := setup.NewService(dbContainer.DB(), identityService)
+	identityService := identity.NewService(dbRuntime.Identity)
+	policiesService := accountpolicies.NewService(dbRuntime.AccountPolicies)
+	setupService := setup.NewService(dbRuntime.Setup)
 	authService := auth.NewService(auth.Options{
 		Issuer:             "test-suite",
 		Secret:             []byte("test-secret"),
 		TTL:                time.Hour,
 		RefreshIdleTTL:     7 * 24 * time.Hour,
 		RefreshAbsoluteTTL: 30 * 24 * time.Hour,
-	}, dbContainer.DB(), identityService, authzService, policiesService)
+	}, dbRuntime.Sessions, identityService, authzService, policiesService)
 	logger := logging.New()
 
 	handler := NewHandlerWithOptions(HandlerOptions{

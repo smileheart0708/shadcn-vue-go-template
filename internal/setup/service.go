@@ -2,15 +2,12 @@ package setup
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"strings"
 	"time"
 
 	"main/internal/auth"
-	"main/internal/authorization"
-	"main/internal/database"
 	"main/internal/identity"
 )
 
@@ -35,55 +32,38 @@ type CompleteSetupInput struct {
 	Password string
 }
 
-type Service struct {
-	db         *sql.DB
-	identities *identity.Service
+type InitialOwner struct {
+	Username     string
+	PasswordHash string
 }
 
-func NewService(db *sql.DB, identities *identity.Service) *Service {
-	return &Service{db: db, identities: identities}
+// Repository owns the transaction that creates the initial owner and marks
+// installation complete. The service must never coordinate those writes itself.
+type Repository interface {
+	GetState(ctx context.Context) (State, error)
+	CompleteInitialOwner(ctx context.Context, owner InitialOwner) (identity.User, error)
+}
+
+type Service struct {
+	repository Repository
+}
+
+func NewService(repository Repository) *Service {
+	return &Service{repository: repository}
 }
 
 func (s *Service) GetState(ctx context.Context) (State, error) {
-	if s == nil || s.db == nil {
-		return State{}, errors.New("setup: nil service")
-	}
-
-	var state State
-	var ownerUserID sql.NullInt64
-	var setupCompletedAt sql.NullInt64
-	var createdAt int64
-	var updatedAt int64
-
-	err := s.db.QueryRowContext(
-		ctx,
-		`SELECT setup_state, owner_user_id, setup_completed_at, created_at, updated_at
-		FROM install_state
-		WHERE id = 1`,
-	).Scan(&state.SetupState, &ownerUserID, &setupCompletedAt, &createdAt, &updatedAt)
-	if errors.Is(err, sql.ErrNoRows) {
-		return State{}, fmt.Errorf("setup: install state row missing: %w", err)
-	}
+	repository, err := s.requireRepository()
 	if err != nil {
-		return State{}, fmt.Errorf("setup: get install state: %w", err)
+		return State{}, err
 	}
-
-	state.SetupCompleted = state.SetupState == StateCompleted
-	if ownerUserID.Valid {
-		state.OwnerUserID = &ownerUserID.Int64
-	}
-	if setupCompletedAt.Valid {
-		next := time.Unix(setupCompletedAt.Int64, 0).UTC()
-		state.SetupCompletedAt = &next
-	}
-	state.CreatedAt = time.Unix(createdAt, 0).UTC()
-	state.UpdatedAt = time.Unix(updatedAt, 0).UTC()
-	return state, nil
+	return repository.GetState(ctx)
 }
 
 func (s *Service) Complete(ctx context.Context, input CompleteSetupInput) (identity.UserWithRoles, error) {
-	if s == nil || s.db == nil || s.identities == nil {
-		return identity.UserWithRoles{}, errors.New("setup: nil service")
+	repository, err := s.requireRepository()
+	if err != nil {
+		return identity.UserWithRoles{}, err
 	}
 
 	username := strings.TrimSpace(input.Username)
@@ -99,103 +79,15 @@ func (s *Service) Complete(ctx context.Context, input CompleteSetupInput) (ident
 	if err != nil {
 		return identity.UserWithRoles{}, fmt.Errorf("setup: hash owner password: %w", err)
 	}
-
-	var ownerUserID int64
-	err = database.WithTx(ctx, s.db, func(tx *sql.Tx) error {
-		var setupState string
-		if scanErr := tx.QueryRowContext(ctx, `SELECT setup_state FROM install_state WHERE id = 1`).Scan(&setupState); scanErr != nil {
-			return fmt.Errorf("setup: load install state: %w", scanErr)
-		}
-		if setupState == StateCompleted {
-			return ErrAlreadyCompleted
-		}
-
-		now := time.Now().UTC()
-		result, insertUserErr := tx.ExecContext(
-			ctx,
-			`INSERT INTO users (
-				username,
-				email,
-				avatar_path,
-				status,
-				role,
-				security_version,
-				disabled_at,
-				created_at,
-				updated_at
-			) VALUES (?, ?, NULL, ?, ?, 1, NULL, ?, ?)`,
-			username,
-			nil,
-			identity.StatusActive,
-			authorization.RoleOwner,
-			now.Unix(),
-			now.Unix(),
-		)
-		if insertUserErr != nil {
-			return mapIdentityWriteError(insertUserErr)
-		}
-
-		ownerUserID, err = result.LastInsertId()
-		if err != nil {
-			return fmt.Errorf("setup: read owner user id: %w", err)
-		}
-
-		if _, insertCredentialErr := tx.ExecContext(
-			ctx,
-			`INSERT INTO credentials (
-				user_id,
-				password_hash,
-				password_changed_at,
-				created_at,
-				updated_at
-			) VALUES (?, ?, ?, ?, ?)`,
-			ownerUserID,
-			passwordHash,
-			now.Unix(),
-			now.Unix(),
-			now.Unix(),
-		); insertCredentialErr != nil {
-			return fmt.Errorf("setup: insert owner credential: %w", insertCredentialErr)
-		}
-
-		if _, updateStateErr := tx.ExecContext(
-			ctx,
-			`UPDATE install_state
-			SET setup_state = ?,
-				owner_user_id = ?,
-				setup_completed_at = ?,
-				updated_at = ?
-			WHERE id = 1`,
-			StateCompleted,
-			ownerUserID,
-			now.Unix(),
-			now.Unix(),
-		); updateStateErr != nil {
-			return fmt.Errorf("setup: update install state: %w", updateStateErr)
-		}
-		return nil
+	return repository.CompleteInitialOwner(ctx, InitialOwner{
+		Username:     username,
+		PasswordHash: passwordHash,
 	})
-	if err != nil {
-		return identity.UserWithRoles{}, err
-	}
-
-	return s.identities.GetUserByID(ctx, ownerUserID)
 }
 
-func mapIdentityWriteError(err error) error {
-	switch {
-	case errors.Is(err, identity.ErrUsernameTaken),
-		errors.Is(err, identity.ErrOwnerAlreadyExists):
-		return err
+func (s *Service) requireRepository() (Repository, error) {
+	if s == nil || s.repository == nil {
+		return nil, errors.New("setup: nil service")
 	}
-
-	message := strings.ToLower(err.Error())
-	switch {
-	case strings.Contains(message, "unique constraint failed: users.username"):
-		return identity.ErrUsernameTaken
-	case strings.Contains(message, "unique constraint failed: users.role"):
-		return identity.ErrOwnerAlreadyExists
-	default:
-		return fmt.Errorf("setup: write failed: %w", err)
-	}
+	return s.repository, nil
 }

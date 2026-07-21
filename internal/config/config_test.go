@@ -13,6 +13,7 @@ func TestLoadConfigUsesJWTSecretEnvironmentVariable(t *testing.T) {
 
 	t.Setenv("DATA_DIR", dataDir)
 	t.Setenv("JWT_SECRET", "env-secret")
+	configureSQLiteDatabase(t, dataDir)
 
 	cfg, err := LoadConfig()
 	if err != nil {
@@ -37,6 +38,7 @@ func TestLoadConfigUsesPersistedJWTSecretFile(t *testing.T) {
 
 	t.Setenv("DATA_DIR", dataDir)
 	t.Setenv("JWT_SECRET", "")
+	configureSQLiteDatabase(t, dataDir)
 
 	cfg, err := LoadConfig()
 	if err != nil {
@@ -54,6 +56,7 @@ func TestLoadConfigGeneratesAndPersistsJWTSecretWhenMissing(t *testing.T) {
 
 	t.Setenv("DATA_DIR", dataDir)
 	t.Setenv("JWT_SECRET", "")
+	configureSQLiteDatabase(t, dataDir)
 
 	cfg, err := LoadConfig()
 	if err != nil {
@@ -91,4 +94,55 @@ func TestReadJWTSecretFileRejectsNonSecretFilename(t *testing.T) {
 	if _, err := readJWTSecretFile(filename); err == nil {
 		t.Fatal("expected non-JWT secret filename to be rejected")
 	}
+}
+
+func TestLoadConfigDefaultsSQLiteDatabaseDSN(t *testing.T) {
+	dataDir := t.TempDir()
+	t.Setenv("DATA_DIR", dataDir)
+	t.Setenv("JWT_SECRET", "env-secret")
+	unsetEnv(t, "DATABASE_DRIVER")
+	unsetEnv(t, "DATABASE_DSN")
+
+	cfg, err := LoadConfig()
+	if err != nil {
+		t.Fatalf("LoadConfig() error = %v", err)
+	}
+	if cfg.Database.Driver != "sqlite" {
+		t.Fatalf("Database.Driver = %q, want sqlite", cfg.Database.Driver)
+	}
+	if want := filepath.Join(dataDir, "data.db"); cfg.Database.DSN != want {
+		t.Fatalf("Database.DSN = %q, want %q", cfg.Database.DSN, want)
+	}
+}
+
+func TestLoadConfigRequiresDSNForExternalDriver(t *testing.T) {
+	t.Setenv("DATA_DIR", t.TempDir())
+	t.Setenv("JWT_SECRET", "env-secret")
+	t.Setenv("DATABASE_DRIVER", "postgres")
+	t.Setenv("DATABASE_DSN", "")
+
+	if _, err := LoadConfig(); err == nil {
+		t.Fatal("expected missing external DATABASE_DSN error")
+	}
+}
+
+func configureSQLiteDatabase(t *testing.T, dataDir string) {
+	t.Helper()
+	t.Setenv("DATABASE_DRIVER", "sqlite")
+	t.Setenv("DATABASE_DSN", filepath.Join(dataDir, "data.db"))
+}
+
+func unsetEnv(t *testing.T, name string) {
+	t.Helper()
+	previous, wasSet := os.LookupEnv(name)
+	if err := os.Unsetenv(name); err != nil {
+		t.Fatalf("Unsetenv(%q) error = %v", name, err)
+	}
+	t.Cleanup(func() {
+		if wasSet {
+			_ = os.Setenv(name, previous)
+			return
+		}
+		_ = os.Unsetenv(name)
+	})
 }
